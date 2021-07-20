@@ -15,11 +15,6 @@
 
 -- fosslight 데이터베이스 구조 내보내기
 CREATE DATABASE IF NOT EXISTS `fosslight` DEFAULT CHARACTER SET utf8mb4;
-CREATE USER 'fosslight'@'%' IDENTIFIED BY 'fosslight';
-CREATE USER 'fosslight'@'localhost' IDENTIFIED BY 'fosslight';
-GRANT ALL PRIVILEGES ON fosslight.* TO 'fosslight'@'%';
-GRANT ALL PRIVILEGES ON fosslight.* TO 'fosslight'@'localhost';
-FLUSH PRIVILEGES;
 
 USE `fosslight`;
 
@@ -2476,3 +2471,9 @@ DELETE FROM `USER_NOTICE`;
 /*!40014 SET FOREIGN_KEY_CHECKS=IFNULL(@OLD_FOREIGN_KEY_CHECKS, 1) */;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40111 SET SQL_NOTES=IFNULL(@OLD_SQL_NOTES, 1) */;
+
+CREATE USER 'fosslight'@'%' IDENTIFIED BY 'fosslight';
+CREATE USER 'fosslight'@'localhost' IDENTIFIED BY 'fosslight';
+GRANT ALL PRIVILEGES ON fosslight.* TO 'fosslight'@'%';
+GRANT ALL PRIVILEGES ON fosslight.* TO 'fosslight'@'localhost';
+FLUSH PRIVILEGES;
