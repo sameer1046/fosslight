@@ -14,6 +14,7 @@ import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.Type;
+import java.net.HttpURLConnection;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -66,7 +67,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.internal.LinkedTreeMap;
 import com.google.gson.reflect.TypeToken;
-//import com.trendmicro.tlsh.Tlsh;
 
 import lombok.extern.slf4j.Slf4j;
 import oss.fosslight.CoTopComponent;
@@ -89,6 +89,8 @@ import oss.fosslight.service.T2UserService;
 import oss.fosslight.util.DateUtil;
 import oss.fosslight.util.FileUtil;
 import oss.fosslight.util.StringUtil;
+import oss.fosslight.validation.T2CoValidationResult;
+import oss.fosslight.validation.custom.T2CoOssValidator;
 
 @Component
 @Slf4j
@@ -194,42 +196,6 @@ public class CommonFunction extends CoTopComponent {
     	return arrayToString(list.toArray(arr), null);
     }
     
-    public static String[] strToArray(String str) {
-        return strToArray(str, ",", true);
-    }
-    
-    public static String[] strToArray(String str, String deci) {
-        return strToArray(str, deci, true);
-    }
-    
-    public static String[] strToArray(String str, String deci, boolean ignoreEmpty) {
-        List<String> retList = new ArrayList<String>();
-        
-        if(!isEmpty(str)) {
-            str = str.trim();
-            
-            if(isEmpty(deci)) {
-                for(int i=0; i<str.length(); i++) {
-                    String s = new Character(str.charAt(i)).toString();
-                    if(ignoreEmpty && isEmpty(s)) {
-                        continue;
-                    }
-                    retList.add(s);
-                }
-            } else {
-                for(String s : str.split(deci)) {
-                    if(ignoreEmpty && isEmpty(s)) {
-                        continue;
-                    }
-                    retList.add(s);
-                }
-            }
-        }
-        
-        
-        return retList.toArray(new String[retList.size()]);
-    }
-    
     public static String getCurrentDateTime() {
         DateFormat df = new SimpleDateFormat("yyyyMMdd");
         return df.format(new Date());
@@ -242,8 +208,7 @@ public class CommonFunction extends CoTopComponent {
     
     public static String getCurrentDateTime(String format, String timeZone) {
         DateFormat df = new SimpleDateFormat(format);
-        // 시:분 입력으로 Asia /Seoul 설정
-        TimeZone tx=TimeZone.getTimeZone( timeZone ); // "Asia/Seoul"
+        TimeZone tx=TimeZone.getTimeZone( timeZone );
         df.setTimeZone(tx);
         return df.format(new Date());
     }
@@ -463,6 +428,14 @@ public class CommonFunction extends CoTopComponent {
 	}
 	
 	public static String makeLicenseExpression(List<OssLicense> list, boolean htmlLinkType, boolean spdxConvert) {
+		return makeLicenseExpression(list, htmlLinkType, spdxConvert, false);
+	}
+	
+	public static String makeLicenseExpressionMsgType(List<OssLicense> list, boolean msgType) {
+		return makeLicenseExpression(list, false, false, msgType);
+	}
+	
+	public static String makeLicenseExpression(List<OssLicense> list, boolean htmlLinkType, boolean spdxConvert, boolean msgType) {
 		String rtnVal = "";
 		
 		List<List<String>> licenseNameList = new ArrayList<>();
@@ -494,7 +467,11 @@ public class CommonFunction extends CoTopComponent {
 				String andStr = "";
 				for(String s : combList) {
 					if(!isEmpty(andStr)) {
-						andStr += " AND ";
+						if(msgType) { 
+							andStr += ", ";
+						} else {
+							andStr += " AND ";
+						}
 					}
 					
 					LicenseMaster licenseMaster = null;
@@ -519,11 +496,39 @@ public class CommonFunction extends CoTopComponent {
 					}
 				}
 				
-				rtnVal += licenseNameList.size() > 1 ? ( combList.size() == 1 ? andStr : ("(" + andStr + ")") ) : andStr;
+				rtnVal += licenseNameList.size() > 1 ? ( combList.size() != 1 && !msgType ? ("(" + andStr + ")") :  andStr ) : andStr;
 			}
 		}
 		
 		return rtnVal;
+	}
+	
+	public static String makeLicenseFromFiles(OssMaster _ossBean) {
+		List<String> resultList = new ArrayList<>(); // declared License
+		List<String> detectedLicenseList = _ossBean.getDetectedLicenses(); // detected License
+		
+		if (_ossBean != null) {
+			for (OssLicense license : _ossBean.getOssLicenses()) {
+				String licenseName = license.getLicenseName();
+				licenseName = avoidNull(CoCodeManager.LICENSE_INFO.get(licenseName).getShortIdentifier(), "LicenseRef-" + licenseName);
+				
+				if(!resultList.contains(licenseName)) {
+					resultList.add(licenseName);
+				}
+			}
+
+			if(detectedLicenseList != null) {
+				for(String licenseName : detectedLicenseList) {
+					licenseName = avoidNull(CoCodeManager.LICENSE_INFO.get(licenseName).getShortIdentifier(), "LicenseRef-" + licenseName);
+					
+					if(!resultList.contains(licenseName)) {
+						resultList.add(licenseName);
+					}
+				}
+			}
+		}
+		
+		return String.join(",", resultList);
 	}
 	
 	public static List<ProjectIdentification> makeLicenseExcludeYn(List<ProjectIdentification> list){
@@ -3397,6 +3402,7 @@ public class CommonFunction extends CoTopComponent {
 			userData.setGroupId(userData.getGridId()); // groupId는 user가 입력한 row의 grid Id임.
 			
 			if(CoConstDef.FLAG_YES.equals(userData.getCompleteYn()) && !isEmpty(userData.getReferenceOssId())) {
+				
 				OssAnalysis successOssInfo = ossService.getAutoAnalysisSuccessOssInfo(userData.getReferenceOssId());
 				
 				if(!isEmpty(successOssInfo.getDownloadLocationGroup())) {
@@ -3437,31 +3443,12 @@ public class CommonFunction extends CoTopComponent {
 						.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()))
 						.size();
 				
-				String copyright = bean.getOssCopyright().replaceAll("\\*\\*\\*[\\s]{0,1}", "\n");
-				String comment  = "";
-				
-				if(!isEmpty(bean.getAskalonoLicense())) {
-					   comment += " - Askalono License 분석 결과 : " + bean.getAskalonoLicense() + "\n";
-				}
-				
-				if(!isEmpty(bean.getScancodeLicense())) {
-					   comment += " - Scancode License 분석 결과 : " + bean.getScancodeLicense() + "\n";
-				}
-				
-				if(!isEmpty(bean.getNeedReviewLicenseAskalono())) {
-					   comment += " - Askalono Need Review License 분석 결과 : " + bean.getNeedReviewLicenseAskalono() + "\n";
-				}
-				
-				if(!isEmpty(bean.getNeedReviewLicenseScanode())) {
-					   comment += " - Scancode Need Review License 분석 결과 : " + bean.getNeedReviewLicenseScanode();
-				}
-				
-				if(!isEmpty(comment)) {
-					comment = "[OSS 자동분석 결과]\n" + comment;
-				}
+				String copyright = bean.getOssCopyright();
+				String comment  = bean.getComment();
 				
 				String askalonoLicense = bean.getAskalonoLicense().replaceAll("\\(\\d+\\)", "");
 				String scancodeLicense = bean.getScancodeLicense().replaceAll("\\(\\d+\\)", "");
+				
 				String duplicateNickname = bean.getOssNickname();
 				
 				if(ossNameCnt == 0 && ossVersionCnt > 0) { // ossVersion 대상
@@ -3479,7 +3466,7 @@ public class CommonFunction extends CoTopComponent {
 						, userData.getHomepage(), null, comment, bean.getResult(), "취합정보"); // 취합정보
 				OssAnalysis askalono = new OssAnalysis(userData.getGridId(), bean.getOssName(), bean.getOssVersion(), duplicateNickname
 						, askalonoLicense, null, bean.getDownloadLocation()
-						, userData.getHomepage(), null, comment, bean.getResult(), "Askalono 분석 결과"); // askalono 정보
+						, userData.getHomepage(), null, comment, bean.getResult(), "License text파일 분석 결과"); // License text 정보
 				OssAnalysis scancode = new OssAnalysis(userData.getGridId(), bean.getOssName(), bean.getOssVersion(), duplicateNickname
 						, scancodeLicense, copyright, bean.getDownloadLocation()
 						, userData.getHomepage(), null, comment, bean.getResult(), "Scancode 분석 결과"); // scancode 정보
@@ -3497,6 +3484,7 @@ public class CommonFunction extends CoTopComponent {
 						newestOssInfo = ossService.getNewestOssInfo(userData); // 사용자 정보의 ossName기준 최신 등록정보
 						newestOssInfo.setGridId(""+gridSeq++);
 						newestOssInfo.setOssVersion(userData.getOssVersion());
+						newestOssInfo.setComment(comment);
 						
 						if(userData.getOssName().toUpperCase().equals(totalAnalysis.getOssName().toUpperCase())) {
 							String newestMergeNickName = CommonFunction.mergeNickname(totalAnalysis, newestOssInfo.getOssNickname()); // 사용자 작성 정보 & 최신등록정보 nickname Merge
@@ -3539,6 +3527,7 @@ public class CommonFunction extends CoTopComponent {
 					if(totalNewestOssInfo != null) {
 						totalNewestOssInfo.setGridId(""+gridSeq++);
 						totalNewestOssInfo.setOssVersion(userData.getOssVersion());
+						totalNewestOssInfo.setComment(comment);
 						
 						String totalNewestMergeNickName = CommonFunction.mergeNickname(totalAnalysis, totalNewestOssInfo.getOssNickname()); // 사용자 작성 정보 & 최신등록정보 nickname Merge
 						
@@ -3588,7 +3577,7 @@ public class CommonFunction extends CoTopComponent {
 						log.error(newestException.getMessage());
 					}
 				}
-			}			
+			}
 		}
 		
 		getAnalysisValidation(map, changeAnalysisResultList);
@@ -3953,5 +3942,63 @@ public class CommonFunction extends CoTopComponent {
 			jdbcUrl += (jdbcUrl.contains("?") ? "&" : "?") + "autoReconnect=true";
 		}
 		return jdbcUrl;
+	}
+	
+	public static String getOssDownloadLocation(String ossName, String ossVersion) {
+		if(!isEmpty(ossName) && CoCodeManager.OSS_INFO_UPPER.containsKey( (ossName + "_" + avoidNull(ossVersion)).toUpperCase() )) {
+			return avoidNull( CoCodeManager.OSS_INFO_UPPER.get( (ossName + "_" + avoidNull(ossVersion)).toUpperCase() ).getDownloadLocation() );
+		}
+		return "";
+	}
+	
+	public static String httpCodePrint(int code){
+		String res = code + "";
+		switch(code){
+			case HttpURLConnection.HTTP_ACCEPTED: 		  res = "HTTP_ACCEPTED"; break;
+			case HttpURLConnection.HTTP_BAD_GATEWAY: 	  res = "HTTP_BAD_GATEWAY"; break;
+			case HttpURLConnection.HTTP_BAD_METHOD: 	  res = "HTTP_BAD_METHOD"; break;
+			case HttpURLConnection.HTTP_BAD_REQUEST: 	  res = "HTTP_BAD_REQUEST"; break;
+			case HttpURLConnection.HTTP_CLIENT_TIMEOUT:   res = "HTTP_CLIENT_TIMEOUT"; break;
+			case HttpURLConnection.HTTP_CONFLICT: 		  res = "HTTP_CONFLICT"; break;
+			case HttpURLConnection.HTTP_CREATED: 		  res = "HTTP_CREATED"; break;
+			case HttpURLConnection.HTTP_ENTITY_TOO_LARGE: res = "HTTP_ENTITY_TOO_LARGE"; break;
+			case HttpURLConnection.HTTP_FORBIDDEN: 		  res = "HTTP_FORBIDDEN"; break;
+			case HttpURLConnection.HTTP_GATEWAY_TIMEOUT:  res = "HTTP_GATEWAY_TIMEOUT"; break;
+			case HttpURLConnection.HTTP_GONE: 			  res = "HTTP_GONE"; break;
+			case HttpURLConnection.HTTP_INTERNAL_ERROR:   res = "HTTP_INTERNAL_ERROR"; break;
+			case HttpURLConnection.HTTP_LENGTH_REQUIRED:  res = "HTTP_LENGTH_REQUIRED"; break;
+			case HttpURLConnection.HTTP_MOVED_PERM: 	  res = "HTTP_MOVED_PERM"; break;
+			case HttpURLConnection.HTTP_MOVED_TEMP: 	  res = "HTTP_MOVED_TEMP"; break;
+			case HttpURLConnection.HTTP_MULT_CHOICE: 	  res = "HTTP_MULT_CHOICE"; break;
+			case HttpURLConnection.HTTP_NO_CONTENT: 	  res = "HTTP_NO_CONTENT"; break;
+			case HttpURLConnection.HTTP_NOT_ACCEPTABLE:   res = "HTTP_NOT_ACCEPTABLE"; break;
+			case HttpURLConnection.HTTP_NOT_AUTHORITATIVE:res = "HTTP_NOT_AUTHORITATIVE"; break;
+			case HttpURLConnection.HTTP_NOT_FOUND: 		  res = "HTTP_NOT_FOUND"; break;
+			case HttpURLConnection.HTTP_NOT_IMPLEMENTED:  res = "HTTP_NOT_IMPLEMENTED"; break;
+			case HttpURLConnection.HTTP_NOT_MODIFIED: 	  res = "HTTP_NOT_MODIFIED"; break;
+			case HttpURLConnection.HTTP_OK: 			  res = "HTTP_OK"; break;
+			case HttpURLConnection.HTTP_PARTIAL: 		  res = "HTTP_PARTIAL"; break;
+			case HttpURLConnection.HTTP_PAYMENT_REQUIRED: res = "HTTP_PAYMENT_REQUIRED"; break;
+			case HttpURLConnection.HTTP_PRECON_FAILED: 	  res = "HTTP_PRECON_FAILED"; break;
+			case HttpURLConnection.HTTP_PROXY_AUTH: 	  res = "HTTP_PROXY_AUTH"; break;
+			case HttpURLConnection.HTTP_REQ_TOO_LONG: 	  res = "HTTP_REQ_TOO_LONG"; break;
+			case HttpURLConnection.HTTP_RESET: 			  res = "HTTP_RESET"; break;
+			case HttpURLConnection.HTTP_SEE_OTHER: 		  res = "HTTP_SEE_OTHER"; break;
+			case HttpURLConnection.HTTP_UNAUTHORIZED: 	  res = "HTTP_UNAUTHORIZED"; break;
+			case HttpURLConnection.HTTP_UNAVAILABLE: 	  res = "HTTP_UNAVAILABLE"; break;
+			case HttpURLConnection.HTTP_UNSUPPORTED_TYPE: res = "HTTP_UNSUPPORTED_TYPE"; break;
+			case HttpURLConnection.HTTP_USE_PROXY: 		  res = "HTTP_USE_PROXY"; break;
+			case HttpURLConnection.HTTP_VERSION: 		  res = "HTTP_VERSION"; break;
+			default: break;	
+		}
+		return res;
+	}
+	
+	public static Object convertStringToMap (String StringMap, String key) {
+		Gson gson = CommonFunction.getGsonBuiler();
+		Type type = new TypeToken<Map<String, Object>>(){}.getType();
+		Map<String, Object> resultMap = (Map<String, Object>) gson.fromJson(StringMap , type);
+		
+		return resultMap.containsKey(key) ? resultMap.get(key) : resultMap;
 	}
 }

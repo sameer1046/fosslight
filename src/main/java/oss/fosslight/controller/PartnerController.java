@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -37,9 +38,6 @@ import oss.fosslight.CoTopComponent;
 import oss.fosslight.common.CoCodeManager;
 import oss.fosslight.common.CoConstDef;
 import oss.fosslight.common.CommonFunction;
-import oss.fosslight.common.T2CoProjectValidator;
-import oss.fosslight.common.T2CoValidationConfig;
-import oss.fosslight.common.T2CoValidationResult;
 import oss.fosslight.common.Url.PARTNER;
 import oss.fosslight.domain.CoMail;
 import oss.fosslight.domain.CoMailManager;
@@ -60,6 +58,9 @@ import oss.fosslight.service.PartnerService;
 import oss.fosslight.service.ProjectService;
 import oss.fosslight.service.T2UserService;
 import oss.fosslight.util.ExcelUtil;
+import oss.fosslight.validation.T2CoValidationConfig;
+import oss.fosslight.validation.T2CoValidationResult;
+import oss.fosslight.validation.custom.T2CoProjectValidator;
 
 
 @Controller
@@ -80,6 +81,21 @@ public class PartnerController extends CoTopComponent{
 	
 	/** The env. */
 	@Resource private Environment env;
+	
+	/** The resource public upload excel path prefix. */
+	private String RESOURCE_PUBLIC_UPLOAD_EXCEL_PATH_PREFIX;
+	
+	/** The resource public excel template path prefix. */
+	private String RESOURCE_PUBLIC_EXCEL_TEMPLATE_PATH_PREFIX;
+	
+	/**
+	 * Sets the resource path prefix.
+	 */
+	@PostConstruct
+	public void setResourcePathPrefix(){
+		RESOURCE_PUBLIC_UPLOAD_EXCEL_PATH_PREFIX = CommonFunction.emptyCheckProperty("upload.path", "/upload");
+		RESOURCE_PUBLIC_EXCEL_TEMPLATE_PATH_PREFIX = CommonFunction.emptyCheckProperty("export.template.path", "/template");
+	}
 	
 	@GetMapping(value=PARTNER.LIST, produces = "text/html; charset=utf-8")
 	public String list(HttpServletRequest req, HttpServletResponse res, Model model){
@@ -103,6 +119,7 @@ public class PartnerController extends CoTopComponent{
 				
 				if(ossBean != null) {
 					searchBean.setOssName(ossBean.getOssName());
+					searchBean.setOssVersion(ossBean.getOssVersion());
 				}
 			}
 		} else {
@@ -126,6 +143,7 @@ public class PartnerController extends CoTopComponent{
 	public String edit(HttpServletRequest req, HttpServletResponse res, Model model) throws Exception{
 		model.addAttribute("projectFlag", CommonFunction.propertyFlagCheck("menu.project.use.flag", CoConstDef.FLAG_YES));
 		model.addAttribute("batFlag", CommonFunction.propertyFlagCheck("menu.bat.use.flag", CoConstDef.FLAG_YES));
+		model.addAttribute("autoAnalysisFlag", CommonFunction.propertyFlagCheck("autoanalysis.use.flag", CoConstDef.FLAG_YES));
 		
 		return PARTNER.EDIT_JSP;
 	}
@@ -160,6 +178,7 @@ public class PartnerController extends CoTopComponent{
 		model.addAttribute("projectFlag", CommonFunction.propertyFlagCheck("menu.project.use.flag", CoConstDef.FLAG_YES));
 		model.addAttribute("batFlag", CommonFunction.propertyFlagCheck("menu.bat.use.flag", CoConstDef.FLAG_YES));
 		model.addAttribute("checkFlag", CommonFunction.propertyFlagCheck("checkFlag", CoConstDef.FLAG_YES));
+		model.addAttribute("autoAnalysisFlag", CommonFunction.propertyFlagCheck("autoanalysis.use.flag", CoConstDef.FLAG_YES));
 		
 		return PARTNER.EDIT_JSP;
 	}
@@ -190,6 +209,7 @@ public class PartnerController extends CoTopComponent{
 		
 		if("search".equals(req.getParameter("act"))){
 			// 검색 조건 저장
+			// save search condition
 			putSessionObject(SESSION_KEY_SEARCH, partnerMaster);
 		}else if(getSessionObject(SESSION_KEY_SEARCH) != null){
 			partnerMaster = (PartnerMaster) getSessionObject(SESSION_KEY_SEARCH);
@@ -337,16 +357,17 @@ public class PartnerController extends CoTopComponent{
 
 	        
 			retMap.put("isValid", "false");
-			retMap.put("resCd", "99");//중복
+			retMap.put("resCd", "99"); // overlap flag
 			retMap.put("dupData", dupMap);
 			return makeJsonResponseHeader(retMap);
 		}
 				
 		String mainGrid = partnerMaster.getOssComponentsStr();
-		//메인그리드
+		
 		Type collectionType = new TypeToken<List<ProjectIdentification>>() {}.getType();
 		List<ProjectIdentification> ossComponents = new ArrayList<ProjectIdentification>();
 		// ossVersion N/A => "" 치환 / 3rd Party > e2fsprogs를 Row에 추가 시 Save 불가
+		// ossVersion N/A => "" replace / 3rd Party > cannot save when adding e2fsprogs to row
 		ossComponents = CommonFunction.replaceOssVersionNA((List<ProjectIdentification>) fromJson(mainGrid, collectionType));
 		
 		List<List<ProjectIdentification>> ossComponentsLicense = CommonFunction.setOssComponentLicense(ossComponents);
@@ -355,7 +376,7 @@ public class PartnerController extends CoTopComponent{
 				CommonFunction.makeSessionKey(loginUserName(),CoConstDef.CD_DTL_COMPONENT_PARTNER, partnerMaster.getPartnerId()), ossComponents, ossComponentsLicense,
 				CommonFunction.makeSessionReportKey(loginUserName(),CoConstDef.CD_DTL_COMPONENT_PARTNER, partnerMaster.getPartnerId()));
 		
-		T2CoProjectValidator pv = new T2CoProjectValidator(); // validation을 t2coProject를 탐.
+		T2CoProjectValidator pv = new T2CoProjectValidator(); // validation proceeded with t2coProject
 		pv.setIgnore("OSS_NAME");
 		pv.setIgnore("OSS_VERSION");
 		pv.setProcType(pv.PROC_TYPE_IDENTIFICATION_PARTNER);
@@ -398,7 +419,7 @@ public class PartnerController extends CoTopComponent{
 		if("10".equals(resCd) && !isEmpty(partnerMaster.getPartnerId())) {
 			String prjId = partnerMaster.getPartnerId();
 			
-			// invate mail 발송
+			// send invate mail
 			if(isNew) {
 				List<String> partnerInvateWatcherList = partnerService.getInvateWatcherList(prjId);
 				
@@ -419,6 +440,7 @@ public class PartnerController extends CoTopComponent{
 			}
 			
 			// 분석 결과어 업로시 nickname 변경된 사항
+			// In the case of nickname is changed when uploading to analysis result
 			try {
 				if (getSessionObject(CommonFunction.makeSessionKey(loginUserName(),
 						CoConstDef.SESSION_KEY_UPLOAD_REPORT_CHANGEDLICENSE, partnerMaster.getOssFileId())) != null) {
@@ -825,13 +847,13 @@ public class PartnerController extends CoTopComponent{
 			}
 		}
 		
-		//sheet이름 
+		// sheet name
 		List<Object> sheetNameList = null;
 		
 		try {
 			if(CoConstDef.FLAG_YES.equals(excel)){
 				if(list != null && !list.isEmpty() && CoCodeManager.getCodeExpString(CoConstDef.CD_FILE_ACCEPT, "22").contains(list.get(0).getFileExt())) {
-					sheetNameList = ExcelUtil.getSheetNames(list, CommonFunction.emptyCheckProperty("upload.path", "/upload"));
+					sheetNameList = ExcelUtil.getSheetNames(list, RESOURCE_PUBLIC_UPLOAD_EXCEL_PATH_PREFIX);
 				}
 			}	
 		} catch(Exception e) {
@@ -859,11 +881,11 @@ public class PartnerController extends CoTopComponent{
 	@PostMapping(value = PARTNER.DOCUMENT_FILE)
 	public String documentsFile(T2File file, MultipartHttpServletRequest req, HttpServletRequest request,
 			HttpServletResponse res, Model model) throws Exception {
-		// 파일등록
+		// file registration
 		List<UploadFile> list = new ArrayList<UploadFile>();
 		String fileId = req.getParameter("registFileId");
 		
-		// 파일 등록
+		// file registration
 		try {
 			if (req.getContentType() != null
 					&& req.getContentType().toLowerCase().indexOf("multipart/form-data") > -1) {
@@ -879,6 +901,7 @@ public class PartnerController extends CoTopComponent{
 		}
 
 		// 결과값 resultList에 담기
+		// Put the result value in resultList
 		return toJson(list);
 	}
 	
@@ -1003,11 +1026,26 @@ public class PartnerController extends CoTopComponent{
 			HttpServletResponse res, Model model) throws Exception{
 		String fileName = req.getParameter("fileName");
 		String logiPath = req.getParameter("logiPath");
-		String templatePath = CommonFunction.propertyFlagCheck("checkflag", CoConstDef.FLAG_YES)
-				? CommonFunction.emptyCheckProperty("export.template.path", "/template")
-				: "template";
 				
-		return excelToResponseEntity(templatePath + logiPath, fileName);
+		return excelToResponseEntity(RESOURCE_PUBLIC_EXCEL_TEMPLATE_PATH_PREFIX + logiPath, fileName);
 	}
 	
+	
+	@PostMapping(value = PARTNER.FILTERED_LIST)
+	public @ResponseBody ResponseEntity<Object> getfilteredList(
+			PartnerMaster partnerMaster
+			, HttpServletRequest req
+			, HttpServletResponse res
+			, Model model){
+		
+		Map<String, Object> resultMap = partnerService.getPartnerValidationList(partnerMaster);
+		
+		try{
+			resultMap = partnerService.getFilterdList(resultMap);
+			
+			return makeJsonResponseHeader(resultMap);
+		}catch(Exception e){
+			return makeJsonResponseHeader(false, "filterList Error");
+		}
+	}
 }
