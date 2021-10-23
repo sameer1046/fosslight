@@ -11,7 +11,7 @@ RUN gradle build --no-daemon
 
 
 #Create the containerized app
-FROM openjdk:8-jre-alpine
+FROM openjdk:17-ea-29-oraclelinux7
 
 LABEL maintainer="FOSSLight <fosslight-dev@lge.com>"
 
