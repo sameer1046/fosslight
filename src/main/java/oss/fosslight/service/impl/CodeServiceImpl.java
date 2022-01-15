@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -52,12 +53,19 @@ public class CodeServiceImpl extends CoTopComponent implements CodeService {
 		ArrayList<T2CodeDtl> codeDetailList = codeMapper.selectCodeDetailList(vo);
 		
 		if(codeDetailList.size() > 0){
-			for(int i=0; i<codeDetailList.size(); i++){
-				codeDetailList.get(i).setCdDtlNoOrign(codeDetailList.get(i).getCdDtlNo());
+			for (T2CodeDtl t2CodeDtl : codeDetailList) {
+				if (isGithubTokenCodeDtl(t2CodeDtl)) {
+					t2CodeDtl.setCdDtlExp("");
+				}
+				t2CodeDtl.setCdDtlNoOrign(t2CodeDtl.getCdDtlNo());
 			}
 		}
 			
 		return codeDetailList;
+	}
+
+	private boolean isGithubTokenCodeDtl(T2CodeDtl t2CodeDtl) {
+		return isExternalServiceCodeNo(t2CodeDtl.getCdNo()) && isGithubTokenCodeDtlNo(t2CodeDtl.getCdDtlNo());
 	}
 
 	/**
@@ -87,16 +95,86 @@ public class CodeServiceImpl extends CoTopComponent implements CodeService {
 	@CacheEvict(value="autocompleteCache", allEntries=true)
 	@Transactional
 	public void setCodeDetails(List<T2CodeDtl> dtlList, String cdNo) throws Exception {
-		// 1. 코드 상세 전체 삭제
-		T2Code codeVo = new T2Code();
-		codeVo.setCdNo(cdNo);
-		
-		codeMapper.deleteCodeDetailAll(codeVo);
-		
-		// 2. 전체 상세 코드 재등록(추가 / 변경 / 삭제)
-		for (T2CodeDtl vo : dtlList) {
-			codeMapper.insertCodeDetail(vo);
+		// if code_no equals CD_USER_DIVISION value, after code_detail_name and detain_no check, division_no update
+		if (CoConstDef.CD_USER_DIVISION.equals(cdNo)) {
+			T2CodeDtl codeDtlVO = new T2CodeDtl();
+			codeDtlVO.setCdNo(cdNo);
+			List<T2CodeDtl> beforeCodeDetailList = codeMapper.selectCodeDetailList(codeDtlVO);
+			
+			List<T2CodeDtl> filteredCodeDetailList = beforeCodeDetailList
+							.stream()
+							.filter(before->
+									dtlList
+										.stream()
+										.filter(after->
+											(before.getCdDtlNm()).equalsIgnoreCase(after.getCdDtlNm()) && before.getUseYn().equals(after.getUseYn()) && !before.getCdDtlNo().equals(after.getCdDtlNo())).collect(Collectors.toList()).size() > 0
+									).collect(Collectors.toList());
+			
+			List<T2CodeDtl> filteredAfterCodeDetailList = dtlList
+					.stream()
+					.filter(before->
+							beforeCodeDetailList
+								.stream()
+								.filter(after->
+									(before.getCdDtlNm()).equalsIgnoreCase(after.getCdDtlNm()) && before.getUseYn().equals(after.getUseYn()) && !before.getCdDtlNo().equals(after.getCdDtlNo())).collect(Collectors.toList()).size() > 0
+							).collect(Collectors.toList());
+
+			// update division_no value of statistics_MostUsed table
+			for (T2CodeDtl cdDtl : filteredCodeDetailList) {
+				for (T2CodeDtl cdDtlAfter : filteredAfterCodeDetailList) {
+					if (cdDtl.getCdDtlNm().equalsIgnoreCase(cdDtlAfter.getCdDtlNm())) {
+						T2CodeDtl codeDtl = new T2CodeDtl();
+						codeDtl.setCdDtlNo(cdDtl.getCdDtlNo());
+						codeDtl.setCdDtlNoNew(cdDtlAfter.getCdDtlNo());
+						codeMapper.updateStatisticsMostUsed(codeDtl);
+					}
+				}
+			}
 		}
+
+		if(isExternalServiceCodeNo(cdNo) && hasGithubTokenCodeDtl(dtlList)) {
+			// 1. 기존 github token값 보관
+			T2CodeDtl githubTokenDtl = codeMapper.getCodeDetail(cdNo, CoConstDef.CD_DTL_GITHUB_TOKEN);
+
+			// 2. 코드 상세 전체 삭제
+			T2Code codeVo = new T2Code();
+			codeVo.setCdNo(cdNo);
+
+			codeMapper.deleteCodeDetailAll(codeVo);
+
+			// 3. 전체 상세 코드 재등록(추가 / 변경 / 삭제)
+			for (T2CodeDtl codeDtl : dtlList) {
+				if(isGithubTokenCodeDtlNo(codeDtl.getCdDtlNo()) && codeDtl.getCdDtlExp().isEmpty()) {
+					codeMapper.insertCodeDetail(githubTokenDtl);
+				} else {
+					codeMapper.insertCodeDetail(codeDtl);
+				}
+			}
+		} else {
+			// 1. 코드 상세 전체 삭제
+			T2Code codeVo = new T2Code();
+			codeVo.setCdNo(cdNo);
+
+			codeMapper.deleteCodeDetailAll(codeVo);
+
+			// 2. 전체 상세 코드 재등록(추가 / 변경 / 삭제)
+			for (T2CodeDtl vo : dtlList) {
+				codeMapper.insertCodeDetail(vo);
+			}
+		}
+	}
+
+	private boolean isGithubTokenCodeDtlNo(String cdDtlNo) {
+		return cdDtlNo.equals(CoConstDef.CD_DTL_GITHUB_TOKEN);
+	}
+
+	private boolean isExternalServiceCodeNo(String cdNo) {
+		return cdNo.equals(CoConstDef.CD_EXTERNAL_SERVICE_SETTING);
+	}
+
+	private boolean hasGithubTokenCodeDtl(List<T2CodeDtl> dtlList) {
+		return dtlList.stream()
+				.anyMatch(codeDtl -> codeDtl.getCdDtlNo().equals(CoConstDef.CD_DTL_GITHUB_TOKEN));
 	}
 
 	@Override

@@ -9,13 +9,70 @@
 		LIMIT #{startIndex}, #{pageListSize}
 	</sql>
     <sql id="orderby">
-    	ORDER BY
+    	ORDER BY T1.DEACTIVATE_FLAG ASC, 
     	<if test="!@oss.fosslight.util.StringUtil@isEmpty(ossName)">
     		CASE WHEN T1.OSS_NAME = #{ossName} THEN 1 ELSE 2 END ASC,
     	</if>
     	<choose>
     		<when test="@oss.fosslight.util.StringUtil@isEmpty(sidx)"> OSS_ID desc</when>
     		<otherwise> ${sidx} ${sord}</otherwise>
+<!--   		<otherwise>
+				<choose>
+					<when test="@oss.fosslight.util.StringUtil@equals('OSS_ID',sidx)">
+						OSS_ID
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('OSS_TYPE',sidx)">
+						OSS_TYPE
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('OSS_NAME',sidx)">
+						OSS_NAME
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('OSS_VERSION',sidx)">
+						OSS_VERSION
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('LICENSE_NAME',sidx)">
+						LICENSE_NAME
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('LICENSE_TYPE',sidx)">
+						LICENSE_TYPE
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('OBLIGATION',sidx)">
+						OBLIGATION
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('DOWNLOAD_LOCATION',sidx)">
+						DOWNLOAD_LOCATION
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('HOMEPAGE',sidx)">
+						HOMEPAGE
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('SUMMARY_DESCRIPTION',sidx)">
+						SUMMARY_DESCRIPTION
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('CVSS_SCORE',sidx)">
+						CVSS_SCORE
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('CREATOR',sidx)">
+						CREATOR
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('CREATED_DATE',sidx)">
+						CREATED_DATE
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('MODIFIER',sidx)">
+						MODIFIER
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('MODIFIED_DATE',sidx)">
+						MODIFIED_DATE
+					</when>
+				</choose>
+				<choose>
+					<when test="@oss.fosslight.util.StringUtil@equals('asc', sord)">
+						ASC
+					</when>
+					<when test="@oss.fosslight.util.StringUtil@equals('desc', sord)">
+						DESC
+					</when>
+				</choose>
+			</otherwise> -->
     	</choose>
     </sql>
     
@@ -41,6 +98,7 @@
 			</if>
 			, LICENSE_TYPE
 			, OBLIGATION_TYPE
+			, DEACTIVATE_FLAG
 		)
 		VALUES
 		(
@@ -63,6 +121,7 @@
 			</if>
 			, #{licenseType}
 			, #{obligationType}
+			, #{deactivateFlag}
 		) ON DUPLICATE KEY UPDATE
 			<if test="!@oss.fosslight.util.StringUtil@isEmpty(ossId)">
 			OSS_ID						  	= #{ossId} ,
@@ -83,67 +142,38 @@
 			<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(vulnRecheck,'Y')">
 			, VULN_RECHECK					= 'Y'   
 			</if>
+			, DEACTIVATE_FLAG				= #{deactivateFlag}
 	</insert>
 	
 	<insert id="insertOssLicenseDeclared" parameterType="oss.fosslight.domain.OssMaster">
 		INSERT INTO OSS_LICENSE_DECLARED
 		(
 			OSS_ID
-			<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(licenseDiv,'M')">
 			, LICENSE_ID
 			, OSS_LICENSE_IDX
 			, OSS_LICENSE_COMB
 			, OSS_LICENSE_TEXT
 			, OSS_COPYRIGHT
-			</if>
-			<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(licenseDiv,'S')">
-			, LICENSE_ID
-			, OSS_LICENSE_IDX
-			, OSS_LICENSE_COMB
-			, OSS_COPYRIGHT
-			</if>
 		)VALUES(
 			#{ossId}
-			<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(licenseDiv,'M')">
-				,(SELECT LICENSE_ID FROM LICENSE_MASTER A 
-				  WHERE A.USE_YN = 'Y' AND  (A.LICENSE_NAME = #{licenseName}
-							  OR SHORT_IDENTIFIER = #{licenseName}
-							  OR EXISTS (SELECT 1 
-											     FROM LICENSE_NICKNAME B
-											   WHERE A.LICENSE_NAME = B.LICENSE_NAME
-												   AND B.LICENSE_NICKNAME = #{licenseName})))
-				, #{ossLicenseIdx}  
-				, #{ossLicenseComb} 
-				, #{ossLicenseText} 
-				, #{ossCopyright}
-			</if>   
-			<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(licenseDiv,'S')">
-				,(SELECT LICENSE_ID FROM LICENSE_MASTER A 
-				  WHERE A.USE_YN = 'Y' 
-				  		AND (A.LICENSE_NAME = #{licenseName}
-							  OR SHORT_IDENTIFIER = #{licenseName}
-							  OR EXISTS (SELECT 1 
-											     FROM LICENSE_NICKNAME B
-											   WHERE A.LICENSE_NAME = B.LICENSE_NAME
-												   AND B.LICENSE_NICKNAME = #{licenseName})))
-				, 1
-				, ''
-				, #{ossCopyright} 
-			</if>   
+			,(SELECT LICENSE_ID FROM LICENSE_MASTER A 
+			  WHERE A.USE_YN = 'Y' AND  (A.LICENSE_NAME = #{licenseName}
+						  OR SHORT_IDENTIFIER = #{licenseName}
+						  OR EXISTS (SELECT 1 
+										     FROM LICENSE_NICKNAME B
+										   WHERE A.LICENSE_NAME = B.LICENSE_NAME
+											   AND B.LICENSE_NICKNAME = #{licenseName})))
+			, #{ossLicenseIdx}  
+			, #{ossLicenseComb} 
+			, #{ossLicenseText} 
+			, #{ossCopyright}
 		) ON DUPLICATE KEY UPDATE
 			OSS_ID = #{ossId}
-			<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(licenseDiv,'M')">
-				, LICENSE_ID = (SELECT LICENSE_ID FROM LICENSE_MASTER WHERE USE_YN = 'Y' AND LICENSE_NAME = #{licenseName}) 	
-				, OSS_LICENSE_IDX 	= #{ossLicenseIdx}
-				, OSS_LICENSE_COMB 	= #{ossLicenseComb}
-				, OSS_LICENSE_TEXT 	= #{ossLicenseText}
-				, OSS_COPYRIGHT 	= #{ossCopyright}
-			</if>
-			<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(licenseDiv,'S')">
-				, LICENSE_ID = (SELECT LICENSE_ID FROM LICENSE_MASTER WHERE USE_YN = 'Y' AND LICENSE_NAME = #{licenseName}) 
-				, OSS_LICENSE_IDX 	= 1
-				, OSS_LICENSE_COMB 	= ''
-			</if>
+			, LICENSE_ID = (SELECT LICENSE_ID FROM LICENSE_MASTER WHERE USE_YN = 'Y' AND LICENSE_NAME = #{licenseName}) 	
+			, OSS_LICENSE_IDX 	= #{ossLicenseIdx}
+			, OSS_LICENSE_COMB 	= #{ossLicenseComb}
+			, OSS_LICENSE_TEXT 	= #{ossLicenseText}
+			, OSS_COPYRIGHT 	= #{ossCopyright}
 	</insert>
 	
 	<insert id="insertOssLicenseDetected" parameterType="oss.fosslight.domain.OssMaster">
@@ -260,6 +290,7 @@
             , SUB1.OSS_TYPE AS OSS_TYPE
 			, T4.MULTI_FLAG
 			, IFNULL((SELECT CD_DTL_NM FROM T2_CODE_DTL WHERE CD_NO= '201' AND CD_DTL_NO = T1.LICENSE_TYPE), T5.CD_DTL_NM ) AS LICENSE_TYPE
+			, T1.DEACTIVATE_FLAG
 		FROM OSS_MASTER					T1
 		INNER JOIN OSS_LICENSE_DECLARED T2 ON T1.OSS_ID = T2.OSS_ID
 		INNER JOIN LICENSE_MASTER 		T3 ON T2.LICENSE_ID = T3.LICENSE_ID AND T3.USE_YN = 'Y'
@@ -395,6 +426,30 @@
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(mEndDate)">
 			AND DATE_FORMAT(T1.MODIFIED_DATE,'%Y%m%d') <![CDATA[<=]]> #{mEndDate}
 		</if>
+		<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(deactivateFlag,'Y')">
+			AND T1.DEACTIVATE_FLAG = #{deactivateFlag}
+		</if>
+		<if test="!@oss.fosslight.util.StringUtil@isEmpty(licenseType)">
+			AND T1.LICENSE_TYPE = #{licenseType}
+		</if>
+		<if test="!@oss.fosslight.util.StringUtil@isEmpty(ossTypeSearch)">
+			AND
+			(
+				FALSE
+			<if test="@oss.fosslight.util.StringUtil@contains(ossTypeSearch, 'N')">
+				OR OSS_TYPE LIKE '000'
+			</if>
+			<if test="@oss.fosslight.util.StringUtil@contains(ossTypeSearch, 'M')">
+				OR OSS_TYPE LIKE '1__'
+			</if>
+			<if test="@oss.fosslight.util.StringUtil@contains(ossTypeSearch, 'D')">
+				OR OSS_TYPE LIKE '_1_'
+			</if>
+			<if test="@oss.fosslight.util.StringUtil@contains(ossTypeSearch, 'V')">
+				OR OSS_TYPE LIKE '__1'
+			</if>
+			)
+		</if>
 		GROUP BY T1.OSS_NAME
 		) RESULT
    	</select>
@@ -448,8 +503,8 @@
 		</choose>
 			, T1.SUMMARY_DESCRIPTION
 			, T1.ATTRIBUTION
-			, T1.CREATOR
-			, T1.MODIFIER
+			, IFNULL((SELECT USER_NAME FROM T2_USERS WHERE T1.CREATOR = USER_ID), T1.CREATOR) AS CREATOR
+			, IFNULL((SELECT USER_NAME FROM T2_USERS WHERE T1.MODIFIER = USER_ID), T1.MODIFIER) AS MODIFIER
             , T1.CVSS_SCORE      
             , T1.CVE_ID      
 			, T1.CREATED_DATE
@@ -473,6 +528,7 @@
 			, T6.OSS_NICKNAME
 			, T1.COPYRIGHT
 			, T1.ATTRIBUTION
+			, T1.DEACTIVATE_FLAG
 		FROM OSS_MASTER					T1
 		INNER JOIN OSS_LICENSE_DECLARED T2 ON T1.OSS_ID = T2.OSS_ID
 		INNER JOIN LICENSE_MASTER 		T3 ON T2.LICENSE_ID = T3.LICENSE_ID AND T3.USE_YN = 'Y'
@@ -611,6 +667,30 @@
         <if test="!@oss.fosslight.util.StringUtil@isEmpty(mEndDate)">
             AND DATE_FORMAT(T1.MODIFIED_DATE,'%Y%m%d') <![CDATA[<=]]> #{mEndDate}
         </if>
+        <if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(deactivateFlag,'Y')">
+			AND T1.DEACTIVATE_FLAG = #{deactivateFlag}
+		</if>
+		<if test="!@oss.fosslight.util.StringUtil@isEmpty(licenseType)">
+			AND T1.LICENSE_TYPE = #{licenseType}
+		</if>
+		<if test="!@oss.fosslight.util.StringUtil@isEmpty(ossTypeSearch)">
+			AND
+			(
+				FALSE
+			<if test="@oss.fosslight.util.StringUtil@contains(ossTypeSearch, 'N')">
+				OR OSS_TYPE LIKE '000'
+			</if>
+			<if test="@oss.fosslight.util.StringUtil@contains(ossTypeSearch, 'M')">
+				OR OSS_TYPE LIKE '1__'
+			</if>
+			<if test="@oss.fosslight.util.StringUtil@contains(ossTypeSearch, 'D')">
+				OR OSS_TYPE LIKE '_1_'
+			</if>
+			<if test="@oss.fosslight.util.StringUtil@contains(ossTypeSearch, 'V')">
+				OR OSS_TYPE LIKE '__1'
+			</if>
+			)
+		</if>
 		<if test="@oss.fosslight.util.StringUtil@notEquals(versionCheck,'N')">
 		GROUP BY T1.OSS_NAME
 		</if>
@@ -635,8 +715,11 @@
 			, T1.OBLIGATION_TYPE
 			, T1.COPYRIGHT
 			, T2.OSS_COPYRIGHT	
-			, SUB1.OSS_TYPE		
-		FROM 
+			, SUB1.OSS_TYPE
+			, T1.DEACTIVATE_FLAG
+			, T1.MODIFIER
+			, T1.MODIFIED_DATE
+		FROM
 			OSS_MASTER 									T1
 			LEFT OUTER JOIN OSS_LICENSE_DECLARED		T2	ON T1.OSS_ID = T2.OSS_ID AND T2.OSS_LICENSE_IDX  = 1
 			INNER JOIN (
@@ -667,8 +750,8 @@
 		</choose>
 			, T1.SUMMARY_DESCRIPTION
 			, T1.ATTRIBUTION
-			, T1.CREATOR
-			, T1.MODIFIER
+			, IFNULL((SELECT USER_NAME FROM T2_USERS WHERE T1.CREATOR = USER_ID), T1.CREATOR) AS CREATOR
+			, IFNULL((SELECT USER_NAME FROM T2_USERS WHERE T1.MODIFIER = USER_ID), T1.MODIFIER) AS MODIFIER
             , T1.CVE_ID
             , T1.CVSS_SCORE      
 			, T1.CREATED_DATE
@@ -688,6 +771,7 @@
 			, T4.CD_DTL_NM AS LICENSE_TYPE
 			, T6.OSS_NICKNAME
 			, T1.COPYRIGHT
+			, T1.DEACTIVATE_FLAG
 		FROM OSS_MASTER					T1
 		INNER JOIN OSS_LICENSE_DECLARED T2 ON T1.OSS_ID = T2.OSS_ID
 		INNER JOIN LICENSE_MASTER 		T3 ON T2.LICENSE_ID = T3.LICENSE_ID AND T3.USE_YN = 'Y'
@@ -960,6 +1044,7 @@
 			, T3.OBLIGATION_NEEDS_CHECK_YN
 			, T3.SHORT_IDENTIFIER
 			, SUB1.OSS_TYPE
+			, T1.DEACTIVATE_FLAG
 		FROM OSS_MASTER T1
 		INNER JOIN OSS_LICENSE_DECLARED T2 ON T1.OSS_ID = T2.OSS_ID
 		INNER JOIN LICENSE_MASTER T3 ON T2.LICENSE_ID = T3.LICENSE_ID AND T3.USE_YN = 'Y'
@@ -1001,6 +1086,7 @@
 			, T3.OBLIGATION_NOTIFICATION_YN
 			, T3.OBLIGATION_NEEDS_CHECK_YN
 			, T3.SHORT_IDENTIFIER
+			, T1.DEACTIVATE_FLAG
 		 FROM OSS_MASTER T1
 		INNER JOIN OSS_LICENSE_DECLARED T2 ON T1.OSS_ID = T2.OSS_ID
 		INNER JOIN LICENSE_MASTER T3 ON T2.LICENSE_ID = T3.LICENSE_ID AND T3.USE_YN = 'Y'
@@ -1122,10 +1208,13 @@
     		, OSS_VERSION = IFNULL((SELECT OSS_VERSION FROM OSS_MASTER WHERE OSS_ID=#{newOssId}), '')
     	WHERE
     		OSS_ID = #{ossId}
+    	<if test="!@oss.fosslight.util.StringUtil@isEmpty(ossMergeReferenceId)">
+    		AND REFERENCE_ID = #{ossMergeReferenceId}
+    	</if>
     		AND REFERENCE_DIV IN ('10','11','12','13','14','15')
     		AND IFNULL(EXCLUDE_YN, 'N') <![CDATA[<>]]> 'Y'
     </update>
-    
+
     <select id="checkExistsOss" parameterType="oss.fosslight.domain.OssMaster" resultType="oss.fosslight.domain.OssMaster">
     	SELECT
     		*
@@ -1239,13 +1328,19 @@
 	<select id="getOssVulnerabilityList" parameterType="oss.fosslight.domain.Vulnerability" resultType="oss.fosslight.domain.Vulnerability">
 		SELECT T1.* FROM NVD_DATA_SCORE_V3 T1
 							INNER JOIN (
-								SELECT M1.OSS_ID, M1.OSS_NAME, M1.OSS_VERSION 
+								SELECT M1.OSS_ID, M1.OSS_NAME,
+										CASE WHEN M1.OSS_VERSION IS NULL THEN '-'
+											 WHEN M1.OSS_VERSION = '' THEN '-'
+											 ELSE M1.OSS_VERSION END OSS_VERSION
 								FROM OSS_MASTER M1 
 								WHERE M1.OSS_ID = #{ossId}
 								UNION
 								SELECT M2.OSS_ID, M2.OSS_NICKNAME AS OSS_NAME, M2.OSS_VERSION 
 								FROM (
-									SELECT M21.OSS_ID, M22.OSS_NICKNAME, M21.OSS_VERSION 
+									SELECT M21.OSS_ID, M22.OSS_NICKNAME,
+											CASE WHEN M21.OSS_VERSION IS NULL THEN '-'
+												 WHEN M21.OSS_VERSION = '' THEN '-'
+											 	 ELSE M21.OSS_VERSION END OSS_VERSION
 									FROM OSS_MASTER M21 
 										INNER JOIN OSS_NICKNAME M22 ON M21.OSS_NAME = M22.OSS_NAME 
 									WHERE M21.OSS_ID = #{ossId}) M2
@@ -1438,6 +1533,7 @@
 				 FROM OSS_LICENSE_DETECTED ODT 
 				INNER JOIN LICENSE_MASTER LM ON ODT.LICENSE_ID = LM.LICENSE_ID 
 				WHERE ODT.OSS_ID = T1.OSS_ID) AS DETECTED_LICENSE
+		    , T1.DEACTIVATE_FLAG 
 		FROM OSS_MASTER T1 
 			INNER JOIN OSS_LICENSE_DECLARED T2 ON T1.OSS_ID = T2.OSS_ID
 			INNER JOIN LICENSE_MASTER T3 ON T2.LICENSE_ID = T3.LICENSE_ID
@@ -1446,29 +1542,14 @@
 		<!-- ORDER BY T1.OSS_ID, T2.OSS_LICENSE_IDX -->
 	</select>
 	<select id="getOssInfoAllWithNick" resultType="oss.fosslight.domain.OssMaster">
-		SELECT 
-			T1.OSS_ID,T4.OSS_NICKNAME AS OSS_NAME, T1.OSS_NAME AS OSS_NAME_TEMP,T1.OSS_VERSION
-			<!-- 
-			,T1.LICENSE_DIV,T1.DOWNLOAD_LOCATION
-			,(SELECT GROUP_CONCAT(D.DOWNLOAD_LOCATION SEPARATOR ',') FROM OSS_DOWNLOADLOCATION D WHERE D.OSS_ID = T1.OSS_ID ) AS DOWNLOAD_LOCATION_GROUP
-			,T1.HOMEPAGE,T1.SUMMARY_DESCRIPTION, T1.ATTRIBUTION,T1.COPYRIGHT
-			,T1.CVSS_SCORE,T1.CVE_ID,T1.VULN_YN,T1.VULN_RECHECK,T1.VULN_DATE,T1.LICENSE_TYPE,T1.OBLIGATION_TYPE
-			,T2.LICENSE_ID,T2.OSS_LICENSE_IDX,T2.OSS_LICENSE_COMB,T2.OSS_COPYRIGHT, IF(IFNULL(T3.SHORT_IDENTIFIER,'') = '',T3.LICENSE_NAME,T3.SHORT_IDENTIFIER) AS LICENSE_NAME, T3.LICENSE_TYPE AS OSS_LICENSE_TYPE
-			,(SELECT CONCAT(IF(MULTI_LICENSE_FLAG = 'N', '0', '1'), IF(DUAL_LICENSE_FLAG = 'N', '0', '1'), IF(VERSION_DIFF_FLAG = 'N', '0', '1') ) FROM OSS_MASTER_LICENSE_FLAG WHERE OSS_ID = T1.OSS_ID ) AS OSS_TYPE
-			, SUB2.MULTI_LICENSE_FLAG
-			, SUB2.DUAL_LICENSE_FLAG
-			, SUB2.VERSION_DIFF_FLAG
-			 -->
-		FROM OSS_MASTER T1
-		 <!-- 
-			INNER JOIN OSS_LICENSE_DECLARED T2 ON T1.OSS_ID = T2.OSS_ID
-			INNER JOIN LICENSE_MASTER T3 ON T2.LICENSE_ID = T3.LICENSE_ID
-			 -->
-			INNER JOIN OSS_NICKNAME T4 ON T1.OSS_NAME = T4.OSS_NAME
-			
-			<!-- LEFT OUTER JOIN OSS_MASTER_LICENSE_FLAG SUB2 ON T1.OSS_ID = SUB2.OSS_ID -->
-		WHERE T1.USE_YN = 'Y'
-		<!-- ORDER BY T1.OSS_ID, T2.OSS_LICENSE_IDX -->
+		SELECT T1.OSS_ID
+			 , T4.OSS_NICKNAME AS OSS_NAME
+			 , T1.OSS_NAME AS OSS_NAME_TEMP
+			 , T1.OSS_VERSION
+			 , T1.DEACTIVATE_FLAG
+		  FROM OSS_MASTER T1
+		 INNER JOIN OSS_NICKNAME T4 ON T1.OSS_NAME = T4.OSS_NAME
+		 WHERE T1.USE_YN = 'Y'
 	</select>
 	<select id="getOssAllNickNameList" resultType="oss.fosslight.domain.OssMaster">SELECT OSS_NAME, GROUP_CONCAT(OSS_NICKNAME) AS OSS_NICKNAME FROM OSS_NICKNAME GROUP BY OSS_NAME</select>
 	
@@ -1618,7 +1699,7 @@
 		)
 	</insert>
 	<select id="selectOssDownloadLocationList" parameterType="oss.fosslight.domain.OssMaster" resultType="oss.fosslight.domain.OssMaster">
-	SELECT * FROM OSS_DOWNLOADLOCATION WHERE OSS_ID = #{ossId} ORDER BY SORT_ORDER 
+		SELECT * FROM OSS_DOWNLOADLOCATION WHERE OSS_ID = #{ossId} ORDER BY SORT_ORDER
 	</select>
 	
 	<select id="selectOssDetectedLicenseList" parameterType="oss.fosslight.domain.OssMaster" resultType="oss.fosslight.domain.OssMaster">
@@ -1655,7 +1736,7 @@
 		       )
 		 GROUP BY OM.OSS_NAME
 	</select>
-	
+
 	<select id="checkOssNameUrl2" parameterType="oss.fosslight.domain.ProjectIdentification" resultType="oss.fosslight.domain.OssMaster">
 		SELECT GROUP_CONCAT(DISTINCT OM.OSS_NAME) AS OSS_NAME 
 		  FROM (SELECT OSS_ID, OSS_NAME, DOWNLOAD_LOCATION FROM OSS_MASTER WHERE USE_YN = 'Y') OM
@@ -1673,21 +1754,54 @@
 		UPDATE PRE_OSS_COMPONENTS 
 		   SET OSS_NAME = #{checkName} 
 		 WHERE CONCAT(REFERENCE_ID, '-', REFERENCE_DIV) = #{gridId}
-		   AND (DOWNLOAD_LOCATION = #{downloadLocation}
-		   	 	OR DOWNLOAD_LOCATION LIKE CONCAT(#{downloadLocation}, '/%'))
-		   AND OSS_NAME = #{ossName}
+		   AND COMPONENT_IDX = #{componentId}
 	</update>
-	
+
+	<update id="updateOssCheckLicenseBySelfCheck" parameterType="oss.fosslight.domain.ProjectIdentification">
+		UPDATE PRE_OSS_COMPONENTS_LICENSE OCL
+			INNER JOIN PRE_OSS_COMPONENTS OC
+		ON CONCAT(OC.REFERENCE_ID, '-', OC.REFERENCE_DIV, '-', OC.COMPONENT_IDX) = OCL.COMPONENT_ID
+			SET OCL.LICENSE_NAME = #{checkLicense}
+		WHERE CONCAT(REFERENCE_ID, '-', REFERENCE_DIV) = #{gridId}
+		  AND OC.COMPONENT_IDX = #{componentId}
+	</update>
+
+	<update id="updateOssCheckNameByPartner" parameterType="oss.fosslight.domain.ProjectIdentification">
+		UPDATE OSS_COMPONENTS
+		SET OSS_NAME = #{checkName}
+		WHERE REFERENCE_ID = #{referenceId}
+		  AND REFERENCE_DIV = #{referenceDiv}
+		  AND COMPONENT_ID = #{componentId}
+	</update>
+
+	<update id="updateOssCheckLicenseByPartner" parameterType="oss.fosslight.domain.ProjectIdentification">
+		UPDATE OSS_COMPONENTS_LICENSE OCL
+			INNER JOIN OSS_COMPONENTS OC
+		ON OCL.COMPONENT_ID = OC.COMPONENT_ID
+			SET OCL.LICENSE_NAME = #{checkLicense}
+		WHERE REFERENCE_ID = #{referenceId}
+		  AND REFERENCE_DIV = #{referenceDiv}
+		  AND OC.COMPONENT_ID = #{componentId}
+	</update>
+
 	<update id="updateOssCheckName" parameterType="oss.fosslight.domain.ProjectIdentification">
 		UPDATE OSS_COMPONENTS 
 		   SET OSS_NAME = #{checkName}
 		 WHERE REFERENCE_ID = #{refPrjId}
 		   AND REFERENCE_DIV = #{referenceDiv}
-		   AND (DOWNLOAD_LOCATION = #{downloadLocation}
-		   	 	OR DOWNLOAD_LOCATION LIKE CONCAT(#{downloadLocation}, '/%'))
-		   AND OSS_NAME = #{ossName}
+		   AND COMPONENT_ID = #{componentId}
 	</update>	
 	
+	<update id="updateOssCheckLicense" parameterType="oss.fosslight.domain.ProjectIdentification">
+		UPDATE OSS_COMPONENTS_LICENSE OCL
+			INNER JOIN OSS_COMPONENTS OC
+		ON OCL.COMPONENT_ID = OC.COMPONENT_ID
+			SET OCL.LICENSE_NAME = #{checkLicense}
+		WHERE REFERENCE_ID = #{refPrjId}
+		  AND REFERENCE_DIV = #{referenceDiv}
+		  AND OC.COMPONENT_ID = #{componentId}
+	</update>
+
 	<select id="checkOssNameCnt" parameterType="oss.fosslight.domain.ProjectIdentification" resultType="int">
 		SELECT COUNT(*) AS CNT
 		  FROM (SELECT OSS_ID, OSS_NAME, DOWNLOAD_LOCATION FROM OSS_MASTER WHERE USE_YN = 'Y') OM
@@ -1903,4 +2017,102 @@
 		    ON OL.LICENSE_ID = LM.LICENSE_ID
 		 WHERE OM.OSS_ID = #{referenceOssId}
 	</select>
+	
+	<update id="setDeactivateFlag" parameterType="oss.fosslight.domain.OssMaster">
+		UPDATE OSS_MASTER
+		   SET DEACTIVATE_FLAG = #{deactivateFlag}
+		 WHERE OSS_NAME = #{ossName}
+	</update>
+
+	<select id="getOssNameMergePartnerList" parameterType="oss.fosslight.domain.OssMaster" resultType="oss.fosslight.domain.PartnerMaster">
+		SELECT *
+		  FROM PARTNER_MASTER T1
+		 WHERE T1.STATUS = 'CONF'
+		   AND EXISTS (SELECT 1
+						 FROM OSS_COMPONENTS SUB1
+						WHERE T1.PARTNER_ID = SUB1.REFERENCE_ID
+						  AND SUB1.REFERENCE_DIV = '20'
+						  AND SUB1.OSS_NAME = #{ossName}
+						  AND SUB1.OSS_VERSION = #{ossVersion})
+	</select>
+
+	<select id="getOssNameMergeProjectList" parameterType="oss.fosslight.domain.OssMaster" resultType="oss.fosslight.domain.Project">
+		SELECT *
+		  FROM PROJECT_MASTER T1
+		 WHERE T1.USE_YN = 'Y'
+		   AND T1.IDENTIFICATION_STATUS = 'CONF'
+		   AND EXISTS (SELECT 1
+						 FROM OSS_COMPONENTS SUB1
+						WHERE T1.PRJ_ID = SUB1.REFERENCE_ID
+						  AND SUB1.REFERENCE_DIV IN ('10', '11', '12', '13', '14', '15', '50')
+						  AND SUB1.OSS_NAME = #{ossName}
+						  AND SUB1.OSS_VERSION = #{ossVersion})
+	</select>
+
+	<update id="mergeOssName" parameterType="oss.fosslight.domain.OssMaster">
+    	UPDATE
+    		OSS_COMPONENTS T1
+    	SET
+    		<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(registMergeFlag,'Y')">
+    		T1.OSS_ID = #{ossId}
+    		</if>
+    		<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(registMergeFlag,'N')">
+    		T1.OSS_ID = #{mergeOssId}
+    		</if>
+    		, T1.OSS_NAME = #{mergeOssName}
+    		, T1.OSS_VERSION = #{mergeOssVersion}
+    	WHERE
+    		<choose>
+    			<when test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(referenceDiv, '20')">
+    				T1.REFERENCE_ID IN (SELECT PARTNER_ID FROM PARTNER_MASTER WHERE USE_YN = 'Y' AND STATUS = 'CONF')
+    				AND T1.REFERENCE_DIV IN ('20')
+    				<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(registMergeFlag,'Y')">
+    				AND T1.OSS_ID = #{ossId}
+    				</if>
+    				AND T1.OSS_NAME = #{ossName}
+    				<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(registMergeFlag,'N')">
+    				AND T1.OSS_VERSION = #{ossVersion}
+    				</if>
+    			</when>
+    			<otherwise>
+    				T1.REFERENCE_ID IN (SELECT PRJ_ID FROM PROJECT_MASTER WHERE USE_YN = 'Y' AND IDENTIFICATION_STATUS = 'CONF')
+    				AND T1.REFERENCE_DIV IN ('10','11','12','13','14','15','50')
+    				<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(registMergeFlag,'Y')">
+    				AND T1.OSS_ID = #{ossId}
+    				</if>
+    				AND T1.OSS_NAME = #{ossName}
+    				<if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(registMergeFlag,'N')">
+    				AND T1.OSS_VERSION = #{ossVersion}
+    				</if>
+    			</otherwise>
+    		</choose>
+    </update>
+
+    <update id="updateOssMasterSync" parameterType="oss.fosslight.domain.OssMaster">
+    	UPDATE OSS_MASTER
+		   SET LICENSE_DIV 			= #{licenseDiv},
+		       COPYRIGHT 			= #{copyright},
+		       DOWNLOAD_LOCATION 	= #{downloadLocation},
+		       HOMEPAGE 			= #{homepage},
+		       SUMMARY_DESCRIPTION 	= #{summaryDescription},
+		       ATTRIBUTION 			= #{attribution},
+		       MODIFIED_DATE 		= now(),
+		       MODIFIER 			= #{modifier},
+		       LICENSE_TYPE 		= #{licenseType},
+		       OBLIGATION_TYPE 		= #{obligationType},
+		       DEACTIVATE_FLAG 		= #{deactivateFlag}
+		 WHERE OSS_ID = #{ossId}
+    </update>
+
+    <delete id="deleteOssLicenseDeclaredSync" parameterType="oss.fosslight.domain.OssMaster">
+    	DELETE ODC
+		  FROM OSS_LICENSE_DECLARED ODC
+		 WHERE ODC.OSS_ID = #{ossId}
+    </delete>
+
+    <delete id="deleteOssLicenseDetectedSync" parameterType="oss.fosslight.domain.OssMaster">
+    	DELETE ODT
+		  FROM OSS_LICENSE_DETECTED ODT
+		 WHERE ODT.OSS_ID = #{ossId}
+    </delete>
 </mapper>

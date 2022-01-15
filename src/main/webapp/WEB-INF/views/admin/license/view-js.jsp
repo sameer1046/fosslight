@@ -1,4 +1,5 @@
 <%@ page contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ include file="/WEB-INF/constants.jsp"%>
 <script>
 	/*
 		* data list
@@ -26,8 +27,16 @@
 			data.clone = $('.multiTxtSet').clone().html();
 			
 			if(data.detail){
-				$('#webpage a').text(data.detail.webpage);
-				$('#webpage a').attr("href",data.detail.webpage);
+				if (data.detail.webpages.length == 0){
+					$('#webpage a').text(data.detail.webpage);
+					$('#webpage a').attr("href",data.detail.webpage);
+				}else{
+					$('#webpage').empty();
+					data.detail.webpages.forEach(function(webpage){
+						$('#webpage').append('<a href="'+webpage+'" class="urlLink" target="_blank">'+webpage+'</a>')
+					});
+				}
+								
 				$('#licenseText').text(data.detail.licenseText);
 				$('#attribution').text(data.detail.attribution);
 				
@@ -59,7 +68,7 @@
 					}					
 				});
 				
-				if(data.detail.restriction != ''){
+				if(data.detail.restriction){
 					$('#restriction').append(data.detail.restriction.replace(/,/gi, ", "));
 				}
 				

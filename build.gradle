@@ -3,10 +3,12 @@ plugins {
 	id 'io.spring.dependency-management' version '1.0.8.RELEASE'
 	id 'java'
 	id 'war'
+	id 'eclipse' // optional (to generate Eclipse project files)
+	id 'idea' // optional (to generate IntelliJ IDEA project files)
 }
 
 group = 'oss.fosslight'
-version = '1.0.0'
+version = '1.2.26'
 sourceCompatibility = '1.8'
 
 configurations {
@@ -17,12 +19,24 @@ configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
 	}
+	compile {
+		exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
+	}
 }
 
 repositories {
 	mavenCentral()
 }
 
+test {
+	useJUnitPlatform()
+}
+
+processResources {
+    filesMatching('**/application.properties') {
+        expand(project.properties)
+    }
+}
 
 bootWar.enabled = true // (1)
 war.enabled = false  // (2)
@@ -36,13 +50,19 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-quartz'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'org.springframework.session:spring-session-core'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	annotationProcessor 'org.projectlombok:lombok'
 	providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	
+	testImplementation('org.springframework.boot:spring-boot-starter-test') {
+		exclude module: 'junit'
+	}
+
+	testImplementation(platform('org.junit:junit-bom:5.8.0'))
+	testImplementation('org.junit.jupiter:junit-jupiter')
+
 	implementation group: 'javax.cache', name: 'cache-api', version: '1.1.1'
 	implementation group: 'org.ehcache', name: 'ehcache', version: '3.9.2'
 	
@@ -96,6 +116,14 @@ dependencies {
 	implementation group: 'net.sf.sociaal', name: 'xmlpull-xpp3', version: '3.0.0.20130526'
 	
 	implementation group: 'io.jsonwebtoken', name: 'jjwt-api', version: '0.11.2'
+
+	implementation group: 'org.spdx', name: 'tools-java', version: '1.0.3'
+	implementation (group: 'org.spdx', name: 'spdx-rdf-store', version: '1.0.2') {
+		force = true
+	}
+
+	implementation group: 'com.navercorp.lucy', name: 'lucy-xss', version: '1.6.3'
+
 	runtime group: 'io.jsonwebtoken', name: 'jjwt-impl', version: '0.10.7'
 	runtime group: 'io.jsonwebtoken', name: 'jjwt-jackson', version: '0.10.7'
 	

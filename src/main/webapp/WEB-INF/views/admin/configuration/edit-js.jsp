@@ -1,6 +1,7 @@
 <%@ page contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
 <%@ include file="/WEB-INF/constants.jsp"%>
 <script>
+	var defaultLocale = '${sessUserInfo.defaultLocale}';
 	var defaultTab = '${sessUserInfo.defaultTab}';
 	$(document).ready(function(){
 		'use strict';
@@ -17,7 +18,13 @@
 					$("#defaultTab"+val).attr('checked', true);
 				});
 			}
-		}
+
+			if(!defaultLocale) {
+				$("#selectLang").val("1").prop("selected", true);
+			} else {
+				$("#selectLang").val(defaultLocale).prop("selected", true);
+			}
+		},
 	};
 	
 	var evt = {
@@ -25,7 +32,7 @@
 			$("#save").on('click',function(){
 				//var radioVal = $('input[name="defaultTab"]:checked').val();
 				if($('input:checkbox[name="defaultTab"]:checked').length == 0){
-					alertify.alert('<spring:message code="msg.configuration.required.selectDefaultTab" />'); 
+					alertify.alert('<spring:message code="msg.configuration.required.selectDefaultTab" />', function(){}); 
 					return false;
 				}
 				
@@ -37,13 +44,33 @@
 					}
 				});
 			});
+
+			$("#saveDefaultLocale").on('click',function(){
+				alertify.confirm('<spring:message code="msg.common.confirm.save" />', function (e) {
+					if (e) {
+						fn.updateDefaultLocale();
+					} else {
+						return false;
+					}
+				});
+			});
 		}			
 	};
 
 	var fn = {
+		updateDefaultLocale : function (){
+			$("#localeConfigurationForm").ajaxForm({
+				url :'<c:url value="/configuration/saveDefaultLocaleAjax"/>',
+				type : 'POST',
+				dataType:"json",
+				cache : false,
+				success: fn.onUpdateSuccess,
+				error : fn.onError
+			}).submit();
+		},
 		updateSubmit : function(){
 		    $("#ConfigurationForm").ajaxForm({
-	            url :'/configuration/saveAjax',
+		    	url :'<c:url value="/configuration/saveAjax"/>',
 	            type : 'POST',
 	            dataType:"json",
 	            cache : false,
@@ -71,7 +98,7 @@
 			if(fn.checkPassword(password)){
 				$.ajax({
 					type: 'POST',
-					url: '/system/user/changePassword',
+					url :'<c:url value="/system/user/changePassword"/>',
 					data: JSON.stringify({'password': password}),
 					contentType : 'application/json',
 			        success: fn.onUpdateSuccess,

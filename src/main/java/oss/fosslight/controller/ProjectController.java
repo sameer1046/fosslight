@@ -26,6 +26,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,7 +39,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.gson.reflect.TypeToken;
 
@@ -49,6 +49,7 @@ import oss.fosslight.common.CoCodeManager;
 import oss.fosslight.common.CoConstDef;
 import oss.fosslight.common.CommonFunction;
 import oss.fosslight.common.Url.PROJECT;
+import oss.fosslight.common.CustomXssFilter;
 import oss.fosslight.domain.CoMail;
 import oss.fosslight.domain.CoMailManager;
 import oss.fosslight.domain.CommentsHistory;
@@ -130,6 +131,7 @@ public class ProjectController extends CoTopComponent {
 		
 		Project searchBean = null;
 		Object _param =  getSessionObject(CoConstDef.SESSION_KEY_PREFIX_DEFAULT_SEARCHVALUE + "OSSLISTMORE", true);
+		Object _param2 =  getSessionObject(CoConstDef.SESSION_KEY_PREFIX_DEFAULT_SEARCHVALUE + "PARTNERLISTMORE", true);
 		
 		if(_param != null) {
 			String defaultSearchOssId = (String) _param;
@@ -143,6 +145,15 @@ public class ProjectController extends CoTopComponent {
 					searchBean.setOssName(ossBean.getOssName());
 					searchBean.setOssVersion(ossBean.getOssVersion());
 				}
+			}
+		} else if(_param2 != null) {
+			String defaultSearchRefPartnerId = (String) _param2;
+			searchBean = new Project();
+			
+			if(!isEmpty(defaultSearchRefPartnerId)) {
+				deleteSession(SESSION_KEY_SEARCH);
+				
+				searchBean.setRefPartnerId(defaultSearchRefPartnerId);
 			}
 		} else {
 			if (!CoConstDef.FLAG_YES.equals(req.getParameter("gnbF"))) {
@@ -175,8 +186,9 @@ public class ProjectController extends CoTopComponent {
 	public @ResponseBody ResponseEntity<Object> autoCompleteAjax(Project project, HttpServletRequest req,
 			HttpServletResponse res, Model model) {
 		project.setCreator(CommonFunction.isAdmin() ? "ADMIN" : loginUserName());
-		
-		return makeJsonResponseHeader(projectService.getProjectNameList(project));
+		List<Project> list = projectService.getProjectNameList(project);
+		CustomXssFilter.projectFilter(list);
+		return makeJsonResponseHeader(list);
 		
 	}
 	
@@ -274,7 +286,7 @@ public class ProjectController extends CoTopComponent {
 		}
 
 		Map<String, Object> map = projectService.getProjectList(project);
-
+		CustomXssFilter.projectFilter((List<Project>) map.get("rows"));
 		return makeJsonResponseHeader(map);
 	}
 	
@@ -291,6 +303,26 @@ public class ProjectController extends CoTopComponent {
 		Project project = new Project();
 		project.setNoticeType(CoConstDef.CD_GENERAL_MODEL);
 		project.setPriority(CoConstDef.CD_PRIORITY_P2);
+		
+		Object _param =  getSessionObject(CoConstDef.SESSION_KEY_PREFIX_DEFAULT_SEARCHVALUE + "PARTNER", true);
+		
+		if(_param != null) {
+			String partnerKey = (String) _param;
+			
+			if(!isEmpty(partnerKey)) {
+				deleteSession(SESSION_KEY_SEARCH);
+				
+				String[] partnerArr = partnerKey.split("\\|\\|");
+				String refPartnerId = partnerArr[0];
+				String partnerName = partnerArr[1];
+				String softwareName = partnerArr[2];
+				
+				project.setRefPartnerId(refPartnerId); // refPartnerId
+				
+				String comment = "Copied from [3rd-" + refPartnerId + "] " + partnerName + " (" + softwareName + ")";
+				project.setComment(comment);
+			}
+		}
 		
 		model.addAttribute("project", project);
 		model.addAttribute("distributionFlag", CommonFunction.propertyFlagCheck("distribution.use.flag", CoConstDef.FLAG_YES));
@@ -337,6 +369,45 @@ public class ProjectController extends CoTopComponent {
 		}
 		
 		return PROJECT.EDIT_JSP;
+	}
+	
+	@RequestMapping(value = { PROJECT.VIEW_ID }, method = { RequestMethod.GET,
+			RequestMethod.POST }, produces = "text/html; charset=utf-8")
+	public String view(@PathVariable String prjId, HttpServletRequest req, HttpServletResponse res, Model model) {
+		Project project = new Project();
+		project.setPrjId(prjId);
+		
+		try {
+			project = projectService.getProjectDetail(project);
+			
+			if(CoConstDef.FLAG_YES.equals(project.getUseYn())) {
+				CommentsHistory comHisBean = new CommentsHistory();
+				comHisBean.setReferenceDiv(CoConstDef.CD_DTL_COMMENT_PROJECT_USER);
+				comHisBean.setReferenceId(prjId);
+				
+				project.setUserComment(commentService.getUserComment(comHisBean));
+
+				model.addAttribute("project", project);
+				model.addAttribute("detail", toJson(project));
+				model.addAttribute("distributionFlag", CommonFunction.propertyFlagCheck("distribution.use.flag", CoConstDef.FLAG_YES));
+				model.addAttribute("partnerFlag", CommonFunction.propertyFlagCheck("menu.project.use.flag", CoConstDef.FLAG_YES));
+				model.addAttribute("batFlag", CommonFunction.propertyFlagCheck("menu.bat.use.flag", CoConstDef.FLAG_YES));
+				
+				if (CommonFunction.isAdmin()) {
+					List<T2Users> userList = userService.selectAllUsers();
+					
+					if (userList != null) {
+						model.addAttribute("userWithDivisionList", userList);
+					}
+				}
+			} else {
+				model.addAttribute("message", "Reqeusted URL is for a deleted Project. Please contact the creator or watcher of the project.");
+			}
+		} catch (Exception e) {
+			model.addAttribute("message", "Reqeusted URL contains Project ID that doesn't exist. Please check the Project ID again.");
+		}
+		
+		return PROJECT.VIEW_JSP;
 	}
 	
 	/**
@@ -538,7 +609,7 @@ public class ProjectController extends CoTopComponent {
 								OssComponentUtil.getInstance().makeOssComponent(addCheckList, true);
 							} catch (IllegalAccessException | InstantiationException | InvocationTargetException
 									| NoSuchMethodException e) {
-								e.printStackTrace();
+								log.error(e.getMessage());
 							}
 
 							for (OssComponents bean : addCheckList) {
@@ -1171,6 +1242,51 @@ public class ProjectController extends CoTopComponent {
 			}
 		}
 		
+		try {
+			// 1. 신규 생성 & partner id가 존재함. -> 이미 완료된 시점
+			if(isNew && !isEmpty(project.getRefPartnerId())) {
+				// 2. RefPartnerId 기준으로 OSS Component & OSS Component License Data -> Identification > 3rd Party에 copy함.
+				// 3. PROJECT_PARTNER_MAP 생성
+				// -> Identification > 3rd party save처리와 동일한 상태
+				projectService.addPartnerData(project);
+				
+				// 4. merge and save 처리
+				projectService.registBom(project.getPrjId(), CoConstDef.FLAG_YES, new ArrayList<>()); // 신규생성이기 때문에 default Data가 없음.
+				
+				// 5. validation check로 project status를 정리함.
+				ProjectIdentification identification = new ProjectIdentification();
+				identification.setReferenceId(project.getPrjId());
+				identification.setMerge(CoConstDef.FLAG_NO);
+				Map<String, Object> result = getOssComponentDataInfo(identification, CoConstDef.CD_DTL_COMPONENT_ID_BOM);
+				
+				// 6. mail & comment를 남김.(status가 정리된 내용까지 전부 포함.)
+				Project prjBean = new Project();
+				prjBean.setPrjId(project.getPrjId());
+				prjBean.setIdentificationStatus(CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REQUEST);
+				try {
+					Map<String, Object> resultMap = projectService.updateProjectStatus(project);
+					updateProjectNotification(project, resultMap);
+				} catch (Exception e) {
+					log.error(e.getMessage(), e);
+				}
+				
+				if(!result.containsKey("validData")) {
+					// review Start에서는 status말고 변경되는 정보가 없어서 우선은 pass함.					
+					prjBean.setIdentificationStatus(CoConstDef.CD_DTL_IDENTIFICATION_STATUS_CONFIRM);
+					prjBean.setIgnoreBinaryDbFlag(CoConstDef.FLAG_NO);
+					
+					try {
+						Map<String, Object> resultMap = projectService.updateProjectStatus(prjBean);
+						updateProjectNotification(prjBean, resultMap);
+					} catch (Exception e) {
+						log.error(e.getMessage(), e);
+					}
+				}
+			}
+		} catch (Exception e) {
+			log.error(e.getMessage(), e);
+		}
+		
 		return makeJsonResponseHeader(true, null, lastResult);
 	}
 	
@@ -1266,20 +1382,20 @@ public class ProjectController extends CoTopComponent {
 		List<PartnerMaster> thirdPartyList = new ArrayList<>();
 		thirdPartyList = (List<PartnerMaster>) fromJson(thirdPartyGrid, collectionType1);
 
+		Project project = new Project();
+		
 		if (CoConstDef.FLAG_NO.equals(identificationSubStatusPartner)) {
-			Project param = new Project();
-			param.setPrjId(prjId);
-			param.setReferenceDiv(CoConstDef.CD_DTL_COMPONENT_ID_PARTNER);
-			param.setIdentificationSubStatusPartner(identificationSubStatusPartner);
+			project.setPrjId(prjId);
+			project.setReferenceDiv(CoConstDef.CD_DTL_COMPONENT_ID_PARTNER);
+			project.setIdentificationSubStatusPartner(identificationSubStatusPartner);
 			
 			// 상태값 변경
-			projectService.updateSubStatus(param);
+			projectService.updateSubStatus(project);
 		} else {
 			// 서브그리드
 			projectService.registComponentsThird(prjId, identificationSubStatusPartner, ossComponents, thirdPartyList);
 			
 			try {
-				Project project = new Project();
 				project.setPrjId(prjId);
 				History h = new History();
 				h = projectService.work(project);
@@ -1288,11 +1404,11 @@ public class ProjectController extends CoTopComponent {
 				h.sethEtc(project.etcStr());
 				historyService.storeData(h);
 			} catch (Exception e) {
-				e.printStackTrace();
+				log.error(e.getMessage());
 			}
 		}
 
-		return makeJsonResponseHeader(null);
+		return makeJsonResponseHeader(true, "success", projectService.getProjectDetail(project).getIdentificationStatus());
 	}
 	
 	/**
@@ -1551,6 +1667,7 @@ public class ProjectController extends CoTopComponent {
 			resCd = "10";
 			resMap.put("isValid", String.valueOf(isValid));
 			resMap.put("resCd", resCd);
+			resMap.put("resultData", projectService.getProjectDetail(project).getIdentificationStatus());
 			
 			return makeJsonResponseHeader(resMap);
 		} catch (Exception e) {
@@ -1741,6 +1858,7 @@ public class ProjectController extends CoTopComponent {
 		resCd = "10";
 		resMap.put("isValid", String.valueOf(isValid));
 		resMap.put("resCd", resCd);
+		resMap.put("resultData", projectService.getProjectDetail(project).getIdentificationStatus());
 		
 		return makeJsonResponseHeader(resMap);
 	}
@@ -1881,12 +1999,13 @@ public class ProjectController extends CoTopComponent {
 			log.error(e.getMessage(), e);
 		}
 
+		Project prj = new Project();
+		prj.setPrjId(prjId);
+		
 		if (CoConstDef.FLAG_NO.equals(identificationSubStatusAndroid)) {
-			Project project = new Project();
-			project.setIdentificationSubStatusAndroid(identificationSubStatusAndroid);
-			project.setPrjId(prjId);
-			project.setReferenceDiv(CoConstDef.CD_DTL_COMPONENT_ID_ANDROID);
-			projectService.updateSubStatus(project);
+			prj.setIdentificationSubStatusAndroid(identificationSubStatusAndroid);
+			prj.setReferenceDiv(CoConstDef.CD_DTL_COMPONENT_ID_ANDROID);
+			projectService.updateSubStatus(prj);
 		} else {
 			T2CoProjectValidator pv = new T2CoProjectValidator();
 			pv.setProcType(pv.PROC_TYPE_IDENTIFICATION_ANDROID);
@@ -2010,6 +2129,7 @@ public class ProjectController extends CoTopComponent {
 		resCd = "10";
 		resMap.put("isValid", String.valueOf(isValid));
 		resMap.put("resCd", resCd);
+		resMap.put("resultData", projectService.getProjectDetail(prj).getIdentificationStatus());
 		
 		return makeJsonResponseHeader(resMap);
 	}
@@ -2037,10 +2157,13 @@ public class ProjectController extends CoTopComponent {
 		projectIdentification = (List<ProjectIdentification>) fromJson(gridString, collectionType);
 		projectService.registBom(prjId, merge, projectIdentification);
 
+		Map<String, String> resMap = new HashMap<>();
+		
 		try {
 			Project param = new Project();
 			param.setPrjId(prjId);
 			Project pDat = projectService.getProjectDetail(param);
+			resMap.put("identificationStatus", pDat.getIdentificationStatus());
 			History h = projectService.work(pDat);
 			h.sethAction(CoConstDef.ACTION_CODE_NEEDED);
 			historyService.storeData(h); // 메일로 보낼 데이터를 History에 저장합니다. -> h.gethData()로 확인 가능
@@ -2048,7 +2171,7 @@ public class ProjectController extends CoTopComponent {
 			log.error(e.getMessage(), e);
 		}
 		
-		return makeJsonResponseHeader(null);
+		return makeJsonResponseHeader(resMap);
 	}
 	
 	/**
@@ -2069,6 +2192,10 @@ public class ProjectController extends CoTopComponent {
 		/* 2018-07-27 choye 추가 */
 		String resCd = "";
 		String resMsg = "";
+
+		if(project.getPrjId() == null || "".equals(project.getPrjId())) {
+			return makeJsonResponseHeader(false, "prjId is empty", null);
+		}
 		
 		if(project.getDelOsdd()!=null && (project.getDelOsdd().equals(CoConstDef.FLAG_YES) || project.getDelOsdd().equals(CoConstDef.FLAG_NO))) {
 			project.setCompleteYn(CoConstDef.FLAG_NO);
@@ -2091,395 +2218,28 @@ public class ProjectController extends CoTopComponent {
 				return makeJsonResponseHeader(false, resMsg, null);
 			}
 		}
-
-		String commentDiv = isEmpty(project.getReferenceDiv()) ? CoConstDef.CD_DTL_COMMENT_IDENTIFICAITON_HIS
-				: project.getReferenceDiv();
-		CoMail mailBean = null;
-		boolean reDirectPackagingFlag = false;
-		String userComment = project.getUserComment();
-		String statusCode = project.getIdentificationStatus();
 		
-		if(isEmpty(statusCode)) {
-			statusCode = project.getVerificationStatus();
-		}
+		Map<String, Object> resultMap = new HashMap<>();
 		
-		String status = CoCodeManager.getCodeExpString(CoConstDef.CD_IDENTIFICATION_STATUS, statusCode);
-		log.info("statusCode : " + statusCode + "/  status : " + status);
-		
-		log.debug("PARAM: " + "identificationStatus="+project.getIdentificationStatus());
-		log.debug("PARAM: " + "completeYn="+project.getCompleteYn());
-		
-		// Identification confirm시 validation check 수행
-		if (CoConstDef.CD_DTL_IDENTIFICATION_STATUS_CONFIRM.equals(project.getIdentificationStatus())) {
-			boolean isAndroidModel = false;
-			boolean isNetworkRestriction = false;
-			boolean hasSourceOss = false;
-			boolean hasNotificationOss = false; 
-			
-			Map<String, Object> map = null;
-			
-			// confirm 시 다시 DB Data를 가져와서 체크한다.
-			ProjectIdentification param = new ProjectIdentification();
-			param.setReferenceId(project.getPrjId());
-			param.setReferenceDiv(CoConstDef.CD_DTL_COMPONENT_ID_BOM);
-			param.setMerge(CoConstDef.FLAG_NO);
-			map = projectService.getIdentificationGridList(param);
-			
-			if (map != null && map.containsKey("rows") && !((List<ProjectIdentification>) map.get("rows")).isEmpty()) {
-				T2CoProjectValidator pv = new T2CoProjectValidator();
-				pv.setProcType(pv.PROC_TYPE_IDENTIFICATION_BOM_MERGE);
-
-				pv.setAppendix("bomList", (List<ProjectIdentification>) map.get("rows"));
-
-				T2CoValidationResult vr = pv.validate(new HashMap<>());
-				
-				// return validator result
-				if (!vr.isValid() && !vr.isAdminCheck((List<String>) map.get("adminCheckList"))) {
-					return makeJsonResponseHeader(vr.getValidMessageMap());
-				}
-				
-				String networkRedistribution = CoCodeManager.getCodeString(CoConstDef.CD_LICENSE_RESTRICTION, CoConstDef.CD_LICENSE_NETWORK_RESTRICTION);
-				
-				for(ProjectIdentification _projectBean : (List<ProjectIdentification>) map.get("rows")) {
-					if(hasSourceOss && hasNotificationOss && isNetworkRestriction) {
-						break;
-					}
-					
-					if(!hasNotificationOss) {
-						if(!CoConstDef.FLAG_YES.equals(_projectBean.getExcludeYn()) && ("10".equals(_projectBean.getObligationType()) || "11".equals(_projectBean.getObligationType()) )) {
-							hasNotificationOss = true;
-						}
-					}
-					
-					if(!hasSourceOss) {
-						if("11".equals(_projectBean.getObligationType())){
-							hasSourceOss = true;
-						}
-					}
-					
-					if(!isNetworkRestriction) {
-						if(_projectBean.getRestriction().toUpperCase().contains(networkRedistribution.toUpperCase())) {
-							isNetworkRestriction = true;
-						}
-					}
-				}
-			}
-
-			Project prjInfo = null;
-			
-			{
-				// ANDROID PROJECT인 경우
-				Project prjParam = new Project();
-				prjParam.setPrjId(project.getPrjId());
-				prjInfo = projectService.getProjectDetail(prjParam);
-				
-				if (CoConstDef.FLAG_YES.equals(prjInfo.getAndroidFlag())
-						&& !CoConstDef.FLAG_NO.equals(prjInfo.getIdentificationSubStatusAndroid())
-						&& !CoConstDef.CD_DTL_IDENTIFICATION_STATUS_NA.equals(prjInfo.getIdentificationSubStatusAndroid())) {
-					param = new ProjectIdentification();
-					param.setReferenceId(project.getPrjId());
-					param.setReferenceDiv(CoConstDef.CD_DTL_COMPONENT_ID_ANDROID);
-					map = projectService.getIdentificationGridList(param);
-
-					if (map != null && map.containsKey("mainData")
-							&& !((List<ProjectIdentification>) map.get("mainData")).isEmpty()) {
-						isAndroidModel = true;
-						T2CoProjectValidator pv = new T2CoProjectValidator();
-						pv.setProcType(pv.PROC_TYPE_IDENTIFICATION_ANDROID);
-
-						pv.setAppendix("mainList", (List<ProjectIdentification>) map.get("mainData"));
-						pv.setAppendix("subListMap", (Map<String, List<ProjectIdentification>>) map.get("subData"));
-						T2CoValidationResult vr = pv.validate(new HashMap<>());
-						
-						// return validator result
-						if (!vr.isValid()) {
-							return makeJsonResponseHeader(false, getMessage("msg.project.android.valid"));
-						}
-					}
-				}
-			}
-			
-			if(CoConstDef.FLAG_YES.equals(prjInfo.getNetworkServerType())) {
-				if(!isNetworkRestriction) {
-					project.setSkipPackageFlag(CoConstDef.FLAG_YES);
-					project.setVerificationStatus(CoConstDef.CD_DTL_IDENTIFICATION_STATUS_NA);
-					project.setDestributionStatus(CoConstDef.CD_DTL_DISTRIBUTE_STATUS_NA);
-				}
-			} else {
-				if (isAndroidModel) {
-					project.setAndroidFlag(CoConstDef.FLAG_YES);
-				} else if (!hasNotificationOss) {
-					// Android model이 아니면서 bom 대상이 없는 경우
-					// package, distribute를 N/A 처리한다.
-					project.setSkipPackageFlag(CoConstDef.FLAG_YES);
-					project.setVerificationStatus(CoConstDef.CD_DTL_IDENTIFICATION_STATUS_NA);
-					project.setDestributionStatus(CoConstDef.CD_DTL_DISTRIBUTE_STATUS_NA);
-				}
-			}
-			
-			if(CoConstDef.CD_NOTICE_TYPE_NA.equals(prjInfo.getNoticeType())) {
-				if(!hasSourceOss) {
-					project.setSkipPackageFlag(CoConstDef.FLAG_YES);
-					project.setVerificationStatus(CoConstDef.CD_DTL_IDENTIFICATION_STATUS_NA);
-					project.setDestributionStatus(CoConstDef.CD_DTL_DISTRIBUTE_STATUS_NA);
-				}
-			}
-			
-			project.setModifier(project.getLoginUserName());
-			projectService.updateProjectIdentificationConfirm(project);
-			
-			// network server 이면서 notice 생성 대상이 없을 경우
-			if( hasNotificationOss
-					&& CoConstDef.FLAG_NO.equals(avoidNull(CoCodeManager.getCodeExpString(CoConstDef.CD_DISTRIBUTION_TYPE,
-							prjInfo.getDistributionType())).trim().toUpperCase())
-					&& verificationService.checkNetworkServer(prjInfo.getPrjId()) ) {
-				project.setSkipPackageFlag(CoConstDef.FLAG_YES);
-				project.setVerificationStatus(CoConstDef.CD_DTL_IDENTIFICATION_STATUS_NA);
-				project.setDestributionStatus(CoConstDef.CD_DTL_DISTRIBUTE_STATUS_NA);
-				projectService.updateIdentificationConfirmSkipPackaing(project);
-				
-				hasNotificationOss = false;
-			}
-
-			// permissive로만 이루어져있고, notice type이 기본인 경우, 바로 packaging review상태로
-			// 변경한다.
-			if ((!isAndroidModel && !hasNotificationOss) 
-					|| (CoConstDef.FLAG_YES.equals(prjInfo.getNetworkServerType()) && !isNetworkRestriction) // Network service Only : yes 이지만 network restriction이 없는 case 
-					|| (CoConstDef.CD_NOTICE_TYPE_NA.equals(prjInfo.getNoticeType()) && !hasSourceOss)) { // OSS Notice가 N/A이면서 packaging이 필요 없는 경우
-				// do nothing
-				try {
-					mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_IDENTIFICATION_CONFIRMED_ONLY);
-					mailBean.setParamPrjId(project.getPrjId());
-					mailBean.setComment(userComment);
-					
-					CoMailManager.getInstance().sendMail(mailBean);
-				} catch (Exception e) {
-					log.error(e.getMessage(), e);
-				}
-			} else {
-				try {
-					mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_IDENTIFICATION_CONF);
-					mailBean.setParamPrjId(project.getPrjId());
-					mailBean.setComment(userComment);
-					
-					CoMailManager.getInstance().sendMail(mailBean);
-				} catch (Exception e) {
-					log.error(e.getMessage(), e);
-				}
-			}
-		} else if (!isEmpty(project.getCompleteYn())) {
-			// project complete 시
-			projectService.updateProjectMaster(project);
-			
-			String _tempComment = "";
-			
-			if(CoConstDef.FLAG_YES.equals(project.getCompleteYn())) {
-				_tempComment = avoidNull(CoCodeManager.getCodeExpString(CoConstDef.CD_MAIL_DEFAULT_CONTENTS, CoConstDef.CD_MAIL_TYPE_PROJECT_COMPLETED));
-				userComment = _tempComment + "<br />" + avoidNull(userComment);
-			}
-			
-			// complete log 추가
-			commentDiv = CoConstDef.CD_DTL_COMMENT_PROJECT_HIS;
-			status = CoConstDef.FLAG_YES.equals(project.getCompleteYn()) ? "Completed" : "Reopened";
-			
-			// complete mail 발송
-			try {
-				mailBean = new CoMail(CoConstDef.FLAG_YES.equals(project.getCompleteYn()) ? CoConstDef.CD_MAIL_TYPE_PROJECT_COMPLETED : CoConstDef.CD_MAIL_TYPE_PROJECT_REOPENED);
-				mailBean.setParamPrjId(project.getPrjId());
-				mailBean.setComment(userComment);
-				CoMailManager.getInstance().sendMail(mailBean);
-			} catch (Exception e) {
-				log.error(e.getMessage(), e);
-			}
-		} else if(!isEmpty(project.getDropYn())){
-			// project drop 시
-			projectService.updateProjectMaster(project);
-			
-			String _tempComment = avoidNull(CoCodeManager.getCodeExpString(CoConstDef.CD_MAIL_DEFAULT_CONTENTS, CoConstDef.CD_MAIL_TYPE_PROJECT_DROPPED));
-				userComment = _tempComment + "<br />" + avoidNull(userComment);
-			
-			// complete log 추가
-			commentDiv = CoConstDef.CD_DTL_COMMENT_PROJECT_HIS;
-			status = "Dropped";
-			
-			// complete mail 발송
-			try {
-				mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_DROPPED);
-				mailBean.setParamPrjId(project.getPrjId());
-				mailBean.setComment(userComment);
-				
-				CoMailManager.getInstance().sendMail(mailBean);
-			} catch (Exception e) {
-				log.error(e.getMessage(), e);
-			}
-		} else {
-			boolean ignoreValidation = CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REVIEW.equals(project.getIdentificationStatus()) 
-					|| CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REQUEST.equals(project.getVerificationStatus()) 
-					|| CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REVIEW.equals(project.getVerificationStatus());
-			boolean isIdentificationReject = false;
-			Project beforeInfo = projectService.getProjectDetail(project);
-			
-			// Identification
-			// default -> request
-			if (CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REQUEST.equals(project.getIdentificationStatus())
-					&& !CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REVIEW.equals(beforeInfo.getIdentificationStatus())) {
-				mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_IDENTIFICATION_REQ_REVIEW);
-				
-				// Admin 사용자의 경우 오류가 있어도 request review 가능하도록 수정
-				if(CommonFunction.isAdmin()) {
-					ignoreValidation = true;
-				}
-			} else if (CoConstDef.CD_DTL_IDENTIFICATION_STATUS_PROGRESS.equals(project.getIdentificationStatus())) {
-				ignoreValidation = true;
-				isIdentificationReject = true;
-				
-				if (CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REQUEST.equals(beforeInfo.getIdentificationStatus())) {
-					// self reject
-					mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_IDENTIFICATION_SELF_REJECT);
-				} else if (CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REVIEW
-						.equals(beforeInfo.getIdentificationStatus())) {
-					// reject by review
-					mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_IDENTIFICATION_REJECT);
-				} else if (CoConstDef.CD_DTL_IDENTIFICATION_STATUS_CONFIRM
-						.equals(beforeInfo.getIdentificationStatus())) {
-					// confirm to review
-					mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_IDENTIFICATION_CANCELED_CONF);
-				}
-			} else if (CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REQUEST.equals(project.getVerificationStatus()) // Packaging
-					&& !CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REVIEW.equals(beforeInfo.getVerificationStatus())) {
-				mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_PACKAGING_REQ_REVIEW);
-				//ignoreValidation = true;
-			} else if (CoConstDef.CD_DTL_IDENTIFICATION_STATUS_PROGRESS.equals(project.getVerificationStatus())) {
-				ignoreValidation = true;
-				
-				if (CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REQUEST.equals(beforeInfo.getVerificationStatus())) {
-					// self reject
-					mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_PACKAGING_SELF_REJECT);
-				} else if (CoConstDef.CD_DTL_IDENTIFICATION_STATUS_REVIEW.equals(beforeInfo.getVerificationStatus())) {
-					// review -> reject
-					mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_PACKAGING_REJECT);
-				} else if (CoConstDef.CD_DTL_IDENTIFICATION_STATUS_CONFIRM.equals(beforeInfo.getVerificationStatus())) {
-					mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_PACKAGING_CANCELED_CONF);
-				}
-			}
-			
-			// 사용자가 reject하는 경우는 validation check 수행하지 않음
-			if(!ignoreValidation) {
-				// Identification Reqeust review인 경우, 필수 항목 체크 추가
-				Map<String, Object> map = null;
-				// confirm 시 다시 DB Data를 가져와서 체크한다.
-				ProjectIdentification param = new ProjectIdentification();
-				param.setReferenceId(project.getPrjId());
-				param.setReferenceDiv(CoConstDef.CD_DTL_COMPONENT_ID_BOM);
-				param.setMerge(CoConstDef.FLAG_NO);
-				map = projectService.getIdentificationGridList(param);
-				
-				if (map != null && map.containsKey("rows") && !((List<ProjectIdentification>) map.get("rows")).isEmpty()) {
-					T2CoProjectValidator pv = new T2CoProjectValidator();
-					pv.setProcType(pv.PROC_TYPE_IDENTIFICATION_BOM_MERGE);
-					pv.setValidLevel(pv.VALID_LEVEL_REQUEST);
-					pv.setAppendix("bomList", (List<ProjectIdentification>) map.get("rows"));
-
-					T2CoValidationResult vr = pv.validate(new HashMap<>());
-					// return validator result
-					if (!vr.isValid()) {
-						if (!vr.isDiff()) {
-							return makeJsonResponseHeader(false, null, vr.getValidMessageMap(), vr.getDiffMessageMap());
-						}
-						return makeJsonResponseHeader(false, null, vr.getValidMessageMap());
-					}
-				}
-				
-				Project prjInfo = null;
-				
-				{
-					// ANDROID PROJECT인 경우
-					Project prjParam = new Project();
-					prjParam.setPrjId(project.getPrjId());
-					prjInfo = projectService.getProjectDetail(prjParam);
-					
-					if (CoConstDef.FLAG_YES.equals(prjInfo.getAndroidFlag())
-							&& !CoConstDef.FLAG_NO.equals(prjInfo.getIdentificationSubStatusAndroid())
-							&& !CoConstDef.CD_DTL_IDENTIFICATION_STATUS_NA.equals(prjInfo.getIdentificationSubStatusAndroid())) {
-						param = new ProjectIdentification();
-						param.setReferenceId(project.getPrjId());
-						param.setReferenceDiv(CoConstDef.CD_DTL_COMPONENT_ID_ANDROID);
-						map = projectService.getIdentificationGridList(param);
-
-						if (map != null && map.containsKey("mainData")
-								&& !((List<ProjectIdentification>) map.get("mainData")).isEmpty()) {
-							T2CoProjectValidator pv = new T2CoProjectValidator();
-							pv.setProcType(pv.PROC_TYPE_IDENTIFICATION_ANDROID);
-
-							pv.setAppendix("mainList", (List<ProjectIdentification>) map.get("mainData"));
-							pv.setAppendix("subListMap", (Map<String, List<ProjectIdentification>>) map.get("subData"));
-							T2CoValidationResult vr = pv.validate(new HashMap<>());
-							
-							// return validator result
-							if (!vr.isValid()) {
-								return makeJsonResponseHeader(false, getMessage("msg.project.android.valid"));
-							}
-						}
-					}
-				}			
-			}
-			
-			project.setModifier(project.getLoginUserName());
-			project.setModifiedDate(project.getCreatedDate());
-			projectService.updateProjectStatus(project);
-
-			try {
-				if (mailBean != null) {
-					mailBean.setParamPrjId(project.getPrjId());
-					mailBean.setComment(userComment);
-					
-					CoMailManager.getInstance().sendMail(mailBean);
-				}
-			} catch (Exception e) {
-				log.error(e.getMessage(), e);
-			}
-		}
-
 		try {
-			History h = new History();
-			h = projectService.work(project);
-			h.sethAction(CoConstDef.ACTION_CODE_UPDATE);
-			project = (Project) h.gethData();
-			h.sethEtc(project.etcStr());
-			historyService.storeData(h);
+			 resultMap = projectService.updateProjectStatus(project);
+			 
+			 if(resultMap.containsKey("androidMessage")) {
+				 return makeJsonResponseHeader(false, getMessage("msg.project.android.valid"));
+			 }
+			 
+			 if(resultMap.containsKey("diffMap")) {
+				 return makeJsonResponseHeader(false, null, (Map<String, Object>) resultMap.get("validMap"), (Map<String, Object>) resultMap.get("diffMap"));
+			 }
+			 
+			 if(resultMap.containsKey("validMap")) {
+				 return makeJsonResponseHeader(false, null, (Map<String, Object>) resultMap.get("validMap"));
+			 }
 		} catch (Exception e) {
 			log.error(e.getMessage(), e);
 		}
 		
-		if (!isEmpty(avoidNull(userComment).trim())) {
-			try {
-				CommentsHistory commHisBean = new CommentsHistory();
-				commHisBean.setReferenceDiv(commentDiv);
-				commHisBean.setReferenceId(project.getPrjId());
-				commHisBean.setContents(userComment);
-				commHisBean.setStatus(status);
-				log.info(status + " 상태 comment 저장!!");
-				commentService.registComment(commHisBean);
-			} catch (Exception e) {
-				log.error(e.getMessage(), e);
-			}
-		} else if (!isEmpty(status)) {
-			try {
-				CommentsHistory commHisBean = new CommentsHistory();
-				commHisBean.setReferenceDiv(commentDiv);
-				commHisBean.setReferenceId(project.getPrjId());
-				commHisBean.setContents(userComment);
-				commHisBean.setStatus(status);
-				log.info("comment empty, " + status + " 상태 comment 저장!!");
-				commentService.registComment(commHisBean);
-			} catch (Exception e) {
-				log.error(e.getMessage(), e);
-			}
-		}
-
-		if (reDirectPackagingFlag) {
-			return makeJsonResponseHeader(true, "goPackaging"); // validMsg를 이용 redirect한다.
-		}
+		updateProjectNotification(project, resultMap);
 		
 		return makeJsonResponseHeader();
 	}
@@ -2703,7 +2463,7 @@ public class ProjectController extends CoTopComponent {
 		try {
 			sheetNameList = ExcelUtil.getSheetNames(list, CommonFunction.emptyCheckProperty("upload.path", "/upload"));
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 
 		return makeJsonResponseHeader(sheetNameList);
@@ -2857,7 +2617,7 @@ public class ProjectController extends CoTopComponent {
 		try {
 			map = projectService.get3rdMapList(project);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 
 		return makeJsonResponseHeader(map);
@@ -2875,9 +2635,36 @@ public class ProjectController extends CoTopComponent {
 	@PostMapping(value = PROJECT.ADD_WATCHER)
 	public @ResponseBody ResponseEntity<Object> addWatcher(@RequestBody Project project,
 			HttpServletRequest req, HttpServletResponse res, Model model) {
+		
+		Map<String, Object> resultMap = new HashMap<String, Object>();
+		
 		try {
+			// addWatcher로 email을 등록할 경우 ldap search로 존재하는 사용자의 email인지 check가 필요함.
+			String ldapFlag = CoCodeManager.getCodeExpString(CoConstDef.CD_SYSTEM_SETTING, CoConstDef.CD_LDAP_USED_FLAG);
+			if(CoConstDef.FLAG_YES.equals(ldapFlag) && !isEmpty(project.getPrjEmail())) {
+				Map<String, String> userInfo = new HashMap<>();
+				userInfo.put("USER_ID", CoCodeManager.getCodeExpString(CoConstDef.CD_LDAP_SEARCH_INFO, CoConstDef.CD_DTL_LDAP_SEARCH_ID));
+				userInfo.put("USER_PW", CoCodeManager.getCodeExpString(CoConstDef.CD_LDAP_SEARCH_INFO, CoConstDef.CD_DTL_LDAP_SEARCH_PW));
+				
+				String userId = project.getPrjEmail().split("@")[0];
+				String filter = "(cn=" + userId + ")";
+				
+				boolean isAuthenticated = userService.checkAdAccounts(userInfo, "USER_ID", "USER_PW", filter);
+				
+				if(!isAuthenticated) {
+					throw new Exception("add Watcher Failure");
+				}
+				
+				String email = (String) userInfo.get("EMAIL");
+				project.setPrjEmail(email);
+				
+				// 사용자가 입력한 domain과 ldap search를 통해 확인된 domain이 다를 수 있기때문에 ldap search에서 확인된 domain을 우선적으로 처리함.
+				resultMap.put("email", email);
+			}
+			
 			if(!isEmpty(project.getPrjUserId()) || !isEmpty(project.getPrjEmail())) {
 				projectService.addWatcher(project);
+				resultMap.put("isValid", "true");
 			} else {
 				return makeJsonResponseHeader(false, null);
 			}
@@ -2885,7 +2672,7 @@ public class ProjectController extends CoTopComponent {
 			return makeJsonResponseHeader(false, null);
 		}
 		
-		return makeJsonResponseHeader();
+		return makeJsonResponseHeader(resultMap);
 	}
 	
 	/**
@@ -3034,7 +2821,7 @@ public class ProjectController extends CoTopComponent {
 		try {
 			map = projectService.getAddList(project);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 
 		return makeJsonResponseHeader(map);
@@ -3066,7 +2853,7 @@ public class ProjectController extends CoTopComponent {
 		try {
 			map = projectService.getPartnerList(partnerMaster);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 
 		return makeJsonResponseHeader(map);
@@ -3093,6 +2880,9 @@ public class ProjectController extends CoTopComponent {
 		String fileId = req.getParameter("registFileId");
 		file.setTabGubn(req.getParameter("tabNm"));
 		log.info("tabNm ==> " + req.getParameter("tabNm"));
+
+		Map<String, MultipartFile> fileMap = req.getFileMap();
+		String fileExtension = StringUtils.getFilenameExtension(fileMap.get("myfile").getOriginalFilename());
 		
 		// 파일 등록
 		try {
@@ -3105,30 +2895,56 @@ public class ProjectController extends CoTopComponent {
 					list = fileService.uploadFile(req, file, null, fileId);
 				}
 			}
-			
-			resultList = CommonFunction.checkXlsxFileLimit(list);
+
+			if(fileExtension.equals("csv")) {
+				resultList = CommonFunction.checkCsvFileLimit(list);
+			} else {
+				resultList = CommonFunction.checkXlsxFileLimit(list);
+			}
 			
 			if(resultList.size() > 0) {
 				return toJson(resultList);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 
-		// sheet이름
-		List<Object> sheetNameList = null;
-		
-		try {
-			sheetNameList = ExcelUtil.getSheetNames(list, CommonFunction.emptyCheckProperty("upload.path", "/upload"));
-		} catch (Exception e) {
-			e.printStackTrace();
+		if(fileExtension.equals("csv")) {
+			resultList.add(list);
+			resultList.add("SRC");
+			resultList.add("CSV_FILE");
+			return toJson(resultList);
+		} else {
+			// sheet이름
+			List<Object> sheetNameList = null;
+
+			try {
+				sheetNameList = ExcelUtil.getSheetNames(list, CommonFunction.emptyCheckProperty("upload.path", "/upload"));
+			} catch (Exception e) {
+				log.error(e.getMessage());
+			}
+
+			Boolean isSpdxSpreadsheet = false;
+			for(Object sheet : sheetNameList) {
+				String sheetName = sheet.toString();
+				if(sheetName.contains("Package Info") || sheetName.contains("Per File Info")) {
+					isSpdxSpreadsheet = true;
+				}
+			}
+
+			if(isSpdxSpreadsheet){
+				resultList.add(list);
+				resultList.add(sheetNameList);
+				resultList.add("SPDX_SPREADSHEET_FILE");
+			}
+			else {
+				resultList.add(list);
+				resultList.add(sheetNameList);
+				resultList.add("EXCEL_FILE");
+			}
+			// 결과값 resultList에 담기
+			return toJson(resultList);
 		}
-
-		resultList.add(list);
-		resultList.add(sheetNameList);
-
-		// 결과값 resultList에 담기
-		return toJson(resultList);
 	}
 	
 	/**
@@ -3152,6 +2968,9 @@ public class ProjectController extends CoTopComponent {
 		// 파일등록
 		List<UploadFile> list = new ArrayList<UploadFile>();
 		String fileId = req.getParameter("registFileId");
+
+		Map<String, MultipartFile> fileMap = req.getFileMap();
+		String fileExtension = StringUtils.getFilenameExtension(fileMap.get("myfile").getOriginalFilename());
 		
 		// 파일 등록
 		try {
@@ -3163,38 +2982,63 @@ public class ProjectController extends CoTopComponent {
 					list = fileService.uploadFile(req, file, null, fileId);
 				}
 			}
-			
-			resultList = CommonFunction.checkXlsxFileLimit(list);
+
+			if(fileExtension.equals("csv")) {
+				resultList = CommonFunction.checkCsvFileLimit(list);
+			} else {
+				resultList = CommonFunction.checkXlsxFileLimit(list);
+			}
 			
 			if(resultList.size() > 0) {
 				return toJson(resultList);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 
 		if ("text".equals(fileType)) {
 			resultList.add(list);
 			resultList.add(fileType);
+			resultList.add("TEXT_FILE");
 
-			// 결과값 resultList에 담기
+			return toJson(resultList);
+		} else if (fileExtension.equals("csv")) {
+			resultList.add(list);
+			resultList.add("BIN");
+			resultList.add("CSV_FILE");
+
+			return toJson(resultList);
+		} else {
+			// sheet이름
+			List<Object> sheetNameList = null;
+
+			try {
+				sheetNameList = ExcelUtil.getSheetNames(list, CommonFunction.emptyCheckProperty("upload.path", "/upload"));
+			} catch (Exception e) {
+				log.error(e.getMessage());
+			}
+			
+			Boolean isSpdxSpreadsheet = false;
+			for(Object sheet : sheetNameList) {
+				String sheetName = sheet.toString();
+				if(sheetName.contains("Package Info") || sheetName.contains("Per File Info")) {
+					isSpdxSpreadsheet = true;
+				}
+			}
+			
+			if(isSpdxSpreadsheet){
+				resultList.add(list);
+				resultList.add(sheetNameList);
+				resultList.add("SPDX_SPREADSHEET_FILE");
+			}
+			else {
+				resultList.add(list);
+				resultList.add(sheetNameList);
+				resultList.add("EXCEL_FILE");
+			}
+
 			return toJson(resultList);
 		}
-
-		// sheet이름
-		List<Object> sheetNameList = null;
-		
-		try {
-			sheetNameList = ExcelUtil.getSheetNames(list, CommonFunction.emptyCheckProperty("upload.path", "/upload"));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-		resultList.add(list);
-		resultList.add(sheetNameList);
-
-		// 결과값 resultList에 담기
-		return toJson(resultList);
 	}
 	
 	/**
@@ -3385,7 +3229,8 @@ public class ProjectController extends CoTopComponent {
 		project.setPrjId(prjId);
 
 		project = projectService.getProjectDetail(project);
-		String comemnt = "Copy From (" + prjId + ")" + project.getPrjName();
+		
+		String comemnt = "Copied from [PRJ-" + prjId + "] " + project.getPrjName();
 		
 		if (!isEmpty(project.getPrjVersion())) {
 			comemnt += "_" + project.getPrjVersion();
@@ -3402,6 +3247,9 @@ public class ProjectController extends CoTopComponent {
 		
 		model.addAttribute("project", project);
 		model.addAttribute("copy", toJson(project));
+		model.addAttribute("distributionFlag", CommonFunction.propertyFlagCheck("distribution.use.flag", CoConstDef.FLAG_YES));
+		model.addAttribute("partnerFlag", CommonFunction.propertyFlagCheck("menu.project.use.flag", CoConstDef.FLAG_YES));
+		model.addAttribute("batFlag", CommonFunction.propertyFlagCheck("menu.bat.use.flag", CoConstDef.FLAG_YES));
 		
 		return PROJECT.EDIT_JSP;
 	}
@@ -3856,7 +3704,7 @@ public class ProjectController extends CoTopComponent {
 						String contents = projectService.makeNoticeFileContents(result);
 						fileId = projectService.makeSupplementFileId(contents, projectDetail);
 					} catch(Exception e) {
-						e.printStackTrace();
+						log.error(e.getMessage());
 					}
 				}
 			} else {
@@ -3940,5 +3788,80 @@ public class ProjectController extends CoTopComponent {
 			return makeJsonResponseHeader(false, "1");
 		}
 	}
-	// 20210701_BOM COMPARE FUNC MOVE (ProjectController > LgeProjectController) <<<
+
+	@PostMapping(value=PROJECT.PROJECT_STATUS)
+	public @ResponseBody ResponseEntity<Object> getProjectStatus(@RequestBody Project project, HttpServletRequest req,
+			HttpServletResponse res, Model model) {
+		Map<String, String> map = new HashMap<String, String>();
+		Project prjBean = projectService.getProjectDetail(project);
+		
+		map.put("projectStatus", prjBean.getStatus());
+		map.put("identificationStatus", prjBean.getIdentificationStatus());
+		map.put("verificationStatus", prjBean.getVerificationStatus());
+		map.put("distributionStatus", prjBean.getDestributionStatus());
+		map.put("completeFlag", avoidNull(prjBean.getCompleteYn(), CoConstDef.FLAG_NO));
+		map.put("dropFlag", avoidNull(prjBean.getDropYn(), CoConstDef.FLAG_NO));
+		map.put("commId", avoidNull(prjBean.getCommId(), ""));
+		map.put("viewOnlyFlag", avoidNull(prjBean.getViewOnlyFlag(), CoConstDef.FLAG_NO));
+		
+		return makeJsonResponseHeader(map);
+	}
+	
+	public void updateProjectNotification(Project project, Map<String, Object> resultMap) {
+		if(resultMap != null){
+			String mailType = (String) resultMap.get("mailType");
+			String userComment = (String) resultMap.get("userComment");
+			String commentDiv = (String) resultMap.get("commentDiv");
+			String status = (String) resultMap.get("status");
+			
+			try {
+				History h = new History();
+				h = projectService.work(project);
+				h.sethAction(CoConstDef.ACTION_CODE_UPDATE);
+				project = (Project) h.gethData();
+				h.sethEtc(project.etcStr());
+				historyService.storeData(h);
+			} catch (Exception e) {
+				log.error(e.getMessage(), e);
+			}
+			
+			if(!isEmpty(mailType)) {
+				try {
+					CoMail mailBean = new CoMail(mailType);
+					mailBean.setParamPrjId(project.getPrjId());
+					mailBean.setComment(userComment);
+					
+					CoMailManager.getInstance().sendMail(mailBean);
+				} catch (Exception e) {
+					log.error(e.getMessage(), e);
+				}
+			}
+			
+			if (!isEmpty(avoidNull(userComment).trim())) {
+				try {
+					CommentsHistory commHisBean = new CommentsHistory();
+					commHisBean.setReferenceDiv(commentDiv);
+					commHisBean.setReferenceId(project.getPrjId());
+					commHisBean.setContents(userComment);
+					commHisBean.setStatus(status);
+					log.info(status + " 상태 comment 저장!!");
+					commentService.registComment(commHisBean);
+				} catch (Exception e) {
+					log.error(e.getMessage(), e);
+				}
+			} else if (!isEmpty(status)) {
+				try {
+					CommentsHistory commHisBean = new CommentsHistory();
+					commHisBean.setReferenceDiv(commentDiv);
+					commHisBean.setReferenceId(project.getPrjId());
+					commHisBean.setContents(userComment);
+					commHisBean.setStatus(status);
+					log.info("comment empty, " + status + " 상태 comment 저장!!");
+					commentService.registComment(commHisBean);
+				} catch (Exception e) {
+					log.error(e.getMessage(), e);
+				}
+			}
+		}
+	}
 }

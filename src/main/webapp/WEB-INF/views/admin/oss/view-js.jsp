@@ -19,7 +19,7 @@
 			})
 			.on('keypress', function(e){
 				if((e.keyCode || e.which) == 13){
-					$('.search').trigger('click');	// 검색 엔터
+					$('.search').trigger('click');	// search enter
 				}
 			});
 		
@@ -27,7 +27,7 @@
 			$('#_projectList').parent().parent().hide();
 		}
 		
-		//자동완성 데이터 리스트 가져오기
+		//Get auto-completed data list.
 		commonAjax.getLicenseTags().success(function(data, status, headers, config){
 			if(data != null){
 				data.forEach(function(obj){
@@ -43,7 +43,7 @@
 				});
 			}
 		});
-		//자동완성 Single License 일때
+		//When it's an auto-complete single license,
 		setCustomAutoComplete('single');
 
 		$("#btnShowLicenseText").click(function() {
@@ -75,7 +75,8 @@
 				var rowData = $("#_projectList").jqGrid('getRowData',rowid);
 
 				if("Y" != rowData.oldSystemFlag) {
-					createTabInFrame(rowData['prjId']+'_Project','#/project/edit/'+rowData['prjId']);
+					var url = '#<c:url value="/project/edit/'+rowData['prjId']+'"/>';
+					createTabInFrame(rowData['prjId']+'_Project', url);
 				}
 			},
 			loadComplete: function(data) {
@@ -127,16 +128,16 @@
 		});
 		</c:if>
 		
-		//그리드에 버튼 표출
+		//Expressing a button on the grid.
 		function displayButtons(cellvalue, options, rowObject)
 		{
 			var deleted = "<input id='licenseBtn"+options.rowId+"' type='button' value='delete' class='btnCLight darkgray' />";
 			return deleted;
 		}
 
-		//프로젝트 리스트 더보기
+		//Look at the project list.
 		$('#listMore').on('click',function(){
-			createTabInFrameWithCondition('Project List', '#/project/list', 'OSSLISTMORE', '${ossId}');
+			createTabInFrameWithCondition('Project List', '#<c:url value="/project/list"/>', 'OSSLISTMORE', '${ossId}');
 		});
 	});
 	
@@ -150,9 +151,10 @@
 		return cellvalue;
 	}
 	
-	//데이터 객체
+	//date object
 	var data = {
 		detail : ${empty detail ? 'null':detail},
+        detectedLicenseIdByName : ${empty detectedLicenseIdByName ? 'null': detectedLicenseIdByName},
 		list : ${empty list ? '{rows:[]}' : list},
 		components : ${empty components ? '[]' : components },
 		vulnInfoList : ${empty vulnInfoList ? '[]' : vulnInfoList },
@@ -164,9 +166,9 @@
 			data.cloneDownloadLocation = $('.multiDownloadLocationSet').clone().html();
 			data.cloneDetectLicense = $('.multiDetectedLicenseSet').clone().html();
 
-			//데이터 초기화(컨트롤러에서 가져온 데이터)
+			//Data initialization (data from the controller)
 			if(data.detail){
-				/*Oss 정보*/
+				/*Oss info*/
 				$('#ossName').text(data.detail.ossName);
 				var ossVersion = data.detail.ossVersion;
 
@@ -176,12 +178,12 @@
 
 				$('#ossVersion').html(ossVersion);
 				$('#downloadLocation a').text(data.detail.downloadLocation);
-				
+
 				$.each(data.detail.downloadLocations, function(idx, cur){
 					if(idx == 0){
 						$('.multiDownloadLocationSet span:first').remove();
 					}
-					
+
 					if(cur != ''){
 						$(data.cloneDownloadLocation).appendTo('.multiDownloadLocationSet');
 						$("[name='downloadLocations'] > a:last").html(cur).attr("href", cur);
@@ -194,8 +196,9 @@
 					}
 					if(cur != ''){
 						$(data.cloneDetectLicense).appendTo('.multiDetectedLicenseSet');
-						$("[name='detectedLicenses']:last").html(cur).attr("href", cur);
-					}	
+						var tagForTab = '<a href="#none" onclick=createTabInFrame("'+data.detectedLicenseIdByName[cur]+'_License","#/license/edit/'+data.detectedLicenseIdByName[cur]+'")>'+cur+'</a>'
+						$("[name='detectedLicenses']:last").html(tagForTab);
+					}
 				});
 				
 				$('#homepage a').text(data.detail.homepage);
@@ -204,43 +207,15 @@
 				$('#summaryDescription').text(data.detail.summaryDescription);
 				$('#attribution').text(data.detail.attribution);
 				
-				var licenseDiv = data.detail.licenseDiv;
-
-				if(licenseDiv == "S") {
-					licenseDiv = "Single License";
-
-					$('#cp').show();
-					$('.licenseMulti').hide();
-				} else if(licenseDiv == "M") {
-					licenseDiv = "Multi/Dual License";
-				} else {
-					licenseDiv = "";
-				}
-
-				$("#licenses").text(licenseDiv);
+				//Check license priorities for imported data
+				multiLicense();
+				var licenseType = autoLicense(data.list.rows);
+				var obligationHtml = autoObligation(data.list.rows);
+				$('#lt td div').html(licenseType);
+				$('#ob td div').html('');
+				$(obligationHtml).appendTo('#ob td div');
 				
-				//싱글라이센스일경우 데이터 입력
-				if(data.detail.licenseDiv == 'S') {
-					data.detail.ossLicenses.forEach(function(item){
-						$("#licenseSingle").html("<br>"+item.licenseName);
-						$('#lt td div').html(item.licenseType);
-						$('#ob td div').html('');
-						$(item.obligation).appendTo('#ob td div');
-						$("#licenseName").val(item.licenseName);
-					});
-				//멀티라이센스일 경우 데이터 입력
-				} else if(data.detail.licenseDiv == 'M') {
-					//가져온 데이터에 대한 라이센스 우선순위 체크
-					multiLicense();
-					var licenseType = autoLicense(data.list.rows);
-					var obligationHtml = autoObligation(data.list.rows);
-					$('#lt td div').html(licenseType);
-					$('#ob td div').html('');
-					$(obligationHtml).appendTo('#ob td div');
-				}
-				
-				
-				//닉네임 리스트 데이터 입력
+				//Enter the nickname list data.
 				data.detail.ossNicknames.forEach(function(nickName, index, obj){
 					if(nickName!=''){
 						if(index > 0) $("#nickNames").append(", ");
@@ -282,7 +257,7 @@
 			},
 			loadComplete:function(){
 				$('#1_ossLicenseComb').hide().prop('enabled', false);
-				createMultiLicenseText();//라이센스 묶음 텍스트 출력
+				createMultiLicenseText();//License bundle text output.
 				makeBackGroundColor();
 
 				jQuery('#_licenseChoice').bind("jqGridInlineAfterSaveRow", function(ref,id){	
@@ -301,10 +276,10 @@
 					row['obligationChecks'] = temp.obligationChecks;
 					row['licenseType'] = temp.licenseType;
 					
-					list.splice(id-1,1,row);	//리스트에 데이터 추가
+					list.splice(id-1,1,row);//Add data to the list.
 					
 					makeBackGroundColor();
-					//라이센스 타입 및 Obligation 자동 체크
+					//License type and Obligation auto check
 					var type = autoLicense(list);
 					var obligationHtml = autoObligation(list);
 					
@@ -316,15 +291,15 @@
 					$('#lt td').html(type);
 					$('#ob td').html('');
 					$(obligationHtml).appendTo('#ob td');
-					createMultiLicenseText();	//라이센스 묶음 텍스트 출력
+					createMultiLicenseText();//License bundle text output.
 
-					lastsel=-1;					//선택 초기화
+					lastsel=-1;	//initialize choice
 				});	
 			}
 		});		
 	}
 	
-	//커스터마이징 자동완성 셀렉트
+	//Customizing autocomplete selection.
 	function setCustomAutoComplete(div) {
 		if(div == 'single') {
 			$( '.autoComOssLicense' ).autocomplete({
@@ -376,20 +351,20 @@
 	
 	
 	
-	//라이센스 우선순위 자동 계산
+	//Automatic calculation of license priorities.
 	function autoLicense(data){
 		var result = '';
 		var numbers = [];
-		//1. 그룹별 분류하기
+		//1. Classifying by group.
 		var groups = distributeGroups(data);
 		
-		//2. 각 그룹별 내부 비교하기
+		//2. Compare the inside of each group.
 		groups.forEach(function(group){
 			var number = compareLicenseGroupMax(group);
 			numbers.push(number);
 		});
 		
-		//3. 각 그룹끼리 비교하기(OR 비교)
+		//3. Compare each group (OR comparison)
 		if(numbers.length != 1) {
 			var min = getMin(numbers);
 			
@@ -607,6 +582,7 @@
 			 // row로 들어오는 데이터가 텍스트인지 element인지 확인.
 			var olc = row.ossLicenseComb, lnm = row.licenseNameEx;
 			var ossLicenseComb, licenseName;
+			var url = '#<c:url value="${suffixUrl}/license/edit/'+row.licenseId+'"/>';
 			
 			ossLicenseComb = /<[a-z][\s\S]*>/i.test(olc) ? $("#" + getId(olc)).val() : olc;
 			licenseName = /<[a-z][\s\S]*>/i.test(lnm) ? $("#" + getId(lnm)).val() : lnm;
@@ -615,7 +591,7 @@
 				markTxt += ' <span> '+ossLicenseComb+' </span> ';
 			}
 			
-			markTxt+='<a href="#none" onclick=createTabInFrame("'+row.licenseId+'_License","#/license/edit/'+row.licenseId+'")>'+licenseName+'</a>';
+			markTxt+='<a href="#none" onclick=createTabInFrame("'+row.licenseId+'_License","'+url+'")>'+licenseName+'</a>';
 		});
 		
 		var andTxts = markTxt.split('<span> OR </span>');
@@ -717,29 +693,23 @@
 
     function showLicenseText(_licenseName) {
     	if(!_licenseName) {
-    		var licenseDiv = data.detail.licenseDiv;
-    		
-    		if(licenseDiv == 'M'){
-    			var _selectedRow = $("#_licenseChoice").jqGrid('getGridParam', "selrow" ) ;
+    		var _selectedRow = $("#_licenseChoice").jqGrid('getGridParam', "selrow" ) ;
 
-    			if(_selectedRow) {
-    				licenseName = $('#_licenseChoice').jqGrid('getCell',_selectedRow,'licenseNameEx');
-    			} else {
-    				if($("#_licenseChoice").jqGrid("getDataIDs").length > 0) {
-    					_selectedRow = $("#_licenseChoice").jqGrid("getDataIDs")[0];
-    					licenseName = $('#_licenseChoice').jqGrid('getCell',_selectedRow,'licenseNameEx');
-    				}
-    			}
-    		} else {
-    			licenseName = $("#licenseName").val();
-    		}
+   			if(_selectedRow) {
+   				licenseName = $('#_licenseChoice').jqGrid('getCell',_selectedRow,'licenseNameEx');
+   			} else {
+   				if($("#_licenseChoice").jqGrid("getDataIDs").length > 0) {
+   					_selectedRow = $("#_licenseChoice").jqGrid("getDataIDs")[0];
+   					licenseName = $('#_licenseChoice').jqGrid('getCell',_selectedRow,'licenseNameEx');
+   				}
+   			}
     	} else {
     		licenseName = _licenseName;
     	}
 
     	if(licenseName && licenseName != "") {
     		$.ajax({
-    			url : '/license/getLicenseText',
+    			url : '<c:url value="/license/getLicenseText"/>',
     			type : 'GET',
     			dataType : 'json',
     			cache : false,

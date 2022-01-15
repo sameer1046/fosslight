@@ -289,7 +289,7 @@ public abstract class T2CoValidator extends CoTopComponent {
 		try {
 			if(name.startsWith("get")) {
 				objPropertyDescriptor = new PropertyDescriptor((String)name.substring(3), obj.getClass());
-				variableValue = objPropertyDescriptor.getReadMethod().invoke(obj);
+				variableValue = objPropertyDescriptor.getReadMethod() != null ? objPropertyDescriptor.getReadMethod().invoke(obj) : null;
 			}
 		} catch (IntrospectionException e) {
 			//if(log.isDebugEnabled()) {e.printStackTrace();}
@@ -399,7 +399,7 @@ public abstract class T2CoValidator extends CoTopComponent {
                 }
             }
         } catch(Exception e) {
-        	e.printStackTrace();
+        	log.error(e.getMessage());
         }
 
         customValidation(map, errMap, diffMap, infoMap);

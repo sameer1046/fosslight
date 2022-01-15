@@ -5,13 +5,12 @@
 
 package oss.fosslight.api.controller.v1;
 
-import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -20,8 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-
-import com.google.gson.reflect.TypeToken;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
@@ -54,6 +51,8 @@ import oss.fosslight.validation.custom.T2CoProjectValidator;
 @RequestMapping(value = "/api/v1")
 public class ApiSelfCheckController extends CoTopComponent {
 	
+	private final Logger log = LoggerFactory.getLogger(getClass());
+	
 	private final ResponseService responseService;
 	
 	private final T2UserService userService;
@@ -66,7 +65,6 @@ public class ApiSelfCheckController extends CoTopComponent {
 	
 	private final SelfCheckService selfCheckService;
 	
-	@SuppressWarnings("unchecked")
 	@ApiOperation(value = "Create SelfCheck", notes = "SelfCheck 생성")
     @ApiImplicitParams({
         @ApiImplicitParam(name = "_token", value = "token", required = true, dataType = "String", paramType = "header")
@@ -75,10 +73,7 @@ public class ApiSelfCheckController extends CoTopComponent {
     public CommonResult createSelfCheck(
     		@RequestHeader String _token,
     		@ApiParam(value = "Project Name", required = true) @RequestParam(required = true) String prjName,
-    		@ApiParam(value = "Project Version", required = false) @RequestParam(required = false) String prjVersion,
-    		@ApiParam(value = "OS Type", required = false) @RequestParam(required = false) String osType,
-    		@ApiParam(value = "OS Type etc", required = false) @RequestParam(required = false) String osTypeEtc,
-    		@ApiParam(value = "Distribution Type", required = false) @RequestParam(required = false) String distributionType){
+    		@ApiParam(value = "Project Version", required = false) @RequestParam(required = false) String prjVersion){
 		
 		// 사용자 인증
 		T2Users userInfo = userService.checkApiUserAuth(_token);
@@ -90,31 +85,9 @@ public class ApiSelfCheckController extends CoTopComponent {
 			
 			if(CoConstDef.CD_OPEN_API_CREATE_PROJECT_LIMIT > createCnt) {
 				Map<String, Object> paramMap = new HashMap<String, Object>();
-				String distributionSubCode = "";
-				
-				if(isEmpty(distributionType)) {
-					distributionSubCode = CoConstDef.CD_DTL_NOTICE_TYPE_GENERAL;
-				} else {
-					String distributionJSON = CoCodeManager.getAllValuesJson(CoConstDef.CD_DISTRIBUTION_TYPE);
-					Type collectionType = new TypeToken<List<Map<String, Object>>>() {
-					}.getType();
-					List<Map<String, Object>> distributionCode = new ArrayList<>();
-					distributionCode = (List<Map<String, Object>>) fromJson(distributionJSON, collectionType);
-					
-					distributionCode = distributionCode.stream().filter(c -> ((String) c.get("cdDtlNm")).toUpperCase().equals(distributionType.toUpperCase())).collect(Collectors.toList());
-					
-					if(distributionCode.size() > 0) {
-						distributionSubCode = (String) distributionCode.get(0).get("cdDtlNo");
-					} else {
-						distributionSubCode = distributionType;
-					}
-				}
 				
 				paramMap.put("prjName", prjName);
 				paramMap.put("prjVersion", avoidNull(prjVersion, ""));
-				paramMap.put("osType", avoidNull(osType, ""));
-				paramMap.put("osTypeEtc", osTypeEtc);
-				paramMap.put("distributionType", distributionSubCode);
 				paramMap.put("loginUserName", userInfo.getUserId());
 				
 				result = apiSelfCheckService.createSelfCheck(paramMap);
@@ -144,13 +117,17 @@ public class ApiSelfCheckController extends CoTopComponent {
     public CommonResult ossReportSelfCheck(
     		@RequestHeader String _token,
     		@ApiParam(value = "Project id", required = true) @RequestParam(required = true) String prjId,
-    		@ApiParam(value = "OSS Report > sheetName : 'Self-Check'", required = false) @RequestPart(required = false) MultipartFile ossReport){
+    		@ApiParam(value = "OSS Report > sheetName : 'Start with Self-Check, SRC or BIN '", required = false) @RequestPart(required = false) MultipartFile ossReport){
 		
 		T2Users userInfo = userService.checkApiUserAuth(_token);
 		Map<String, Object> resultMap = new HashMap<String, Object>(); // 성공, 실패에 대한 정보를 return하기 위한 map;
 		
 		try {
-			boolean searchFlag = apiSelfCheckService.existProjectCnt(userInfo.getUserId(), prjId); // 조회가 안된다면 권한이 없는 project id를 입력함.
+			Map<String, Object> paramMap = new HashMap<>();
+			paramMap.put("userId", userInfo.getUserId());
+			paramMap.put("userRole", userRole(userInfo));
+			paramMap.put("prjId", prjId);
+			boolean searchFlag = apiSelfCheckService.existProjectCnt(paramMap); // 조회가 안된다면 권한이 없는 project id를 입력함.
 			
 			if(searchFlag) {
 				if(ossReport != null) {
@@ -158,7 +135,8 @@ public class ApiSelfCheckController extends CoTopComponent {
 							&& CoConstDef.CD_XLSX_UPLOAD_FILE_SIZE_LIMIT > ossReport.getSize()) { // file size 5MB 이하만 허용.
 						
 						UploadFile bean = apiFileService.uploadFile(ossReport); // file 등록 처리 이후 upload된 file정보를 return함.
-						Map<String, Object> result = apiProjectService.getSheetData(bean, prjId, "Self-Check");
+						String[] sheet = new String[1];
+						Map<String, Object> result = apiProjectService.getSheetData(bean, prjId, "Self-Check", sheet);
 						String errorMsg = (String) result.get("errorMessage");
 						List<ProjectIdentification> ossComponents = (List<ProjectIdentification>) result.get("ossComponents");
 						List<List<ProjectIdentification>> ossComponentsLicense = (List<List<ProjectIdentification>>) result.get("ossComponentLicense");
@@ -202,6 +180,7 @@ public class ApiSelfCheckController extends CoTopComponent {
 						, CoCodeManager.getCodeString(CoConstDef.CD_OPEN_API_MESSAGE, CoConstDef.CD_OPEN_API_PERMISSION_ERROR_MESSAGE));
 			}
 		} catch (Exception e) {
+			log.error(e.getMessage(), e);
 			return responseService.getFailResult(CoConstDef.CD_OPEN_API_UNKNOWN_ERROR_MESSAGE
 					, CoCodeManager.getCodeString(CoConstDef.CD_OPEN_API_MESSAGE, CoConstDef.CD_OPEN_API_UNKNOWN_ERROR_MESSAGE));
 		}

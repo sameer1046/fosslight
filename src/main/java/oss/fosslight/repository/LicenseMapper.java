@@ -56,10 +56,19 @@ public interface LicenseMapper {
 	
 	List<Project> getLicenseChangeForUserList(String licenseId);
 	
+	void insertLicenseWebPages(LicenseMaster licenseMaster);
+	
+	int existsLicenseWebPages(LicenseMaster licenseMaster);
+		
+	void deleteLicenseWebPages(LicenseMaster licenseMaster);
+		
+	List<LicenseMaster> selectLicenseWebPageList(LicenseMaster licenseMaster);
+	
 	// for cache query
 	Set<String> getLicenseNames();
 	Set<String> getLicenseShortNames();
 	Set<String> getLicenseNickNames();
 	LicenseMaster getLicenseInfoWithName(String licenseName);
 	LicenseMaster getLicenseInfoWithId(String licenseId);
+
 }

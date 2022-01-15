@@ -135,20 +135,21 @@ public class ApiFileServiceImpl implements ApiFileService {
 		upFile.setRegistSeq(registFile(registFile));
 		upFile.setCreatedDate(CommonFunction.getCurrentDateTime(CoConstDef.DATABASE_FORMAT_DATE_ALL));
 		
-		if(mFile.getSize()!=0){ //File Null Check
-			if(! file.exists()){ //경로상에 파일이 존재하지 않을 경우
-				if(file.getParentFile().mkdirs()){ //경로에 해당하는 디렉토리들을 생성
-					try {
+		if(mFile.getSize()!=0) { //File Null Check
+			if(! file.exists()) { //경로상에 파일이 존재하지 않을 경우
+				try {
+					if(file.getParentFile() != null && file.getParentFile().mkdirs()) { //경로에 해당하는 디렉토리들을 생성
 						boolean upSucc = file.createNewFile(); //이후 파일 생성
 						
-						if(!upSucc){
+						if(!upSucc) {
 							uploadSucc=false;
 						}
-					} catch (IOException e) {
-						log.error("file upload create error : " + e.getMessage());
-						
-						uploadSucc=false;
 					}
+				}
+				catch (IOException e) {
+					log.error("file upload create error : " + e.getMessage());
+					
+					uploadSucc=false;
 				}
 			}
 			
@@ -208,7 +209,7 @@ public class ApiFileServiceImpl implements ApiFileService {
 		String uploadThumbFilePath = "";
 		
 		try {
-			uploadFilePath = CommonFunction.emptyCheckProperty("android.notice.path", "/upload/android_notice")+ "/" + prjId;
+			uploadFilePath = CommonFunction.emptyCheckProperty("android.upload.path", "/upload/android_notice")+ "/" + prjId;
 			uploadThumbFilePath = CommonFunction.emptyCheckProperty("image.path", "/image")+ "/" + prjId + "/thumb";
 		} catch(Exception e) {
 			log.error("file upload path(get properties) : " + e.getMessage());
@@ -250,16 +251,17 @@ public class ApiFileServiceImpl implements ApiFileService {
 		
 		if(mFile.getSize()!=0){ //File Null Check
 			if(! file.exists()){ //경로상에 파일이 존재하지 않을 경우
-				if(file.getParentFile().mkdirs()){ //경로에 해당하는 디렉토리들을 생성
-					try {
-						boolean upSucc = file.createNewFile(); //이후 파일 생성
-						if(!upSucc){
-							uploadSucc=false;
+				try {
+					if(file.getParentFile() != null && file.getParentFile().mkdirs()){ //경로에 해당하는 디렉토리들을 생성
+							boolean upSucc = file.createNewFile(); //이후 파일 생성
+							if(!upSucc){
+								uploadSucc=false;
+							}
 						}
-					} catch (IOException e) {
-						log.error("file upload create error : " + e.getMessage());
-						uploadSucc=false;
-					}
+				}
+				catch (IOException e) {
+					log.error("file upload create error : " + e.getMessage());
+					uploadSucc=false;
 				}
 			}
 			
@@ -308,7 +310,7 @@ public class ApiFileServiceImpl implements ApiFileService {
 					registConvertHTML.setOrigNm(convertNoticeFileName);
 					registConvertHTML.setLogiNm(convertHTMLFile.getName());
 					registConvertHTML.setLogiPath(uploadFilePath + "/" + randomUUID);
-					registConvertHTML.setLogiThumbNm(convertHTMLFile.getName().replace(".html", "_thumb.html"));
+					registConvertHTML.setLogiThumbNm(StringUtil.avoidNull(convertHTMLFile.getName(), "").replace(".html", "_thumb.html"));
 					registConvertHTML.setLogiThumbPath(uploadFilePath + "/" + randomUUID + "/thumb");
 					registConvertHTML.setExt("html");
 					registConvertHTML.setSize(Long.toString(convertHTMLFileSize));

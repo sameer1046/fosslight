@@ -126,7 +126,7 @@ public class CodeBean extends ComBean implements Serializable{
      * @return the 코드상세번호
      */
     public String[] getCdDtlNo() {
-        return cdDtlNo;
+        return cdDtlNo != null ? cdDtlNo.clone() : null;
     }
 
     /**
@@ -135,7 +135,7 @@ public class CodeBean extends ComBean implements Serializable{
      * @param cdDtlNo the new 코드상세번호
      */
     public void setCdDtlNo(String[] cdDtlNo) {
-        this.cdDtlNo = cdDtlNo;
+        this.cdDtlNo = cdDtlNo != null ? cdDtlNo.clone() : null;
     }
 
     /**
@@ -144,7 +144,7 @@ public class CodeBean extends ComBean implements Serializable{
      * @return the 코드상세명
      */
     public String[] getCdDtlNm() {
-        return cdDtlNm;
+        return cdDtlNm != null ? cdDtlNm.clone() : null;
     }
 
     /**
@@ -153,7 +153,7 @@ public class CodeBean extends ComBean implements Serializable{
      * @param cdDtlNm the new 코드상세명
      */
     public void setCdDtlNm(String[] cdDtlNm) {
-        this.cdDtlNm = cdDtlNm;
+        this.cdDtlNm = cdDtlNm != null ? cdDtlNm.clone() : null;
     }
     
     /**
@@ -162,7 +162,7 @@ public class CodeBean extends ComBean implements Serializable{
      * @return the 코드상세명2
      */
     public String[] getCdDtlNm2() {
-		return cdDtlNm2;
+        return cdDtlNm2 != null ? cdDtlNm2.clone() : null;
 	}
     
     /**
@@ -171,7 +171,7 @@ public class CodeBean extends ComBean implements Serializable{
      * @param cdDtlNm the new 코드상세명2
      */
 	public void setCdDtlNm2(String[] cdDtlNm2) {
-		this.cdDtlNm2 = cdDtlNm2;
+        this.cdDtlNm2 = cdDtlNm2 != null ? cdDtlNm2.clone() : null;
 	}
 
 	/**
@@ -180,7 +180,7 @@ public class CodeBean extends ComBean implements Serializable{
      * @return the 코드상세설명
      */
     public String[] getCdDtlExp() {
-        return cdDtlExp;
+        return cdDtlExp != null ? cdDtlExp.clone() : null;
     }
 
     /**
@@ -189,7 +189,7 @@ public class CodeBean extends ComBean implements Serializable{
      * @param cdDtlExp the new 코드상세설명
      */
     public void setCdDtlExp(String[] cdDtlExp) {
-        this.cdDtlExp = cdDtlExp;
+        this.cdDtlExp = cdDtlExp != null ? cdDtlExp.clone() : null;
     }
 
     /**
@@ -198,7 +198,7 @@ public class CodeBean extends ComBean implements Serializable{
      * @return the 코드우선순위
      */
     public String[] getCdOrder() {
-        return cdOrder;
+        return cdOrder != null ? cdOrder.clone() : null;
     }
 
     /**
@@ -207,15 +207,15 @@ public class CodeBean extends ComBean implements Serializable{
      * @param cdOrder the new 코드우선순위
      */
     public void setCdOrder(String[] cdOrder) {
-        this.cdOrder = cdOrder;
+        this.cdOrder = cdOrder != null ? cdOrder.clone() : null;
     }
 
     public String[] getUseYn() {
-		return useYn;
+        return useYn != null ? useYn.clone() : null;
 	}
 
 	public void setUseYn(String[] useYn) {
-		this.useYn = useYn;
+        this.useYn = useYn != null ? useYn.clone() : null;
 	}
 
 	

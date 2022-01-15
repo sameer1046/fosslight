@@ -336,6 +336,9 @@ public class T2UserServiceImpl implements T2UserService {
 				vo.get(i).setAuthority("ROLE_USER");
 				userMapper.updateAuthorities(vo.get(i));
 			}
+			
+			// statisticsMostUsed > div_no value update
+			userMapper.updateStatisticsMostUsedInfo(vo.get(i));
 		}		
 	}
 	
@@ -395,7 +398,7 @@ public class T2UserServiceImpl implements T2UserService {
 	}
 
 	@Override
-	public boolean checkAdAccounts(Map<String, String> userInfo, String idKey, String pwKey) {
+	public boolean checkAdAccounts(Map<String, String> userInfo, String idKey, String pwKey, String filter) {
 		boolean isAuthenticated = false;
 		
 		String userId = (String) userInfo.get(idKey);
@@ -410,7 +413,9 @@ public class T2UserServiceImpl implements T2UserService {
 		properties.put(Context.SECURITY_CREDENTIALS, userPw);
 		
 		String[] attrIDs = { "cn", "mail" };
-		String filter = "(cn=" + userId + ")";
+		if(StringUtil.isEmpty(filter)) {
+			filter = "(cn=" + userId + ")";
+		}
 		
 		DirContext con = null;
 		SearchControls constraints = new SearchControls();

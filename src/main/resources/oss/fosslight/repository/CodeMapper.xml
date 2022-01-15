@@ -9,7 +9,28 @@
 		LIMIT #{startIndex}, #{pageListSize}
 	</sql>
     <sql id="orderby">
-        ORDER BY ${sidx} ${sord}
+		ORDER BY ${sidx} ${sord}
+<!--   	<choose> -->
+			<!--TODO : CD_NO will be convert into CAST(CD_NO AS SIGNED) in the getter.
+			But It should be done in this file. Like equals('CD_NO', sidx)-->
+<!--		<when test="@oss.fosslight.util.StringUtil@equals('CAST(CD_NO AS SIGNED)',sidx)">
+				CAST(CD_NO AS SIGNED)
+			</when>
+			<when test="@oss.fosslight.util.StringUtil@equals('CD_NM',sidx)">
+				CD_NM
+			</when>
+			<when test="@oss.fosslight.util.StringUtil@equals('CD_EXP',sidx)">
+				CD_EXP
+			</when>
+		</choose>
+		<choose>
+			<when test="@oss.fosslight.util.StringUtil@equals('asc', sord)">
+				ASC
+			</when>
+			<when test="@oss.fosslight.util.StringUtil@equals('desc', sord)">
+				DESC
+			</when>
+		</choose> -->
     </sql>
     
     <select id="selectCodeTotalCount" parameterType="oss.fosslight.domain.T2Code" resultType="int">
@@ -57,13 +78,13 @@
 		WHERE CD_NO = #{cdNo}
 		ORDER BY CD_ORDER
 	</select>
-	<!-- 
-	<select id="selectCodeDetail" parameterType="oss.fosslight.domain.T2CodeDtl" resultType="oss.fosslight.domain.T2CodeDtl">
+
+	<select id="getCodeDetail" resultType="oss.fosslight.domain.T2CodeDtl">
 		SELECT 
 			CD_NO
 			,CD_SUB_NO
 			,CD_DTL_NO
-			,CD_DTL_NO AS gridId
+			,CD_DTL_NO
 			,CD_DTL_NM
 			,CD_DTL_EXP
 			,CD_ORDER
@@ -71,10 +92,8 @@
 		FROM T2_CODE_DTL
 		WHERE CD_NO = #{cdNo}
 		  AND CD_DTL_NO = #{cdDtlNo}
-		ORDER BY CD_ORDER
 	</select>
-	 -->
-	
+
 	<insert id="insertCode" parameterType="oss.fosslight.domain.T2Code">
 		INSERT
 		INTO T2_CODE
@@ -200,5 +219,16 @@
     	   SET #{columnNm1} = #{columnValue1}
     	 WHERE CD_NO = #{cdNo}
     	  
+    </update>
+    
+    <select id="getCodeDtlNm" resultType="string">
+    	SELECT CD_DTL_NM FROM T2_CODE_DTL WHERE CD_NO = #{cdNo} AND CD_DTL_NO = #{cdDtlNo}
+    </select>
+    <update id="updateCodeDtlNm">
+    	UPDATE T2_CODE_DTL SET CD_DTL_NM = #{cdDtlNm} WHERE CD_NO = #{cdNo} AND CD_DTL_NO = #{cdDtlNo}
+    </update>
+    
+    <update id="updateStatisticsMostUsed" parameterType="oss.fosslight.domain.T2CodeDtl">
+    	UPDATE STATISTICS_MOSTUSED SET DIV_NO = #{cdDtlNoNew} WHERE DIV_NO = #{cdDtlNo} 
     </update>
 </mapper>

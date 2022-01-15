@@ -32,13 +32,18 @@
 						<textarea name="summaryDescription">${searchBean.summaryDescription}</textarea>
 					</dd>
 					<dd>
-						<label>WebSite</label>
+						<label>Website</label>
 						<input name="homepage" type="text" value="${searchBean.homepage}"/>
+					</dd>
+					<dd>
+						<label>Deactivate</label>
+						<input type="checkbox" id="deactivateFlag" value="${searchBean.deactivateFlag}" style="margin:0 5px;"/>
+						<input type="hidden" name="deactivateFlag" value=""/>
 					</dd>
 				</dl>
 				<c:if test="${ct:isAdmin()}">
 				<input type="button" value="Admin Expand apply" class="btnExpand" />
-				<dl class="adminSearch" style="display:none;">
+				<dl class="adminSearch" style="display:none; height: 70px;">
 					<dt style="width:20px;"></dt>
 					<dd>
 						<label>Creator</label>
@@ -70,19 +75,37 @@
 						<input name="mStartDate" id="mStartDate" type="text" class="cal" title="Search Start Date" value="${searchBean.mStartDate}" maxlength="8"/> ~ 
 						<input name="mEndDate" id="mEndDate" type="text" class="cal" title="Search End Date" value="${searchBean.mEndDate}" maxlength="8"/> 
 					</dd>
+					<dt style="width:20px;"></dt>
+					<dd style="padding-top: 6px;">
+						<label>License Type</label>
+						<span class="selectSet" style="width: 257px;">
+							<strong for="licenseType" title="selected value"></strong>
+							<select id="licenseType" name="licenseType">
+								<option></option>
+								${ct:genOption(ct:getConstDef("CD_LICENSE_TYPE"))}
+							</select>
+						</span>
+					</dd>
+					<dd style="padding-top: 6px;">
+						<label>OSS Type</label>
+						<span class="iconSet none" title="None">None</span><input type="checkbox" id="noneLicenseFlag" name="ossTypeSearch" value = "N"/>
+						<span class="iconSet multi" title="Multi">Multi</span><input type="checkbox" id="multiLicenseFlag" name="ossTypeSearch" value = "M"/>
+						<span class="iconSet dual" title="Dual">Dual</span><input type="checkbox" id="dualLicenseFlag" name="ossTypeSearch" value = "D"/>
+						<span class="iconSet vdif" title="Version Difference">v-Diff</span><input type="checkbox" id="versionDiffFlag" name="ossTypeSearch" value = "V"/>
+					</dd>
 				</dl>
 				</c:if>
 				<input name="act" type="hidden" value="search"/> 
 				<input id="search" type="submit" value="Search" class="btnColor search" />
-				<a class="right" id="helpLink" style="position:absolute; cursor: pointer; top:10px; right:-60px; display:none;"><img alt="" src="/images/user-guide.png" /></a>
+				<a class="right" id="helpLink" style="position:absolute; cursor: pointer; top:10px; right:-60px; display:none;"><img alt="" src="${ctxPath}/images/user-guide.png" /></a>
 			</form>
 		</fieldset>
 		<!---->
 		<div class="btnLayout">
 			<span class="right">
-				<a href="#none" class="btnSet excel" onclick="fn.downloadExcel()"><span>Excel download</span></a>
+				<a href="#none" class="btnSet excel" onclick="fn.downloadExcel()"><span>Export</span></a>
 				<c:if test="${ct:isAdmin()}">
-					<input type="button" value="Add" class="btnColor" onclick="createTabInFrame('New_Opensource', '#/oss/edit')" />
+					<input type="button" value="Add" class="btnColor" onclick="createTabInFrame('New_Opensource', '#<c:url value="/oss/edit"/>')" />
 				</c:if>
 			</span>
 		</div>
@@ -94,9 +117,9 @@
 		<!---->
 		<div class="btnLayout">
 			<span class="right">
-				<a href="#none" class="btnSet excel" onclick="fn.downloadExcel()"><span>Excel download</span></a>
+				<a href="#none" class="btnSet excel" onclick="fn.downloadExcel()"><span>Export</span></a>
 				<c:if test="${ct:isAdmin()}">
-					<input type="button" value="Add" class="btnColor" onclick="createTabInFrame('New_Opensource', '#/oss/edit')" />
+					<input type="button" value="Add" class="btnColor" onclick="createTabInFrame('New_Opensource', '#<c:url value="/oss/edit"/>')" />
 				</c:if>
 			</span>
 		</div>

@@ -87,6 +87,8 @@ import oss.fosslight.service.VulnerabilityService;
 import oss.fosslight.validation.T2CoValidationResult;
 import oss.fosslight.validation.custom.T2CoProjectValidator;
 
+import org.spdx.library.SpdxVerificationHelper;
+
 @PropertySources(value = {@PropertySource(value=AppConstBean.APP_CONFIG_PROPERTIES_PATH)})
 @Slf4j
 public class ExcelDownLoadUtil extends CoTopComponent {
@@ -259,7 +261,6 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 		if(listMap != null && (listMap.containsKey("mainData") || listMap.containsKey("rows") )) {
 			list = (List<ProjectIdentification>) listMap.get(listMap.containsKey("mainData") ? "mainData" : "rows");
 			List<String[]> rows = new ArrayList<>();
-			boolean isCellCntMerge = false;
 			//Excell export sort
 			T2CoProjectValidator pv = new T2CoProjectValidator();
 			
@@ -465,7 +466,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 						params.add(bean.getBinaryName()); // Binary Name
 					}
 
-					if(!CoConstDef.CD_DTL_COMPONENT_ID_BIN.equals(type) && !isSelfCheck) {
+					if(!CoConstDef.CD_DTL_COMPONENT_ID_BIN.equals(type)) {
 						params.add(bean.getFilePath()); // path
 					}
 					
@@ -850,7 +851,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 		
 		try {
 			inFile= new FileInputStream(new File(downloadpath+"/LicenseList.xlsx"));
-			try {wb = new XSSFWorkbook(inFile);} catch (IOException e) {e.printStackTrace();}
+			try {wb = new XSSFWorkbook(inFile);} catch (IOException e) {log.error(e.getMessage());}
 			sheet = wb.getSheetAt(0);
 			wb.setSheetName(0, "LicenseList");
 			
@@ -921,7 +922,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 		
 		try {
 			inFile= new FileInputStream(new File(downloadpath+"/OssList.xlsx"));
-			try {wb = new XSSFWorkbook(inFile);} catch (IOException e) {e.printStackTrace();}
+			try {wb = new XSSFWorkbook(inFile);} catch (IOException e) {log.error(e.getMessage());}
 			sheet = wb.getSheetAt(0);
 			wb.setSheetName(0, "ossList");
 			
@@ -1612,11 +1613,11 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 	@SuppressWarnings({ "unchecked", "serial" })
 	public static String getExcelDownloadId(String type, String dataStr, String filepath, String extParam) throws Exception {
 		downloadpath = filepath;
-		String donwloadId = null;
+		String downloadId = null;
 		
 		switch (type) {
 			case "verification":
-				donwloadId = makeVerificationExcel((List<ProjectIdentification>) fromJson(dataStr, new TypeToken<List<ProjectIdentification>>(){}.getType()));
+				downloadId = makeVerificationExcel((List<ProjectIdentification>) fromJson(dataStr, new TypeToken<List<ProjectIdentification>>(){}.getType()));
 				
 				break;
 			case "project" :	//Project List			
@@ -1647,25 +1648,25 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				Map<String, Object> prjMap =	 projectService.getProjectList(project);
 				
 				if(isMaximumRowCheck((int) prjMap.get("records"))){
-					donwloadId	= getProjectExcel((List<Project>) prjMap.get("rows"));
+					downloadId	= getProjectExcel((List<Project>) prjMap.get("rows"));
 				}
 				
 				break;
 			case "report" :		//project report
 			case "bom" :		//project bom
-				donwloadId = getReportExcelPost(dataStr, null);
+				downloadId = getReportExcelPost(dataStr, null);
 				
 				break;
 			case "src" :		//SRC List
-				donwloadId = getReportExcelPost(dataStr, CoConstDef.CD_DTL_COMPONENT_ID_SRC);
+				downloadId = getReportExcelPost(dataStr, CoConstDef.CD_DTL_COMPONENT_ID_SRC);
 				
 				break;
 			case "bin" :		//bin List
-				donwloadId = getReportExcelPost(dataStr, CoConstDef.CD_DTL_COMPONENT_ID_BIN);
+				downloadId = getReportExcelPost(dataStr, CoConstDef.CD_DTL_COMPONENT_ID_BIN);
 				
 				break;
 			case "binAndroid" :		//bin android List
-				donwloadId = getReportExcelPost(dataStr, CoConstDef.CD_DTL_COMPONENT_ID_ANDROID);
+				downloadId = getReportExcelPost(dataStr, CoConstDef.CD_DTL_COMPONENT_ID_ANDROID);
 				
 				break;
 			case "license" :	//License List
@@ -1676,7 +1677,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				List<LicenseMaster> licenseList = licenseService.getLicenseMasterListExcel(license);
 				
 				if(isMaximumRowCheck(licenseService.selectLicenseMasterTotalCount(license))){
-					donwloadId 	= getLicenseExcel(licenseList);
+					downloadId 	= getLicenseExcel(licenseList);
 				}
 				
 				break;
@@ -1687,30 +1688,30 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				oss.setPageListSize(MAX_RECORD_CNT);
 				
 				Map<String,Object> ossMap 	= ossService.getOssMasterList(oss);
-				donwloadId 	= getOssExcel((List<OssMaster>) ossMap.get("rows"));
+				downloadId 	= getOssExcel((List<OssMaster>) ossMap.get("rows"));
 				
 				break;
 			case "model" :		//project model
 				Type 				modelType 	= new TypeToken<List<Project>>(){}.getType();
 				List<Project>		modelList 		= (List<Project>) fromJson(dataStr, modelType);
 				
-				donwloadId = getModelExcel(modelList, extParam);
+				downloadId = getModelExcel(modelList, extParam);
 				
 				break;
 			case "selfCheckList" :
-				donwloadId = getSelfCheckListExcelPost(dataStr, null);
+				downloadId = getSelfCheckListExcelPost(dataStr, null);
 				
 				break;
 			case "selfReport" :		//selfCheck Project
-				donwloadId = getSelftReportExcelPost(dataStr);
+				downloadId = getSelftReportExcelPost(dataStr);
 				
 				break;
 			case "partnerCheckList" :
-				donwloadId = getPartnerChecklistReportExcelPost(dataStr);
+				downloadId = getPartnerChecklistReportExcelPost(dataStr);
 				
 				break;
 			case "spdx" :				
-				donwloadId = getVerificationSPDX_SpreadSheetExcelPost(dataStr);
+				downloadId = getVerificationSPDX_SpreadSheetExcelPost(dataStr);
 				
 				break;
 			case "binaryDBLog" :
@@ -1740,7 +1741,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				Map<String, Object> bianryDbLogMap = binaryDataHistoryService.getBinaryDataHistoryList(bianryDbLogBean);
 				
 				if(isMaximumRowCheck((int) bianryDbLogMap.get("records"))){
-					donwloadId = getBinaryDBLogExcel((List<BinaryAnalysisResult>) bianryDbLogMap.get("rows"));
+					downloadId = getBinaryDBLogExcel((List<BinaryAnalysisResult>) bianryDbLogMap.get("rows"));
 				}
 				
 				break;
@@ -1762,7 +1763,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				partner.setModelFlag(CoConstDef.FLAG_NO);
 				
 				Map<String, Object> partnerList =	 partnerService.getPartnerMasterList(partner);
-				donwloadId	= getPartnerExcelId((List<PartnerMaster>) partnerList.get("rows"));
+				downloadId	= getPartnerExcelId((List<PartnerMaster>) partnerList.get("rows"));
 				
 				break;
 			case "3rdModel" :		//3rd Party List
@@ -1785,7 +1786,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				Map<String, Object> partnerModelList =	 partnerService.getPartnerStatusList(partnerModel);
 				
 				if(isMaximumRowCheck((int) partnerModelList.get("records"))){
-					donwloadId	= getPartnerModelExcelId((List<PartnerMaster>) partnerModelList.get("rows"));
+					downloadId	= getPartnerModelExcelId((List<PartnerMaster>) partnerModelList.get("rows"));
 				}
 				
 				break;
@@ -1815,7 +1816,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				Map<String, Object> map = complianceService.getModelList(ProjectModel);
 				
 				if(isMaximumRowCheck((int) map.get("records"))){
-					donwloadId	= getModelStatusExcelId((List<Project>) map.get("rows"), ProjectModel);
+					downloadId	= getModelStatusExcelId((List<Project>) map.get("rows"), ProjectModel);
 				}
 				
 				break;
@@ -1828,7 +1829,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				Map<String, Object> vulnerabilityMap =	 vulnerabilityService.getVulnerabilityList(vulnerability);
 				
 				if(isMaximumRowCheck((int) vulnerabilityMap.get("records"))){
-					donwloadId = getVulnerabilityExcel((List<Vulnerability>) vulnerabilityMap.get("rows"));
+					downloadId = getVulnerabilityExcel((List<Vulnerability>) vulnerabilityMap.get("rows"));
 				}
 				
 				break;
@@ -1840,23 +1841,23 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				
 				Map<String, Object> analysisList = ossService.getOssAnalysisList(ossBean);
 				
-				donwloadId = getAnalysisListExcel((List<OssAnalysis>) analysisList.get("rows"), (String) ossBean.getPrjId());
+				downloadId = getAnalysisListExcel((List<OssAnalysis>) analysisList.get("rows"), (String) ossBean.getPrjId());
 				
 				break;
 			case "user" :		//UserManagement List
 				List<T2Users> 		userList = userService.getUserListExcel();
-				donwloadId = getUserExcelId(userList);
+				downloadId = getUserExcelId(userList);
 				
 				break;
 			case "bomcompare" :
-				donwloadId = getBomCompareExcelId(dataStr);
+				downloadId = getBomCompareExcelId(dataStr);
 				
 				break;
 			default:
 				break;
 		}
 		
-		return donwloadId;
+		return downloadId;
 	}
 	
 	/**
@@ -1925,7 +1926,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 	 * @throws IOException
 	 */
 	@SuppressWarnings("unchecked")
-	private static String getVerificationSPDX_SpreadSheetExcelPost(String prjId) throws IOException {
+	private static String getVerificationSPDX_SpreadSheetExcelPost(String dataStr) throws IOException {
 
 		Workbook wb = null;
 		Sheet sheetDoc = null; // Document info
@@ -1937,6 +1938,13 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 		
 		// download file name
 		String downloadFileName = "SPDXRdf-"; // Default
+		
+		Type ossNoticeType = new TypeToken<OssNotice>(){}.getType();
+		
+		OssNotice ossNotice = (OssNotice) fromJson(dataStr, ossNoticeType);
+		ossNotice.setFileType("text");
+		
+		String prjId = ossNotice.getPrjId();
 		
 		try {
 			inFile= new FileInputStream(new File(downloadpath+"/SPDXRdf_2.2.2.xls"));
@@ -1958,9 +1966,6 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 
 			T2Users userInfo = new T2Users();
 			userInfo.setUserId(projectInfo.getCreator());
-			
-			OssNotice ossNotice = verificationService.selectOssNoticeOne(prjId);
-			ossNotice.setFileType("text");
 			
 			Map<String, Object> packageInfo = verificationService.getNoticeHtmlInfo(ossNotice);
 			
@@ -2030,6 +2035,8 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				
 				List<OssComponents> sourceList = (List<OssComponents>) packageInfo.get("disclosureObligationList");
 				
+				boolean hideOssVersionFlag = CoConstDef.FLAG_YES.equals(ossNotice.getHideOssVersionYn());
+				
 				// permissive oss와 copyleft oss를 병합
 				if(sourceList != null && !sourceList.isEmpty()) {
 					noticeList.addAll(sourceList);
@@ -2040,10 +2047,6 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				int rowIdx = 1;
 				
 				for(OssComponents bean : noticeList) {
-					
-					if("-".equals(bean.getOssName())) {
-						continue;
-					}
 					
 					Row row = sheetPackage.getRow(rowIdx);
 					
@@ -2061,12 +2064,19 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 					
 					// SPDX Identifier
 					Cell cellSPDXIdentifier = getCell(row, cellIdx); cellIdx++;
-					cellSPDXIdentifier.setCellValue("SPDXRef-Package-" + bean.getOssId());
-					packageInfoidentifierList.add("SPDXRef-Package-" + bean.getOssId());
+					String ossName = bean.getOssName().replace("&#39;", "\'"); // ossName에 '가 들어갈 경우 정상적으로 oss Info를 찾지 못하는 증상이 발생하여 현재 값으로 치환.
+
+					if(ossName.equals("-")) {
+						cellSPDXIdentifier.setCellValue("SPDXRef-File-" + bean.getComponentId());
+						packageInfoidentifierList.add("SPDXRef-File-" + bean.getComponentId());
+					} else {
+						cellSPDXIdentifier.setCellValue("SPDXRef-Package-" + bean.getOssId());
+						packageInfoidentifierList.add("SPDXRef-Package-" + bean.getOssId());
+					}
 					
 					// Package Version
 					Cell cellPackageVersion = getCell(row, cellIdx); cellIdx++;
-					cellPackageVersion.setCellValue(avoidNull(bean.getOssVersion()));
+					cellPackageVersion.setCellValue(hideOssVersionFlag ? "" : avoidNull(bean.getOssVersion()));
 					
 					// Package FileName
 					cellIdx++;
@@ -2085,7 +2095,18 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 					
 					// Package Download Location
 					Cell cellPackageDownloadLocation = getCell(row, cellIdx); cellIdx++;
-					cellPackageDownloadLocation.setCellValue(avoidNull(bean.getDownloadLocation()));
+					String downloadLocation = bean.getDownloadLocation();
+
+					if(downloadLocation.isEmpty()) {
+						downloadLocation = "NONE";
+					}
+
+					// Invalid download location is output as NONE
+					if(SpdxVerificationHelper.verifyDownloadLocation(downloadLocation) != null) {
+						downloadLocation = "NONE";
+					}
+
+					cellPackageDownloadLocation.setCellValue(downloadLocation);
 					
 					// Package Checksum
 					cellIdx++;
@@ -2101,18 +2122,22 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 					
 					// License Declared
 					Cell cellLicenseDeclared = getCell(row, cellIdx); cellIdx++;
-					String ossName = bean.getOssName().replace("&#39;", "\'"); // ossName에 '가 들어갈 경우 정상적으로 oss Info를 찾지 못하는 증상이 발생하여 현재 값으로 치환.
-					OssMaster _ossBean = CoCodeManager.OSS_INFO_UPPER.get( (ossName + "_" + avoidNull(bean.getOssVersion())).toUpperCase());
-					attributionText = avoidNull(_ossBean.getAttribution()); // oss attribution
-					
-					if(_ossBean != null) {
+
+					OssMaster _ossBean = null;
+					if(ossName.equals("-")) {
+						String licenseStr = CommonFunction.licenseStrToSPDXLicenseFormat(bean.getLicenseName());
+						cellLicenseDeclared.setCellValue(licenseStr);
+						attributionText = bean.getAttribution();
+					} else {
+						_ossBean = CoCodeManager.OSS_INFO_UPPER.get( (ossName + "_" + avoidNull(bean.getOssVersion())).toUpperCase());
 						String licenseStr = CommonFunction.makeLicenseExpression(_ossBean.getOssLicenses(), false, true);
+
 						if(_ossBean.getOssLicenses().size() > 1) {
 							licenseStr = "(" + licenseStr + ")";
 						}
+
 						cellLicenseDeclared.setCellValue(licenseStr);
-					} else {
-						cellLicenseDeclared.setCellValue(bean.getLicenseName());
+						attributionText = avoidNull(_ossBean.getAttribution()); // oss attribution
 					}
 					
 					// License Concluded
@@ -2152,16 +2177,27 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 					
 					// License Info From Files
 					Cell licenseInfoFromFiles = getCell(row, cellIdx); cellIdx++;
-					licenseInfoFromFiles.setCellValue(CommonFunction.makeLicenseFromFiles(_ossBean)); // Declared & Detected License Info (중복제거)
+
+					if(ossName.equals("-")) {
+						licenseInfoFromFiles.setCellValue(CommonFunction.licenseStrToSPDXLicenseFormat(bean.getLicenseName()));
+					} else {
+						licenseInfoFromFiles.setCellValue(CommonFunction.makeLicenseFromFiles(_ossBean, true)); // Declared & Detected License Info (중복제거)
+					}
 					
 					// License Comments
 					cellIdx++;
 					
 					// Package Copyright Text
 					Cell cellPackageCopyrightText = getCell(row, cellIdx); cellIdx++;
-					cellPackageCopyrightText.setCellValue(StringUtil.substring(CommonFunction.brReplaceToLine(bean.getCopyrightText()), 0, 32762) );
-					
-					
+					String copyrightText = StringUtil.substring(CommonFunction.brReplaceToLine(bean.getCopyrightText()), 0, 32762);
+
+					if(copyrightText.isEmpty() || copyrightText.equals("-")) {
+						copyrightText = "NOASSERTION";
+					}
+
+					cellPackageCopyrightText.setCellValue(copyrightText);
+
+
 					// Summary
 					cellIdx++;
 					
@@ -2169,15 +2205,13 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 					cellIdx++;
 					
 					
-					// Attribution Info 
+					// Attribution Text
 					Cell attributionInfo = getCell(row, cellIdx); cellIdx++;
-					attributionInfo.setCellValue(attributionText);
+					attributionInfo.setCellValue(hideOssVersionFlag ? bean.getOssAttribution().replaceAll("<br>", "\n") : attributionText);
 					
 					// Files Analyzed
 					Cell filesAnalyzed = getCell(row, cellIdx); cellIdx++;
 					filesAnalyzed.setCellValue("false");
-					
-					// Files Analyzed
 					
 					// User Defined Columns...
 					
@@ -2193,9 +2227,14 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				
 				for(OssComponents ocBean : noticeList) {
 					String ossName = ocBean.getOssName().replace("&#39;", "\'");
-					OssMaster _ossBean = CoCodeManager.OSS_INFO_UPPER.get((ossName + "_" + avoidNull(ocBean.getOssVersion())).toUpperCase());
-					
-					List<String> licenseList = Arrays.asList(CommonFunction.makeLicenseFromFiles(_ossBean).split(","));
+
+					List<String> licenseList = new ArrayList<>();
+					if(ossName.equals("-")) {
+						licenseList = Arrays.asList(ocBean.getLicenseName());
+					} else {
+						OssMaster _ossBean = CoCodeManager.OSS_INFO_UPPER.get((ossName + "_" + avoidNull(ocBean.getOssVersion())).toUpperCase());
+						licenseList = Arrays.asList(CommonFunction.makeLicenseFromFiles(_ossBean, false).split(","));
+					}
 					
 					for(String licenseNm : licenseList) {
 						LicenseMaster lmBean = CoCodeManager.LICENSE_INFO.get(licenseNm);
@@ -2247,7 +2286,8 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 				List<OssComponents> nonIdetifierNoticeList = new ArrayList<>();
 				
 				for(OssComponents bean : noticeList) {
-					if("-".equals(bean.getOssName())) {
+					// set false because "Per file info sheet" is not currently output
+					if("-".equals(bean.getOssName()) && false) {
 						nonIdetifierNoticeList.add(bean);
 					}
 				}
@@ -2461,7 +2501,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 
 	public static String getExcelDownloadIdOss(String type, OssMaster oss, String filepath) throws Exception {
 		downloadpath = filepath;
-		String donwloadId = null;
+		String downloadId = null;
 		
 		if(isMaximumRowCheck(ossMapper.selectOssMasterTotalCount(oss))){
 			oss.setStartIndex(0);
@@ -2469,10 +2509,10 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 			oss.setSearchFlag(CoConstDef.FLAG_NO); // 화면 검색일 경우 "Y" export시 "N"
 			Map<String,Object> ossMap 	= ossService.getOssMasterList(oss);
 			
-			donwloadId 	= getOssExcel((List<OssMaster>) ossMap.get("rows"));
+			downloadId 	= getOssExcel((List<OssMaster>) ossMap.get("rows"));
 		}
 		
-		return donwloadId;
+		return downloadId;
 	}
 	
 	private static String makeVerificationExcel (List<ProjectIdentification> verificationList)  throws Exception {
@@ -2546,7 +2586,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 		
 		try {
 			inFile= new FileInputStream(new File(downloadpath+"/selfCheckList.xlsx"));
-			try {wb = new XSSFWorkbook(inFile);} catch (IOException e) {e.printStackTrace();}
+			try {wb = new XSSFWorkbook(inFile);} catch (IOException e) {log.error(e.getMessage());}
 			sheet = wb.getSheetAt(0);
 			wb.setSheetName(0, "selfCheckList");
 			
@@ -2685,11 +2725,11 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 	private static String getVulnerabilityExcel(List<Vulnerability> vulnerabilityList) throws Exception{
 		Workbook wb = null;
 		Sheet sheet = null;
-		FileInputStream inFile=null;
 		
-		try {
-			inFile= new FileInputStream(new File(downloadpath+"/VulnerabilityReport.xlsx"));
-			try {wb = new XSSFWorkbook(inFile);} catch (IOException e) {e.printStackTrace();}
+		try(
+			FileInputStream inFile= new FileInputStream(new File(downloadpath+"/VulnerabilityReport.xlsx"));
+		) {
+			try {wb = new XSSFWorkbook(inFile);} catch (IOException e) {log.error(e.getMessage());}
 			sheet = wb.getSheetAt(0);
 			wb.setSheetName(0, "vulnerabilityList");
 			
@@ -2926,7 +2966,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 		
 		try {
 			inFile= new FileInputStream(new File(downloadpath+"/AutoAnalysisList.xlsx"));
-			try {wb = new XSSFWorkbook(inFile);} catch (IOException e) {e.printStackTrace();}
+			try {wb = new XSSFWorkbook(inFile);} catch (IOException e) {log.error(e.getMessage());}
 			sheet = wb.getSheetAt(0);
 			wb.setSheetName(0, "Auto Analysis Input");
 			
@@ -3046,7 +3086,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 			
 			return makeBomCompareExcelFileId(beforePrjId, afterPrjId, wb, "BOM_Compare", "xlsx");
 		} catch (IOException e){
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 		
 		return null;

@@ -40,7 +40,7 @@ public class AjaxInterceptor implements HandlerInterceptor {
                 }
 			}
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error(e.getMessage());
             log.debug(e.getMessage());
             return false;
         }

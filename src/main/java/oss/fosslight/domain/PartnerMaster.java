@@ -51,6 +51,8 @@ public class PartnerMaster extends ComBean implements Serializable{
 	/** The oss file id. */
 	private String ossFileId;
 	
+	private String binaryFileId;
+	
 	/** The related DocumentFile file. */
 	private List<T2File> documentsFile; // Related documents 파일 객체
 	
@@ -181,7 +183,11 @@ public class PartnerMaster extends ComBean implements Serializable{
 
 	private String ossVersion;
 	
-	/**
+	private String ossNameMergeFlag;
+	
+	private String ignoreBinaryDbFlag = "N";
+	
+	/*
 	 * Gets the partner id.
 	 *
 	 * @return the partner id
@@ -359,6 +365,24 @@ public class PartnerMaster extends ComBean implements Serializable{
 	 */
 	public void setOssFileId(String ossFileId) {
 		this.ossFileId = ossFileId;
+	}
+	
+	/**
+	 * Gets the binary file id.
+	 *
+	 * @return the binary file id
+	 */
+	public String getBinaryFileId() {
+		return binaryFileId;
+	}
+	
+	/**
+	 * Sets the binary file id.
+	 *
+	 * @param binaryFileId the new binary file id
+	 */
+	public void setBinaryFileId(String binaryFileId) {
+		this.binaryFileId = binaryFileId;
 	}
 	
 	/**
@@ -671,7 +695,7 @@ public class PartnerMaster extends ComBean implements Serializable{
 	 * @return the watcher division
 	 */
 	public String[] getWatcherDivision() {
-		return watcherDivision;
+		return watcherDivision != null ? watcherDivision.clone() : null;
 	}
 	
 	/**
@@ -680,7 +704,8 @@ public class PartnerMaster extends ComBean implements Serializable{
 	 * @param watcherDivision the new watcher division
 	 */
 	public void setWatcherDivision(String[] watcherDivision) {
-		this.watcherDivision = watcherDivision;
+		this.watcherDivision = watcherDivision != null ? 
+			watcherDivision.clone() : null;
 	}
 	
 	/**
@@ -689,7 +714,7 @@ public class PartnerMaster extends ComBean implements Serializable{
 	 * @return the watcher user id
 	 */
 	public String[] getWatcherUserId() {
-		return watcherUserId;
+		return watcherUserId != null ? watcherUserId.clone() : null;
 	}
 	
 	/**
@@ -698,7 +723,8 @@ public class PartnerMaster extends ComBean implements Serializable{
 	 * @param watcherUserId the new watcher user id
 	 */
 	public void setWatcherUserId(String[] watcherUserId) {
-		this.watcherUserId = watcherUserId;
+		this.watcherUserId = watcherUserId != null ?
+			watcherUserId.clone() : null;
 	}
 	
 	/**
@@ -889,7 +915,7 @@ public class PartnerMaster extends ComBean implements Serializable{
 	 * @return the watchers
 	 */
 	public String[] getWatchers() {
-		return watchers;
+		return watchers != null ? watchers.clone() : null;
 	}
 
 	/**
@@ -898,7 +924,7 @@ public class PartnerMaster extends ComBean implements Serializable{
 	 * @param watchers the new watchers
 	 */
 	public void setWatchers(String[] watchers) {
-		this.watchers = watchers;
+		this.watchers = watchers != null ? watchers.clone() : null;
 	}
 
 	/**
@@ -992,11 +1018,12 @@ public class PartnerMaster extends ComBean implements Serializable{
 	}
 	
 	public String[] getArrStatuses() {
-		return arrStatuses;
+		return arrStatuses != null ? arrStatuses.clone() : null;
 	}
 
 	public void setArrStatuses(String[] arrStatuses) {
-		this.arrStatuses = arrStatuses;
+		this.arrStatuses = arrStatuses != null ?
+			arrStatuses.clone() : null;
 	}
 	
 	/**
@@ -1105,5 +1132,21 @@ public class PartnerMaster extends ComBean implements Serializable{
 
 	public void setOssVersion(String ossVersion) {
 		this.ossVersion = ossVersion;
+	}
+	
+	public String getOssNameMergeFlag() {
+		return ossNameMergeFlag;
+	}
+
+	public void setOssNameMergeFlag(String ossNameMergeFlag) {
+		this.ossNameMergeFlag = ossNameMergeFlag;
+	}
+	
+	public String getIgnoreBinaryDbFlag() {
+		return ignoreBinaryDbFlag;
+	}
+
+	public void setIgnoreBinaryDbFlag(String ignoreBinaryDbFlag) {
+		this.ignoreBinaryDbFlag = ignoreBinaryDbFlag;
 	}
 }

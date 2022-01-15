@@ -1,12 +1,12 @@
 <%@ page contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
 <%@ include file="/WEB-INF/constants.jsp"%>
-<%-- 관리자 화면 템플릿 --%>
+<%-- Administrator screen template --%>
 <!DOCTYPE html>
 <html>
 	<head>
 		<tiles:insertAttribute name="meta" />
 		<tiles:insertAttribute name="scripts" />
-		<script type="text/javascript" src="/js/ckeditor/ckeditor.js?${jsVersion}"></script>
+		<script type="text/javascript" src="${ctxPath}/js/ckeditor/ckeditor.js?${jsVersion}"></script>
 	</head>
 	<body>
 		<!-- skip-navigation -->
@@ -70,7 +70,7 @@ $('#btnNotice').click(function(){
 
 if(getCookie("noticeYn") != "N"){
 	$.ajax({
-		url : "/system/notice/getPublishedtNotice",
+		url : '<c:url value="/system/notice/getPublishedtNotice"/>',
 		type : "GET",
 		success : function(data){
 			if(data.noticeList){
@@ -90,7 +90,7 @@ if(getCookie("noticeYn") != "N"){
 				}
 				
 				CKEDITOR.replace('noticeEdit', {
-					customConfig:'/js/customEditorConf_Comment.js'
+					customConfig:'<c:url value="/js/customEditorConf_Comment.js"/>'
 				});
 				
 				$('.registPop').show();

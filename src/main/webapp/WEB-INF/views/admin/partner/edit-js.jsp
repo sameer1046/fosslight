@@ -16,7 +16,11 @@ var delDocumentsFile = [];
 var etcDomain = "${ct:getConstDef('CD_DTL_ECT_DOMAIN')}";
 var divisionEmptyCd = "${ct:getConstDef('CD_USER_DIVISION_EMPTY')}";
 var partnerData = ${empty detailJson ? '{}' : detailJson};
+var prjList = ${empty prjList ? '{}' : prjList};
 var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
+var _popupCheckOssName = null;
+var _popupCheckOssLicense = null;
+var saveFlag = false;
 
 	$(document).ready(function () {
 		'use strict';
@@ -32,8 +36,8 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 		</c:if>
 		
 		// autoConplete 문제로 인한 처리
-	    $("#partnerName").val(partnerData.partnerName);
-	    $("#softwareName").val(partnerData.softwareName);
+		$("#partnerName").val(partnerData.partnerName);
+		$("#softwareName").val(partnerData.softwareName);
 		// ossNames auto complete
 		fn_grid_com.griOssNames().success(function(data, status, headers, config){
 			if(data != null){
@@ -67,6 +71,46 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 		if(userRole == "ROLE_ADMIN" && '${detail.partnerId}' != ""){
 			$("input[name=creatorNm]").val('${detail.creatorName }');
 		}
+		
+		$("#_projectList").jqGrid({
+			datatype: 'local',
+			data: prjList,
+			colNames:['ID','Project Name', 'Project Version'],
+			colModel:[
+				{name:'prjId',index:'prjId', width:70, sortable:false, align:"center", key:true},
+				{name:'prjName',index:'prjName', width:400, sortable:false},
+				{name:'prjVersion',index:'prjVersion', width:100, sortable:false, align:"center"}
+			],
+			rowNum:100,
+			viewrecords: true,
+			height: 'auto',
+			ondblClickRow: function(rowid,iRow,iCol,e) {
+				var rowData = $("#_projectList").jqGrid('getRowData',rowid);
+				if("Y" != rowData.oldSystemFlag) {
+					createTabInFrame(rowData['prjId']+'_Project','#<c:url value="/project/edit/'+rowData['prjId']+'"/>');
+				}
+			},
+			loadComplete: function(data) {
+				if(data.records > 0) {
+					var multRowIds = []; 
+					var rowIdx = 0, rows = this.rows, rowsCount = rows.length, row, rowid, rowData, className;
+					for(var _idx=0;_idx<rowsCount;_idx++) {
+						row = rows[_idx];
+						className = row.className;
+						if (className.indexOf('jqgrow') !== -1) {
+							rowid = row.id;
+							rowData = data.rows[rowIdx++];
+							if(rowData.oldSystemFlag == "Y") {
+								className = className + ' excludeRow';
+							}
+							row.className = className;
+						} else if(className.indexOf('ui-subgrid') !== -1){
+							rowIdx++;
+						}
+					}
+				}
+			}
+		});
 	});
 	var commentTemp = '';
 	var modifyCommentId = '${detail.comment}';
@@ -135,7 +179,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 				var param = { referenceId : $('input[name=partnerId]').val(), referenceDiv :'21', contents : editorVal };
 				
 				$.ajax({
-					url : '/partner/saveComment',
+					url : '<c:url value="/partner/saveComment"/>',
 					type : 'POST',
 					dataType : 'json',
 					cache : false,
@@ -163,7 +207,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			</c:forEach>
 			
 			$('#confirmationFile').uploadFile({
-				url : '/partner/ossFile',
+				url : '<c:url value="/partner/ossFile"/>',
 				multiple:false,
 				dragDrop:true,
 				fileName:'myfile',
@@ -181,13 +225,14 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 						result = result[0][0];
 						if(result && result.uploadSucc) {
 							var appendHtml = '<span style="margin-left:20px;">'+result.createdDate+'</span>';
+							var _url = '<c:url value="/download/'+result.registSeq+'/'+result.fileName+'"/>';
 
 							$('.confirmationUpload').children().remove();
-							$('.confirmationUpload').append('<a href="/download/'+result.registSeq+'/'+result.fileName+'">'+result.originalFilename+'</a>'+appendHtml);
+							$('.confirmationUpload').append('<a href="'+_url+'">'+result.originalFilename+'</a>'+appendHtml);
 							$('.confirmationUpload').append(' <span><input type="button" value="Delete" class="smallDelete" onclick="fn.deleteConfirmationFile(this)" style="vertical-align:super;"/></span>');
 							$('.confirmationUpload').append('<input type="hidden" name="confirmationFileId" value="'+result.registSeq+'"/>');
 						} else {
-							alert('파일 업로드에 실패하였습니다.');
+							alert('<spring:message code="msg.common.upload.failed" />');
 						}
 						
 						$('.ajax-file-upload-statusbar').fadeOut('slow');
@@ -206,7 +251,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			</c:forEach>
 			
 			$('#ossFile').uploadFile({
-				url : '/partner/ossFile?excel=Y',
+				url : '<c:url value="/partner/ossFile?excel=Y"/>',
 				multiple:false,
 				dragDrop:true,
 				fileName:'myfile',
@@ -227,7 +272,23 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 								$('.ajax-file-upload-statusbar').fadeOut('slow');
 								$('.ajax-file-upload-statusbar').remove();
 							});
-						} else {
+						} else if(result[2] == "CSV_FILE") {
+							var result_ = result[0][0];
+
+							if(result && result_.uploadSucc) {
+								var appendHtml = '<span style="margin-left:20px;">'+result[0][0].createdDate+'</span>';
+								var _url = '<c:url value="/download/'+result[0][0].registSeq+'/'+result[0][0].fileName+'"/>';
+
+								$('.ossUpload').children().remove();
+								$('.ossUpload').append('<a href="'+_url+'">'+result[0][0].originalFilename+'</a>'+appendHtml);
+								$('.ossUpload').append(' <span><input type="button" value="Delete" class="smallDelete" onclick="fn.deleteOssFile(this)" style="vertical-align:super;"/></span>');
+								$('.ossUpload').append('<input type="hidden" name="ossFileId" value="'+result[0][0].registSeq+'"/>');
+
+								fn.getCsvData();
+							} else {
+								alert('파일 업로드에 실패하였습니다.');
+							}
+						} else if(result[2] == "EXCEL_FILE") {
 							var result_ = result[0][0];
 							
 							if(result && result_.uploadSucc) {
@@ -256,9 +317,27 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 								$('.ossUpload').append(' <span><input type="button" value="Delete" class="smallDelete" onclick="fn.deleteOssFile(this)" style="vertical-align:super;"/></span>');
 								$('.ossUpload').append('<input type="hidden" name="ossFileId" value="'+result[0][0].registSeq+'"/>');
 							} else {
-								alert('파일 업로드에 실패하였습니다.');
+								alertify.alert('<spring:message code="msg.common.upload.failed" />', function(){});
 							}
 							
+							$('.ajax-file-upload-statusbar').fadeOut('slow');
+							$('.ajax-file-upload-statusbar').remove();
+						} else if(result[2] == "SPDX_SPREADSHEET_FILE") {
+							var result_ = result[0][0];
+							if(result && result_.uploadSucc) {
+								var appendHtml = '<span style="margin-left:20px;">'+result[0][0].createdDate+'</span>';
+								$('.ossUpload').children().remove();
+								$('.ossUpload').append('<a href="/download/'+result[0][0].registSeq+'/'+result[0][0].fileName+'">'+result[0][0].originalFilename+'</a>'+appendHtml);
+								$('.ossUpload').append(' <span><input type="button" value="Delete" class="smallDelete" onclick="fn.deleteOssFile(this)" style="vertical-align:super;"/></span>');
+								$('.ossUpload').append('<input type="hidden" name="ossFileId" value="'+result[0][0].registSeq+'"/>');
+								fn.getSpdxSpreadsheetData();
+							} else {
+								alert('파일 업로드에 실패하였습니다.');
+							}
+							$('.ajax-file-upload-statusbar').fadeOut('slow');
+							$('.ajax-file-upload-statusbar').remove();
+						} else {
+							alertify.error('<spring:message code="msg.common.valid" />', 0);
 							$('.ajax-file-upload-statusbar').fadeOut('slow');
 							$('.ajax-file-upload-statusbar').remove();
 						}
@@ -267,7 +346,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			});
 			
 			$('#documentsFile').uploadFile({
-				url : '/partner/documentsFile',
+				url : '<c:url value="/partner/documentsFile"/>',
 				multiple:false,
 				dragDrop:true,
 				fileName:'myfile',
@@ -291,14 +370,15 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 						
 						if(result && result.uploadSucc) {
 							var appendHtml = '<span style="margin-left:20px;">'+result.createdDate+'</span>';
-							$('.documentsFileArea').append('<li><a href="/download/'+result.registSeq+'/'+result.fileName+'">'+result.originalFilename+'</a>'+appendHtml+'<span><input type="button" value="Delete" class="smallDelete" onclick="fn.deleteDocumentsFile(this)" style="vertical-align:super;margin-left: 5px;"/></span><input type="hidden" value="'+result.registSeq+'"/></li>');
+							var _url = '<c:url value="/download/'+result.registSeq+'/'+result.fileName+'"/>';
+							$('.documentsFileArea').append('<li><a href="'+_url+'">'+result.originalFilename+'</a>'+appendHtml+'<span><input type="button" value="Delete" class="smallDelete" onclick="fn.deleteDocumentsFile(this)" style="vertical-align:super;margin-left: 5px;"/></span><input type="hidden" value="'+result.registSeq+'"/></li>');
 							$("#documentsFileId").val(result.registFileId);
 							
 							if($(".documentsFileArea > li").length >= 5) {
 								$("#documentsFile").hide();
 							}
 						} else {
-							alert('파일 업로드에 실패하였습니다.');
+							alertify.alert('<spring:message code="msg.common.upload.failed" />', function(){});
 						}
 						
 						$('.ajax-file-upload-statusbar').fadeOut('slow');
@@ -315,8 +395,8 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 
 				if(adId == "") {
 					$("#adId").focus();
-					
-					return alertify.error('Please enter watcher AD ID', 0);
+					// return alertify.error('Please enter watcher AD ID', 0);
+					return alertify.error('<spring:message code="enter.watcher.error" />', 0);
 				}
 				
 				var _email = adId + "@" + domain;
@@ -324,13 +404,13 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 
 				if (!regEmail.test(_email)) {
 					$("#adId").focus();
-					
-					return alertify.error('Invalid email address.', 0);
+					// return alertify.error('Invalid email address.', 0);
+					return alertify.error('<spring:message code="invalid.email.error" />', 0);
 				}
 				
 				$.ajax({
 					type: "POST",
-					url: '/system/user/checkEmail', 
+					url: '<c:url value="/system/user/checkEmail"/>', 
 					type : 'GET',
 					dataType : 'json',
 					cache : false,
@@ -355,16 +435,16 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			});
 			
 			$('.btnCommentHistory').on('click', function(e){
-	            e.preventDefault();
-	            openCommentHistory("3rd", "${detail.partnerId}");
-	        });
+				e.preventDefault();
+				openCommentHistory('<c:url value="/comment/popup/3rd/${detail.partnerId}"/>');
+			});
 			
 			$(window).resize(function(){
 				fn.gridHeaderResize();
 			});
 			
 			$('#partnerForm').ajaxForm({
-				url : '/partner/saveAjax',
+				url : '<c:url value="/partner/saveAjax"/>',
 				type : 'POST',
 				dataType : 'json',
 				cache : false,
@@ -379,7 +459,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 					var param = {partnerId : '${detail.partnerId}', publicYn : ($("[name='publicYn']:checked").val())};
 					
 					$.ajax({
-						url : '/partner/updatePublicYn',
+						url : '<c:url value="/partner/updatePublicYn"/>',
 						type : 'POST',
 						data : JSON.stringify(param),
 						dataType : 'json',
@@ -416,6 +496,15 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 				} else {
 					$("#emailTemp").val(domain).hide();
 				}
+			});
+
+			//프로젝트 리스트 더보기
+			$("#listMore").on("click",function(){
+				createTabInFrameWithCondition("Project List", '#<c:url value="/project/list"/>', 'PARTNERLISTMORE', $('input[name=partnerName]').val());
+			});
+
+			$("#createProject").on("click", function(){
+				createTabInFrameWithCondition("New_Project", '#<c:url value="/project/edit"/>', 'PARTNER', "${detail.partnerId}||${detail.partnerName}||${detail.softwareName}");
 			});
 		},
 		tabInit: function(){
@@ -473,7 +562,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 		// party 그리드 데이터
 		getPartyGridData : function(){
 			$.ajax({
-				url : '/project/identificationGrid/${detail.partnerId}/20',
+				url : '<c:url value="/project/identificationGrid/${detail.partnerId}/20"/>',
 				type : 'GET',
 				dataType : 'json',
 				cache : false,
@@ -507,64 +596,68 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			});
 		},
 		save : function(){
-
-			com_fn.exitCell(_mainLastsel, "list");
-			
-			alertify.confirm('<spring:message code="msg.common.confirm.save" />', function (e) {
-				if (e) {
-					cleanErrMsg("list");
-					$("div.retxt").hide();
-					
-					//public 값 넣어주기
-					if($('#checkbox3').is(':checked')) {
-						$('#checkbox3').val('N');
-					} else {
-						$('#checkbox3').val('Y');
-					}
-					
-					fn_grid_com.totalGridSaveMode('list');
-					
-					var target = $("#list");
-					var mainData = target.jqGrid('getGridParam','data'); // 메인 그리드
-					
-			 		mainData.forEach( function(_rowData){
-			 			var _rowId = _rowData['gridId'];
-			 			
-			 			if(_rowData["obligationLicense"] == "90") {
-			 				if(_rowData["notify"] == "Y") {
-			 					if(_rowData["source"] == "Y") {
-			 						_rowData["obligationType"] = "11";
-			 					} else {
-			 						_rowData["obligationType"] = "10";
-			 					}
-			 				} else if(_rowData["notify"] == "N") {
-			 					_rowData["obligationType"] = "99";
-			 				}
-			 			}
-			 		});
-			 		
-					$('#ossComponentsStr').val(JSON.stringify(mainData));
-					$('#userComment').val(JSON.stringify(CKEDITOR.instances['editor'].getData()));
-					
-					var prjId = '${detail.partnerId}';
-					var postData = {"mainData" : JSON.stringify(mainData), "prjId" : prjId};
-					
-					$.ajax({
-						url : '/project/nickNameValid/20',
-						type : 'POST',
-						data : JSON.stringify(postData),
-						dataType : 'json',
-						cache : false,
-						contentType : 'application/json',
-						success: function(data){fn.makeNickNamePopup(data);},
-						error: function(data){
-							alertify.error('<spring:message code="msg.common.valid2" />', 0);
+			if (fn.checkStatus()){
+				com_fn.exitCell(_mainLastsel, "list");
+				
+				alertify.confirm('<spring:message code="msg.common.confirm.save" />', function (e) {
+					if (e) {
+						cleanErrMsg("list");
+						$("div.retxt").hide();
+						
+						//public 값 넣어주기
+						if($('#checkbox3').is(':checked')) {
+							$('#checkbox3').val('N');
+						} else {
+							$('#checkbox3').val('Y');
 						}
-					});
-				} else {
-					return false;
-				}
-			});
+						
+						fn_grid_com.totalGridSaveMode('list');
+						
+						var target = $("#list");
+						var mainData = target.jqGrid('getGridParam','data'); // 메인 그리드
+						
+				 		mainData.forEach( function(_rowData){
+				 			var _rowId = _rowData['gridId'];
+				 			
+				 			if(_rowData["obligationLicense"] == "90") {
+				 				if(_rowData["notify"] == "Y") {
+				 					if(_rowData["source"] == "Y") {
+				 						_rowData["obligationType"] = "11";
+				 					} else {
+				 						_rowData["obligationType"] = "10";
+				 					}
+				 				} else if(_rowData["notify"] == "N") {
+				 					_rowData["obligationType"] = "99";
+				 				}
+				 			}
+				 		});
+				 		
+						$('#ossComponentsStr').val(JSON.stringify(mainData));
+						$('#userComment').val(JSON.stringify(CKEDITOR.instances['editor'].getData()));
+						
+						var prjId = '${detail.partnerId}';
+						var postData = {"mainData" : JSON.stringify(mainData), "prjId" : prjId};
+						
+						$.ajax({
+							url : '<c:url value="/project/nickNameValid/20"/>',
+							type : 'POST',
+							data : JSON.stringify(postData),
+							dataType : 'json',
+							cache : false,
+							contentType : 'application/json',
+							success: function(data){fn.makeNickNamePopup(data);},
+							error: function(data){
+								alertify.error('<spring:message code="msg.common.valid2" />', 0);
+							}
+						});
+					} else {
+						return false;
+					}
+				});
+			}else{
+				alertify.alert('<spring:message code="msg.partner.warning" />', function(){});
+			}
+
 		},
 		makeNickNamePopup : function(obj) {
 			// ajax FormSubmit 사용시 huge String 문자가 포함되면 data가 전송되지 않는 문제가 있어서 formsubmi에서 applicaton/json으로 변경
@@ -573,7 +666,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			if(obj.validMsg && obj.validMsg.length != 0){
 				alertify.alert(obj.validMsg, function () {
 					$.ajax({
-						url : '/partner/saveAjax',
+						url : '<c:url value="/partner/saveAjax"/>',
 						type : 'POST',
 						data : JSON.stringify(postData),
 						dataType : 'json',
@@ -587,7 +680,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 				});
 			} else {
 				$.ajax({
-					url : '/partner/saveAjax',
+					url : '<c:url value="/partner/saveAjax"/>',
 					type : 'POST',
 					data : JSON.stringify(postData),
 					dataType : 'json',
@@ -666,7 +759,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 						
 						isStatusChangeFlag = false;
 						$.ajax({
-							url : '/partner/changeStatus',
+							url : '<c:url value="${suffixUrl}/partner/changeStatus"/>',
 							type : 'POST',
 							data : param,
 							dataType : 'json',
@@ -687,9 +780,9 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 									
 									alertify.error('<spring:message code="msg.common.valid" />', 0);
 								} else {
-									reloadTabInframe('/partner/list');
+									reloadTabInframe('<c:url value="/partner/list"/>');
 									if('${detail.partnerId}' != ''){
-										reloadTabInframe('/partner/edit/'+'${detail.partnerId}');	
+										reloadTabInframe('<c:url value="/partner/edit/${detail.partnerId}"/>');
 									}
 								}
 							},
@@ -700,14 +793,16 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 					} else {
 						var partnerId = $('input[name=partnerId]').val();
 						alertify.alert('<spring:message code="msg.common.success" />', function(){
-							reloadTabInframe('/partner/list');
+							reloadTabInframe('<c:url value="/partner/list"/>');
 							
 							if(partnerId){
-								reloadTabInframe('/partner/edit/'+partnerId);			
+								fn.getPartyGridData();
+
+								saveFlag = true;
 							} else {
-								deleteTabInFrame('#/partner/edit');	
+								deleteTabInFrame('#<c:url value="/partner/edit"/>');	
 								if(data.partnerId) {
-									createTabInFrame(data.partnerId+'_3rdParty', '#/partner/edit/'+data.partnerId);
+									createTabInFrame(data.partnerId+'_3rdParty', '#<c:url value="/partner/edit/'+data.partnerId+'"/>');
 								}
 							}
 						});
@@ -722,10 +817,10 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			$(obj).parent().remove();
 		},
 		deleteComment : function(obj){
-			if(!confirm("Are you sure you want to delete this comment?")) return;
+			if(!confirm('<spring:message code="msg.partner.confirm"/>')) return;
 			var commId = $(obj).next().val();
 			$.ajax({
-				url : '/partner/deleteComment',
+				url : '<c:url value="/partner/deleteComment"/>',
 				type : 'POST',
 				dataType : 'json',
 				cache : false,
@@ -775,7 +870,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			var param = {referenceId : $('input[name=partnerId]').val(), referenceDiv :'20', contents : editorVal, mailSendType : type};
 			
 			$.ajax({
-				url : '/partner/sendComment',
+				url : '<c:url value="/partner/sendComment"/>',
 				type : 'POST',
 				dataType : 'json',
 				cache : false,
@@ -785,7 +880,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 						alertify.error('<spring:message code="msg.common.valid2" />', 0);
 					} else {
 						$('.ajs-close').trigger("click");
-						alertify.success('<spring:message code="msg.common.success" />');
+						alertify.success('<spring:message code="msg.project.sent.comments.success" />');
 						resetEditor(CKEDITOR.instances.editor);
 						$(".commentBtn open").trigger( "click" );
 					}
@@ -814,7 +909,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 				var param = {commId : modifyCommentId, referenceId : $('input[name=partnerId]').val(), referenceDiv :'20', contents : editorVal};
 
 				$.ajax({
-					url : '/partner/saveComment',
+					url : '<c:url value="/partner/saveComment"/>',
 					type : 'POST',
 					dataType : 'json',
 					cache : false,
@@ -837,7 +932,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 								var param = {commId : commentIdx, referenceId : $('input[name=partnerId]').val(), referenceDiv :'13', contents : editorVal};
 
 								$.ajax({
-									url : '/partner/saveComment',
+									url : '<c:url value="/partner/saveComment"/>',
 									type : 'POST',
 									dataType : 'json',
 									cache : false,
@@ -874,7 +969,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			});
 		},
 		reset : function(){
- 			alertify.confirm('<spring:message code="msg.common.confirm.reset" />', function (e) {
+			alertify.confirm('<spring:message code="msg.common.confirm.reset" />', function (e) {
 				if (e) {
 					$("#list").jqGrid('clearGridData');
 				} else {
@@ -883,48 +978,52 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			});
 		},
 		delete : function(){
-			var innerHtml = '<div class="grid-container" style="width:470px; height:350px;">Are you sure you want to remove this party?\nThis will permanently delete all datas.';
-			innerHtml    += '	<div class="grid-width-100" style="width:470px; height:310px; margin-top:10px;">';
-			innerHtml    += '		<div id="editor2" style="width:470px; height:300px;">' + CKEDITOR.instances['editor'].getData() + '</div>';
-			innerHtml    += '	</div>';
-			innerHtml    += '</div>';
-			
-			alertify.confirm(innerHtml, function () {
-				if(CKEDITOR.instances['editor2'].getData() == "") {
-					alertify.alert('<spring:message code="msg.project.required.comments" />');
+			if (fn.checkStatus()){
+				var innerHtml = '<div class="grid-container" style="width:470px; height:350px;"><spring:message code="msg.partner.delete.warning" />';
+				innerHtml    += '	<div class="grid-width-100" style="width:470px; height:310px; margin-top:10px;">';
+				innerHtml    += '		<div id="editor2" style="width:470px; height:300px;">' + CKEDITOR.instances['editor'].getData() + '</div>';
+				innerHtml    += '	</div>';
+				innerHtml    += '</div>';
+				
+				alertify.confirm(innerHtml, function () {
+					if(CKEDITOR.instances['editor2'].getData() == "") {
+						alertify.alert('<spring:message code="msg.project.required.comments" />', function(){});
 
-					return false;
-				} else {
-					var partnerId = $('input[name=partnerId]').val();
-					$.ajax({
-						url : '/partner/delAjax',
-						type : 'POST',
-						dataType : 'json',
-						cache : false,
-						data : {'partnerId' : partnerId, userComment : CKEDITOR.instances['editor2'].getData()},
-						success: function(data){
-							if(partnerId) {
-								deleteTabInFrame('#/partner/edit/'+partnerId);			
-							} else {
-								deleteTabInFrame('#/partner/edit');			
+						return false;
+					} else {
+						var partnerId = $('input[name=partnerId]').val();
+						$.ajax({
+							url : '<c:url value="/partner/delAjax"/>',
+							type : 'POST',
+							dataType : 'json',
+							cache : false,
+							data : {'partnerId' : partnerId, userComment : CKEDITOR.instances['editor2'].getData()},
+							success: function(data){
+								if(partnerId) {
+									deleteTabInFrame('#<c:url value="/partner/edit/'+partnerId+'"/>');			
+								} else {
+									deleteTabInFrame('#<c:url value="/partner/edit"/>');
+								}
+								
+								reloadTabInframe('<c:url value="/partner/list"/>');
+							},
+							error: function(){
+								alertify.error('<spring:message code="msg.common.valid2" />', 0);
 							}
-							
-							reloadTabInframe('/partner/list');
-						},
-						error: function(){
-							alertify.error('<spring:message code="msg.common.valid2" />', 0);
-						}
-					});
-				}
-			});
+						});
+					}
+				});
 
-			var _editor = CKEDITOR.instances.editor2;
-			
-			if(_editor) {
-				_editor.destroy();
+				var _editor = CKEDITOR.instances.editor2;
+				
+				if(_editor) {
+					_editor.destroy();
+				}
+				
+				CKEDITOR.replace('editor2', {});
+			}else{
+				alertify.alert('<spring:message code="msg.partner.warning" />', function(){});
 			}
-			
-			CKEDITOR.replace('editor2', {});
 		},
 		deleteConfirmationFile : function(obj){
 			$('.confirmationUpload').children().remove();
@@ -972,7 +1071,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			$('#list').jqGrid('delRowData',id);
 		},
 		binaryTab : function(){
-			createTabInFrame('BAT List', '#/bat/list');
+			window.open('https://github.com/fosslight/fosslight_binary_scanner', '_blank');
 		},
 		selectDivision : function(){
 			var division = $('#userDivision').val();
@@ -984,7 +1083,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			$('#userName').attr('disabled', false);
 			
 			$.ajax({
-				url : '/partner/getUserList',
+				url : '<c:url value="/partner/getUserList"/>',
 				type : 'GET',
 				dataType : 'json',
 				cache : false,
@@ -1003,120 +1102,135 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 		},
 		//requestReview
 		requestReview : function(){
-			isStatusChangeFlag = true;
-			
-			fn.save();
+			if (fn.checkStatus()){
+				isStatusChangeFlag = true;
+				
+				fn.save();
+			}else{
+				alertify.alert('<spring:message code="msg.partner.warning" />', function(){});
+			}
 		},
 		//reject
 		reject : function(){
-			var innerHtml = '<div class="grid-container" style="width:470px; height:350px;">Are you sure you want to reject?';
-			innerHtml    += '	<div class="grid-width-100" style="width:470px; height:310px; margin-top:10px;">';
-			innerHtml    += '		<div id="editor2" style="width:470px; height:300px;">' + CKEDITOR.instances['editor'].getData() + '</div>';
-			innerHtml    += '	</div>';
-			innerHtml    += '</div>';
-			
-			alertify.confirm(innerHtml, function () {
-				if(CKEDITOR.instances['editor2'].getData() == "") {
-					alertify.alert('<spring:message code="msg.project.required.comments" />');
+			if (fn.checkStatus()){
+				var innerHtml = '<div class="grid-container" style="width:470px; height:350px;">Are you sure you want to reject?';
+				innerHtml    += '	<div class="grid-width-100" style="width:470px; height:310px; margin-top:10px;">';
+				innerHtml    += '		<div id="editor2" style="width:470px; height:300px;">' + CKEDITOR.instances['editor'].getData() + '</div>';
+				innerHtml    += '	</div>';
+				innerHtml    += '</div>';
+				
+				alertify.confirm(innerHtml, function () {
+					if(CKEDITOR.instances['editor2'].getData() == "") {
+						alertify.alert('<spring:message code="msg.project.required.comments" />', function(){});
 
-					return false;
-				} else {
-					var param = {status : 'PROG', partnerId : '${detail.partnerId}', userComment : CKEDITOR.instances['editor2'].getData()};
+						return false;
+					} else {
+						var param = {status : 'PROG', partnerId : '${detail.partnerId}', userComment : CKEDITOR.instances['editor2'].getData()};
 
-					$.ajax({
-						url : '/partner/changeStatus',
-						type : 'POST',
-						data : param,
-						dataType : 'json',
-						cache : false,
-						success : function(data){
-							reloadTabInframe('/partner/list');
-							
-							if('${detail.partnerId}' != ''){
-								reloadTabInframe('/partner/edit/'+'${detail.partnerId}');	
+						$.ajax({
+							url : '<c:url value="/partner/changeStatus"/>',
+							type : 'POST',
+							data : param,
+							dataType : 'json',
+							cache : false,
+							success : function(data){
+								reloadTabInframe('<c:url value="/partner/list"/>');
+								
+								if('${detail.partnerId}' != ''){
+									reloadTabInframe('<c:url value="/partner/edit/${detail.partnerId}"/>');
+								}
+							},
+							error : function(){
+								alertify.error('<spring:message code="msg.common.valid2" />', 0);
 							}
-						},
-						error : function(){
-							alertify.error('<spring:message code="msg.common.valid2" />', 0);
-						}
-					});
+						});
+					}
+				});
+
+				var _editor = CKEDITOR.instances.editor2;
+				
+				if(_editor) {
+					_editor.destroy();
 				}
-			});
-
-			var _editor = CKEDITOR.instances.editor2;
-			
-			if(_editor) {
-				_editor.destroy();
+				
+				CKEDITOR.replace('editor2', {});
+			}else{
+				alertify.alert('<spring:message code="msg.partner.warning" />', function(){});
 			}
-			
-			CKEDITOR.replace('editor2', {});
-
 		},
 		//reviewStart
 		reviewStart : function(){
-			var param = {status : 'REV', partnerId : '${detail.partnerId}'};
-			$.ajax({
-				url : '/partner/changeStatus',
-				type : 'POST',
-				data : param,
-				dataType : 'json',
-				cache : false,
-				success : function(data){
-					reloadTabInframe('/partner/list');
-					
-					if('${detail.partnerId}' != ''){
-						reloadTabInframe('/partner/edit/'+'${detail.partnerId}');	
+			if (fn.checkStatus()){
+				var param = {status : 'REV', partnerId : '${detail.partnerId}'};
+				$.ajax({
+					url : '<c:url value="/partner/changeStatus"/>',
+					type : 'POST',
+					data : param,
+					dataType : 'json',
+					cache : false,
+					success : function(data){
+						reloadTabInframe('<c:url value="/partner/list"/>');
+						
+						if('${detail.partnerId}' != ''){
+							reloadTabInframe('<c:url value="/partner/edit/${detail.partnerId}"/>');	
+						}
+					},
+					error : function(){
+						alertify.error('<spring:message code="msg.common.valid2" />', 0);
 					}
-				},
-				error : function(){
-					alertify.error('<spring:message code="msg.common.valid2" />', 0);
-				}
-			});
+				});
+			}else{
+				alertify.alert('<spring:message code="msg.partner.warning" />', function(){});
+			}
 		},
 		//confirm
 		confirm : function(){
-			cleanErrMsg();
-			checkObligationFlag = false;
+			if (fn.checkStatus()){
+				cleanErrMsg();
+				checkObligationFlag = false;
 
-			var _list = $("#list");
-			var mainData = _list.jqGrid('getGridParam','data');
-			
-			mainData.forEach( function(_rowData){
-				if( _rowData['obligationLicense'] == "90" && _rowData['notify'] == "") {
-					checkObligationFlag = true;
-				}
-			});
-			
-			if(checkObligationFlag) {
-				alert('<spring:message code="msg.warn.include.needcheck.license" />');
+				var _list = $("#list");
+				var mainData = _list.jqGrid('getGridParam','data');
 				
-				return false;
-			}
-			var param = {status : 'CONF', partnerId : '${detail.partnerId}', userComment : CKEDITOR.instances['editor'].getData()};
-			$.ajax({
-				url : '/partner/changeStatus',
-				type : 'POST',
-				data : param,
-				dataType : 'json',
-				cache : false,
-				success : function(data){
-					if(data.isValid == "false") {
-						gridValidMsgNew(data, "list");
-						
-						alertify.error('<spring:message code="msg.common.valid" />', 0);
-					} else {
-						reloadTabInframe('/partner/list');
-						
-						if('${detail.partnerId}' != ''){
-							reloadTabInframe('/partner/edit/'+'${detail.partnerId}');	
-						}
+				mainData.forEach( function(_rowData){
+					if( _rowData['obligationLicense'] == "90" && _rowData['notify'] == "") {
+						checkObligationFlag = true;
 					}
+				});
+				
+				if(checkObligationFlag) {
+					alert('<spring:message code="msg.warn.include.needcheck.license" />');
 					
-				},
-				error : function(){
-					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+					return false;
 				}
-			});
+				var param = {status : 'CONF', partnerId : '${detail.partnerId}', userComment : CKEDITOR.instances['editor'].getData()};
+				$.ajax({
+					url : '<c:url value="${suffixUrl}/partner/changeStatus"/>',
+					type : 'POST',
+					data : param,
+					dataType : 'json',
+					cache : false,
+					success : function(data){
+						if(data.isValid == "false") {
+							gridValidMsgNew(data, "list");
+							
+							alertify.error('<spring:message code="msg.common.valid" />', 0);
+						} else {
+							reloadTabInframe('<c:url value="/partner/list"/>');
+							
+							if('${detail.partnerId}' != ''){
+								reloadTabInframe('<c:url value="/partner/edit/${detail.partnerId}"/>');	
+							}
+						}
+						
+					},
+					error : function(){
+						alertify.error('<spring:message code="msg.common.valid2" />', 0);
+					}
+				});
+			}else{
+				alertify.alert('<spring:message code="msg.partner.warning" />', function(){});
+			}
 		},
 		closePop : function(){
 			$('.sheetSelectPop').hide();
@@ -1132,7 +1246,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			var fileSeq = $('input[name=ossFileId]').val();
 			
 			if(sheetNum.length == 0){
-				alert('please select sheet');
+				alert('<spring:message code="msg.common.check.sheet" />');
 				
 				return;
 			}else{
@@ -1148,9 +1262,37 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 				fn.exeLoadReportData(finalData);
 			}
 		},
+		getCsvData : function(){
+			loading.show();
+
+			fn_grid_com.totalGridSaveMode('list');
+			cleanErrMsg("list");
+
+			var fileSeq = $('input[name=ossFileId]').val();
+			var sheetNum = ["0"];
+			var target = $("#list");
+			var mainData = target.jqGrid('getGridParam','data');
+			var finalData = {"readType":"partner","prjId" : '${detail.partnerId}', "sheetNums" : sheetNum , "fileSeq" : ""+fileSeq, "mainData" : JSON.stringify(mainData)};
+
+			fn.exeLoadReportData(finalData);
+		},
+		getSpdxSpreadsheetData : function(){
+			loading.show();
+
+			fn_grid_com.totalGridSaveMode('list');
+			cleanErrMsg("list");
+
+			var fileSeq = $('input[name=ossFileId]').val();
+			var sheetNum = ["1", "4"];
+			var target = $("#list");
+			var mainData = target.jqGrid('getGridParam','data');
+			var finalData = {"readType":"partner","prjId" : '${detail.partnerId}', "sheetNums" : sheetNum , "fileSeq" : ""+fileSeq, "mainData" : JSON.stringify(mainData)};
+
+			fn.exeLoadReportData(finalData);
+		},
 		exeLoadReportData : function(finalData){
 			$.ajax({
-				url : '/project/getSheetData',
+				url : '<c:url value="${suffixUrl}/project/getSheetData"/>',
 				type : 'POST',
 				data : JSON.stringify(finalData),
 				dataType : 'json',
@@ -1159,7 +1301,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 				success: function(data){
 					if("false" == data.isValid) {
 						if(data.validMsg) {
-							alertify.alert(data.validMsg);
+							alertify.alert(data.validMsg, function(){});
 						} else {
 							alertify.error('<spring:message code="msg.common.valid2" />', 0);
 						}
@@ -1181,9 +1323,9 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 						fn.makeOssList(data.resultData);
 						
 						if(data.validMsg) {
-							alertify.alert(data.validMsg);
+							alertify.alert(data.validMsg, function(){});
 						} else if(data.resultData.systemChangeHisStr && data.resultData.systemChangeHisStr != "") {
-							alertify.alert(data.resultData.systemChangeHisStr);
+							alertify.alert(data.resultData.systemChangeHisStr, function(){});
 						}
 					}
 				},
@@ -1261,7 +1403,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			var data = {"partnerId" : partnerId , "parDivision" : uDiv, "parUserId":uId, "parEmail":uEmail};
 			
 			$.ajax({
-				url : '/partner/addWatcher',
+				url : '<c:url value="/partner/addWatcher"/>',
 				type : 'POST',
 				data : JSON.stringify(data),
 				dataType : 'json',
@@ -1293,7 +1435,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			var data = {"partnerId" : partnerId , "parDivision" : uDiv, "parUserId":uId, "parEmail":uEmail};
 
 			$.ajax({
-				url : '/partner/removeWatcher',
+				url : '<c:url value="/partner/removeWatcher"/>',
 				type : 'POST',
 				data : JSON.stringify(data),
 				dataType : 'json',
@@ -1313,7 +1455,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			obj["partnerId"] = partnerId;
 			
 			$.ajax({
-				url : '/partner/copyWatcher',
+				url : '<c:url value="/partner/copyWatcher"/>',
 				type : 'POST',
 				data : JSON.stringify(obj),
 				dataType : 'json',
@@ -1391,7 +1533,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 					}
 					
 					if(!copyWatcher.length)
-						alertify.warning("The ID you entered does not exist.");
+						alertify.warning("<spring:message code='msg.partner.id.warning' />");
 				},
 				error : fn.onError
 			});
@@ -1415,9 +1557,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 						break;
 					}
 				}
-				
-				location.href = logiPath;
-				//window.location =  '<c:url value="/partner/sampleDownload?fileName='+fileName+'&logiPath='+logiPath+'"/>';
+				location.href = '<c:url value="/partner/sampleDownload?fileName='+fileName+'&logiPath='+logiPath+'"/>';
 			} else {
 				alertify.error('<spring:message code="msg.common.valid2" />', 0);
 			}
@@ -1425,7 +1565,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 		downloadExcel : function() {
 			$.ajax({
 				type: "POST",
-				url: '/exceldownload/getExcelPost',
+				url: '<c:url value="/exceldownload/getExcelPost"/>',
 				data: JSON.stringify({"type":"partnerCheckList", "parameter":'${detail.partnerId}'}),
 				dataType : 'json',
 				cache : false,
@@ -1581,9 +1721,109 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 		},
 		CheckChar : function(){
 			if(event.keyCode == 64){//@ 특수문자 체크
-        		alertify.alert("\'@\' Special characters are not allowed!");
+        		alertify.alert('<spring:message code="msg.login.check.char" />', function(){});
         		event.returnValue = false;
         	}
+		},
+		CheckOssViewPage : function(){
+			if(saveFlag) {
+				if(_popupCheckOssName != null){
+					_popupCheckOssName.close();
+				}
+				
+				_popupCheckOssName = window.open("/oss/checkOssName?prjId=${detail.partnerId}&referenceDiv=20&targetName=partner", "Check OSS Name", "width=1100, height=550, toolbar=no, location=no, left=100, top=100, resizable=yes, scrollbars=yes");
+
+				if(!_popupCheckOssName || _popupCheckOssName.closed || typeof _popupCheckOssName.closed=='undefined') {
+					alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
+				}
+			} else {
+				alertify.alert('<spring:message code="msg.project.required.checkOssName" />', function(){});
+
+				return false;
+			}
+			
+			
+		},
+		CheckOssLicenseViewPage : function(){
+			if(saveFlag) {
+				if(_popupCheckOssLicense != null){
+					_popupCheckOssLicense.close();
+				}
+				
+				_popupCheckOssLicense = window.open("/oss/checkOssLicense?prjId=${detail.partnerId}&referenceDiv=20&targetName=partner", "Check License", "width=1100, height=550, toolbar=no, location=no, left=100, top=100, resizable=yes, scrollbars=yes");
+
+				if(!_popupCheckOssLicense || _popupCheckOssLicense.closed || typeof _popupCheckOssLicense.closed=='undefined') {
+					alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
+				}
+			} else {
+				alertify.alert('<spring:message code="msg.project.required.checkOssLicense" />', function(){});
+
+				return false;
+			}
+		},
+		checkStatus : function(){
+			var partnerId = $("input[name=partnerId]").val();
+			var returnFlag = false;
+
+			if (partnerId||"" == ""){
+				returnFlag = true;
+			}else{
+				$.ajax({
+					url : '<c:url value="/partner/checkStatus/'+partnerId+'"/>',
+					type : 'GET',
+					dataType : 'json',
+					cache : false,
+					async : false,
+					success : function(data){
+						var status = data.status;
+						var editStatus = $("input[name=status]").val();
+
+						returnFlag = (status == editStatus);
+					},
+					error : function(){
+						alertify.error('<spring:message code="msg.common.valid2" />', 0);
+						returnFlag = false;
+					}
+				});
+			}
+
+			return returnFlag;
+
+		},
+	    bulkEdit : function(){
+	    	var gridList = $("#list");
+	        var targetGird = "list";
+
+	        var selarrrow = gridList.jqGrid("getGridParam", "selarrrow");
+	        var rowCheckedArr = [];
+	        for(var i=0; i<selarrrow.length; i++){
+				if($("input:checkbox[id='jqg_" + targetGird + "_" + selarrrow[i] + "']").is(":checked")){
+					rowCheckedArr.push(selarrrow[i]);
+				}
+	        }
+
+	        if(rowCheckedArr.length > 0){
+	            fn_grid_com.totalGridSaveMode(targetGird);
+	            
+	            var bulkEditArr = gridList.jqGrid("getGridParam", "selarrrow");
+	            var url = '<c:url value="/oss/ossBulkEditPopup?rowId=' + rowCheckedArr + '&target=' + targetGird + '"/>';
+	            
+	            var _popup = null;
+
+	            if(_popup == null || _popup.closed){
+	                _popup = window.open(url, "bulkEditViewPartnerPopup", "width=850, height=380, toolbar=no, location=no, left=100, top=100, resizable=yes");
+
+	                if(!_popup || _popup.closed || typeof _popup.closed=='undefined') {
+	                    alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
+	                }
+	            } else {
+	                _popup.close();
+	                _popup = window.open(url, "bulkEditViewPartnerPopup", "width=850, height=380, toolbar=no, location=no, left=100, top=100, resizable=yes");
+	            }
+	        }else{
+	            alertify.alert('<spring:message code="msg.oss.select.ossTable" />', function(){});
+	            return false;
+	        }
 		}
 	}
 	
@@ -1607,7 +1847,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 		},
 		getCommentList : function(){
 			$.ajax({
-				url : '/partner/getCommentList',
+				url : '<c:url value="/partner/getCommentList"/>',
 				type : 'GET',
 				dataType : 'json',
 				cache : false,
@@ -1655,8 +1895,8 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 			partnerList.jqGrid({
 				datatype: 'local',
 				data : partyMainData,
-				colNames: ['gridId', 'ID_KEY', 'ID', 'ReferenceId', 'ReferenceDiv', 'OssId', 'Binary Name or Source Path', 'OSS Name','OSS Version','Download Location'
-				           ,'Homepage','LicenseId','License','Copyright Text', 'CVE ID', 'Vulnera<br/>bility','<input type="checkbox" onclick="fn_grid_com.onCboxClickAll(this,\'list\');">Exclude','LicenseDiv','obligationLicense','ObligationType','Notify','Source','Restriction'],
+				colNames: ['gridId', 'ID_KEY', 'ID', 'ReferenceId', 'ReferenceDiv', 'OssId', 'Binary Name or Source Path', 'OSS Name','OSS Version','LicenseId','License','Download Location'
+						   ,'Homepage','Copyright Text', 'CVE ID', 'Vulnera<br/>bility','<input type="checkbox" onclick="fn_grid_com.onCboxClickAll(this,\'list\');">Exclude','LicenseDiv','obligationLicense','ObligationType','Notify','Source','Restriction'],
 				colModel: [
 					{name: 'gridId', index: 'gridId', editable:false, hidden:true, key:true},
 					{name: 'componentId', index: 'componentId', width: 40, align: 'center', hidden:true},
@@ -1723,6 +1963,93 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 								}
 						}
 					},
+					{name: 'licenseId', index: 'licenseId', width: 50, align: 'center', editable:true, edittype:'text', hidden:true},
+					{name: 'licenseName', index: 'licenseName', width: 150, align: 'left', editable:false, edittype:'text', template: searchStringOptions,
+						editoptions: {
+							dataInit: function (e) {
+									var licenseNameId = $(e).attr("id").split('_')[0];
+									var licenseNameTd = $(e).parent();
+
+									var displayLicenseNameCell = '<div style="width:100%; display:table; table-layout:fixed;">';
+									displayLicenseNameCell += '<div id="'+licenseNameId+'_licenseNameDiv" style="width:60px; display:table-cell; vertical-align:middle;"></div>';
+									displayLicenseNameCell += '<div id="'+licenseNameId+'_licenseNameBtn" style="display:table-cell; vertical-align:middle;"></div>';
+									displayLicenseNameCell += '</div>';
+						
+									$(licenseNameTd).empty();
+									$(licenseNameTd).html(displayLicenseNameCell);
+									$('#'+licenseNameId+'_licenseNameDiv').append(e);
+								
+									// licenseName auto complete
+									$(e).autocomplete({
+										source: licenseNames
+										, minLength: 0
+										, open: function() { $(this).attr('state', 'open'); }
+										, close: function () { $(this).attr('state', 'closed'); }
+									}).focus(function() {
+										if ($(this).attr('state') != 'open') {
+											$(this).autocomplete("search");
+										}
+									});
+									
+									// set license data
+									$(e).on( "autocompletechange", function() {
+										var rowid = (e.id).split('_')[0];
+										var mult = null;
+										var multText = null;
+										
+										for(var i in licenseNames){
+											if("" != e.value && e.value == licenseNames[i].value){
+												var licenseIds = $('#'+rowid+'_licenseId').val();
+												mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + licenseNames[i].value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+												multText = licenseNames[i].value;
+												break;
+											}
+										}
+										
+										if(mult == null){
+											mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + e.value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+											multText = e.value;
+										}
+										
+										var licenseNameBtnText = $('#'+rowid+'_licenseNameBtn').text();
+										if (multText != null && licenseNameBtnText.indexOf(multText) < 0){
+											$('#'+rowid+'_licenseNameBtn').append(mult);
+										}
+										$('#'+rowid+'_licenseName').val("");
+										
+										fn_grid_com.saveCellData("list",rowid,e.name,e.value,partyValidMsgData_e, partyDiffMsgData_e);
+									}).on("keypress", function(evt){
+										if(evt.keyCode == 13){
+											var rowid = (e.id).split('_')[0];
+											var mult = null;
+											var multText = null;
+											
+											for(var i in licenseNames){
+												if("" != e.value && e.value == licenseNames[i].value){
+													var licenseIds = $('#'+rowid+'_licenseId').val();
+													mult = "<span class=\"btnMulti\"><span ondblclick='com_fn.showLicenseInfo(this)'>" + licenseNames[i].value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span>";
+													multText = licenseNames[i].value;
+													break;
+												}
+											}
+											
+											if(mult == null && "" != e.value){
+												mult = "<span class=\"btnMulti\"><span ondblclick='com_fn.showLicenseInfo(this)'>" + e.value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span>";
+												multText = e.value;
+											}
+											
+											var licenseNameBtnText = $('#'+rowid+'_licenseNameBtn').text();
+											if (multText != null && licenseNameBtnText.indexOf(multText) < 0){
+												$('#'+rowid+'_licenseNameBtn').append(mult);
+											}
+											$('#'+rowid+'_licenseName').val("");
+	
+											fn_grid_com.saveCellData("list",rowid,e.name,e.value,partyValidMsgData_e,partyDiffMsgData_e);
+										}
+									});
+								}
+						}
+					},
 					{name: 'downloadLocation', index: 'downloadLocation', width: 100, align: 'left', editable:true, formatter: fn_grid_com.displayUrl, unformat: fn_grid_com.unDisplayUrl, template: searchStringOptions, 
 						editoptions: {
 							dataInit:
@@ -1773,70 +2100,6 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 								}
 						}
 					},
-					{name: 'licenseId', index: 'licenseId', width: 50, align: 'center', editable:true, edittype:'text', hidden:true},
-	 				{name: 'licenseName', index: 'licenseName', width: 150, align: 'left', editable:false, edittype:'text', template: searchStringOptions, 
-	 					editoptions: {
-	 						dataInit: function (e) {
-									// licenseName auto complete
-									$(e).autocomplete({
-										source: licenseNames
-										, minLength: 0
-										, open: function() { $(this).attr('state', 'open'); }
-										, close: function () { $(this).attr('state', 'closed'); }
-									}).focus(function() {
-										if ($(this).attr('state') != 'open') {
-											$(this).autocomplete("search");
-										}
-									});
-									
-									// set license data
-									$(e).on( "autocompletechange", function() {
-										var rowid = (e.id).split('_')[0];
-										var mult = null;
-										
-										for(var i in licenseNames){
-											if("" != e.value && e.value == licenseNames[i].value){
-												var licenseIds = $('#'+rowid+'_licenseId').val();
-												mult = "<span class=\"btnMulti\">" + licenseNames[i].value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-												break;
-											}
-										}
-										
-										if(mult == null){
-											mult = "<span class=\"btnMulti\">" + e.value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-										}
-										
-										$('#'+rowid+'_licenseName').parent().append(mult);
-										$('#'+rowid+'_licenseName').val("");
-										
-										fn_grid_com.saveCellData("list",rowid,e.name,e.value,partyValidMsgData_e, partyDiffMsgData_e);
-									}).on("keypress", function(evt){
-										if(evt.keyCode == 13){
-											var rowid = (e.id).split('_')[0];
-											var mult = null;
-											
-											for(var i in licenseNames){
-												if("" != e.value && e.value == licenseNames[i].value){
-													var licenseIds = $('#'+rowid+'_licenseId').val();
-													mult = "<span class=\"btnMulti\">" + licenseNames[i].value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-	
-													break;
-												}
-											}
-											
-											if(mult == null && "" != e.value){
-												mult = "<span class=\"btnMulti\">" + e.value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-											}
-											
-											$('#'+rowid+'_licenseName').parent().append(mult);
-											$('#'+rowid+'_licenseName').val("");
-	
-											fn_grid_com.saveCellData("list",rowid,e.name,e.value,partyValidMsgData_e,partyDiffMsgData_e);
-										}
-									});
-								}
-	 					}
-	 				},
 					{name: 'copyrightText', index: 'copyrightText', width: 140, align: 'left', editable:false, template: searchStringOptions, edittype:"textarea", editoptions:{rows:"5",cols:"24", 
 						dataInit:
 							function (e) { 
@@ -1847,7 +2110,7 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 								});
 							}
 						}
-	 				},
+					},
 					
 					{name: 'cveId', index: 'cveId', hidden:true},
 					{name: 'cvssScore', index: 'cvssScore', width: 80, align: 'center', formatter:fn_grid_com.displayVulnerability, unformatter:fn_grid_com.unformatter, sortable : true, sorttype:'float', template: searchNumberOptions},
@@ -1861,21 +2124,22 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 				],
 				autoencode: true,
 				editurl:'clientArray',
-	 			autowidth: true,
+				autowidth: true,
 				height: 'auto',
 				gridview: true,
-			   	pager: '#pager',
+				pager: '#pager',
 				rowNum: 200,
 				rowList: [200, 500, 1000, 5000],
 				recordpos:'right',
 				toppager:true,
-			   	loadonce:true,
+				loadonce:true,
 				cellEdit : true,
 				cellsubmit : 'clientArray',
 				ignoreCase: true,
-			    onSortCol: function (index, columnIndex, sortOrder) {
-			    	isSort = true;
-			    },
+				multiselect: true,
+				onSortCol: function (index, columnIndex, sortOrder) {
+					isSort = true;
+				},
 				loadComplete: function(data) {
 					_mainLastsel = -1;
 					
@@ -1906,6 +2170,9 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 							} else if(className.indexOf('ui-subgrid') !== -1){
 								rowIdx++;
 							}
+
+							// checkbox click event
+							$("#"+row.id).find("input[type=checkbox]").removeClass("cbox");
 						}
 						
 						// 한번에 처리
@@ -1926,12 +2193,25 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 				onSelectRow: function(rowid,status,eventObject) {
 				},
 				beforeSelectRow: function(rowid, e) {
+					var $self = $(this), iCol, cm,
+				    $td = $(e.target).closest("tr.jqgrow>td"),
+				    $tr = $td.closest("tr.jqgrow"),
+				    p = $self.jqGrid("getGridParam");
+
+				    if ($(e.target).is("input[type=checkbox]") && $td.length > 0) {
+				       iCol = $.jgrid.getCellIndex($td[0]);
+				       cm = p.colModel[iCol];
+				       if (cm != null && cm.name === "cb") {
+				           // multiselect checkbox is clicked
+				           $self.jqGrid("setSelection", $tr.attr("id"), true ,e);
+				       }
+				    }
 					// 경고 클래스 설정
-					fn_grid_com.setWarningClass(partnerList,rowid,["ossName","licenseName"]);
-					return true;
+				    fn_grid_com.setWarningClass(partnerList,rowid,["ossName","licenseName"]);
+				    return false;
 				},
 				onCellSelect: function(rowid,iCol,cellcontent,e) {
-					if(iCol=="2") {
+					if(iCol=="3") {
 						com_fn.exitCell(_mainLastsel, "list");
 						
 						fn_grid_com.showOssViewPage(partnerList, rowid, true, partyValidMsgData_e, partyDiffMsgData_e, null, com_fn.getLicenseName);
@@ -1941,23 +2221,23 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 					if(iCol!="17") {
 						cleanErrMsg("list", rowid);
 						fn_grid_com.setCellEdit(partnerList, rowid, partyValidMsgData_e, partyDiffMsgData_e, null, com_fn.getLicenseName);
-					}
-					
-					// 서브 그리드 제외
-					ondblClickRowBln = false;
-					
-					$('#'+rowid+'_licenseName').addClass('autoCom');
-	 	 			$('#'+rowid+'_licenseName').css({'width' : '60px'});
-					var result = $('#'+rowid+'_licenseName').val().split(",");
 
-					result.forEach(function(cur,idx){
-						if(cur != ""){
-							var mult = "<span class=\"btnMulti\">" + cur + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-							$('#'+rowid+'_licenseName').parent().append(mult);
-						}
-					});
-					
-					$('#'+rowid+'_licenseName').val("");
+						// 서브 그리드 제외
+						ondblClickRowBln = false;
+						
+						$('#'+rowid+'_licenseName').addClass('autoCom');
+						$('#'+rowid+'_licenseName').css({'width' : '60px'});
+						var result = $('#'+rowid+'_licenseName').val().split(",");
+
+						result.forEach(function(cur,idx){
+							if(cur != ""){
+								var mult = "<span class=\"btnMulti\">" + cur + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+								$('#'+rowid+'_licenseName').parent().append(mult);
+							}
+						});
+						
+						$('#'+rowid+'_licenseName').val("");
+					}
 				},
 				onPaging: function(action) {
 					cleanErrMsg("list");
@@ -1974,23 +2254,23 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 						gridDiffMsg(partyDiffMsgData_e, "list");
 					}
 					
-			 		var arr = [];
-			 		arr = partnerList.jqGrid('getDataIDs');
+					var arr = [];
+					arr = partnerList.jqGrid('getDataIDs');
 
-			 		for(var i in arr){
+					for(var i in arr){
 						if(partnerList.jqGrid('getCell',arr[i],'obligationType') == 90) {
 							$("#"+arr[i]+"_source").parent().css("background", "CornflowerBlue");
 							$("#"+arr[i]+"_notify").parent().css("background", "CornflowerBlue");
 						}
-			 		}
+					}
 				},
 				removeHighLight : true
 
 			});
 			partnerList.jqGrid('filterToolbar',{stringResult: true, searchOnEnter: true, searchOperators: true, defaultSearch: "cn"});
 			partnerList.jqGrid('navGrid',"#pager",{add:true,edit:false,del:true,search:false,refresh:false
-													  , addfunc: function () { fn_grid_com.rowAdd('list',partnerList,"main", null, com_fn.getLicenseName);}
-													  , delfunc: function () { fn_grid_com.rowDel(partnerList,"main");}
+													  , addfunc: function () { saveFlag = false; fn_grid_com.rowAddNew('list',partnerList,"main", null, com_fn.getLicenseName);}
+													  , delfunc: function () { fn_grid_com.rowDelNew(partnerList,"main");}
 													  , cloneToTop:true
 			});
 			
@@ -2002,13 +2282,17 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 		deleteLicense : function(target){
 			$(target).parent().remove();
 		},
+		deleteLicenseRenewal : function(target){
+			$(target).parent().next().remove();
+			$(target).parent().remove();
+		},
 		getLicenseName : function(obj){
 			return obj.licenseName.replace(/(<([^>]+)>)/ig, ",").split(",").reduce(function(arr, cur){
-			    if(cur.toUpperCase() != "X" && cur != ""){
-			        arr.push(cur);
-			    }
+				if(cur.toUpperCase() != "X" && cur != ""){
+					arr.push(cur);
+				}
 
-			    return arr;
+				return arr;
 			}, []).join(",");
 		},
 		exitCell : function(_mainLastsel, target){
@@ -2020,7 +2304,127 @@ var sampleFile =  ${ct:getAllValuesJson(ct:getConstDef('CD_SAMPLE_FILE'))};
 				fn_grid_com.saveCellData(grid.attr("id"), _mainLastsel, "licenseName", licenseName, null, null);
 				grid.jqGrid('saveRow',_mainLastsel);
 			}
-		}
+		},
+		showLicenseInfo : function(obj){
+			var licenseName = $(obj).text();
+
+			$.ajax({
+				url : '<c:url value="/license/getLicenseId"/>',
+				type : 'POST',
+				data : {"licenseName" : licenseName},
+				dataType : 'json',
+				cache : false,
+				success : function(data){
+					var _frameId = data.licenseId + "_License";
+					var _frameTarget = "#<c:url value='/license/edit/" + data.licenseId + "'/>";
+					createTabInFrame(_frameId, _frameTarget);
+				},
+				error : function(){
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				}
+			});
+		},
+		bulkEditOssInfo : function(obj){
+			var editFlag = false;
+			try{
+				var ossArr = [];
+		        var rowId = obj["rowId"];
+		        var target = obj["target"];
+		        var param = $('#'+target).jqGrid('getGridParam','data');
+		        
+		        if(rowId.indexOf(",") > -1){
+		            ossArr = rowId.split(",");
+		            for(var idx in ossArr){
+		                com_fn.bulkEditSetCell(target, ossArr[idx], obj);
+
+		                for (var i=0; i<param.length; i++){
+		                    if(param[i]["gridId"] == ossArr[idx]){
+		                        for(var key in obj){
+		                            if(key != "rowId" && key != "target"){
+		                            	param[i][key] = obj[key];
+		                            }
+		                        }
+		                    }
+		                }
+		            }
+		        }else{
+		            com_fn.bulkEditSetCell(target, rowId, obj);
+
+		            for (var i=0; i<param.length; i++){
+		                if(param[i]["gridId"] == rowId){
+		                    for(var key in obj){
+		                        if(key != "rowId" && key != "target"){
+		                        	param[i][key] = obj[key];
+		                        }
+		                    }
+		                }
+		            }
+		        }
+
+		        $("#"+target).jqGrid('setGridParam', {data:param}).trigger('reloadGrid');
+			}catch(e){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+	    		editFlag = true;
+	    	}finally{
+	    		if(!editFlag){
+		    		alertify.success('<spring:message code="msg.common.success" />');
+	    		}
+	       	}
+	    },
+	    bulkEditSetCell : function (target, rowId, obj){
+	        for(var key in obj){
+	            if(key != "rowId" && key != "target"){
+	            	$('#'+target).jqGrid('setCell', rowId, key, obj[key]);
+	            }
+	        }
+	    },
+	    bulkEditDelRow : function (target, rowId, flag){
+	    	var delFlag = false;
+			try{
+				var selrow = "";
+				var param = $("#"+target).jqGrid('getGridParam', 'data');
+				
+		    	if(rowId.indexOf(",") > -1){
+		    		selrow = rowId.split(",");
+		    		for (var i=0; i<selrow.length; i++){
+		    			$("#"+target).jqGrid('delRowData', selrow[i]);
+		    			param = com_fn.bulkEditDeleteLocalDataAfterDelRow(param, selrow[i]);
+		        	}
+		        }else{
+		        	$("#"+target).jqGrid('delRowData', rowId);
+		        	param = com_fn.bulkEditDeleteLocalDataAfterDelRow(param, rowId);
+		        }
+
+		        if(flag == "main"){
+		        	$("#"+target).jqGrid('GridUnload');
+
+		        	partyMainData = param;
+		        	grid.init();
+
+		        	// total record 표시
+					$("#list_toppager_right, #pager_right").html('<div dir="ltr" style="text-align:right" class="ui-paging-info">Total : '+partyMainData.length+'</div>');
+		        }
+			}catch(e){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				delFlag = true;
+	    	}finally{
+	    		if(!delFlag){
+		    		alertify.success('<spring:message code="msg.common.success" />');
+	    		}
+	       	}
+	    },
+	    bulkEditDeleteLocalDataAfterDelRow : function (dataArray, rowId){
+	    	var reMakeArrObj=[];
+	    	var newIdx = 0;
+
+	    	for(var idx=0; idx < dataArray.length; ++idx) {
+				if(dataArray[idx].gridId != rowId) {
+					reMakeArrObj[newIdx++] = dataArray[idx];
+				}
+			}
+			
+			return reMakeArrObj;
+	    }
 	}
 //]]>
 </script>

@@ -5,7 +5,7 @@
 		<style>
 			.marker{background-color: Yellow;}
 		</style>
-		<title>FOSSLight System</title>
+		<title>FOSSLight Hub</title>
 	</head>
 	<body>
 		<table cellspacing="0" cellpadding="0" border="0" style="font-family:'arial,sans-serif'">
@@ -18,7 +18,7 @@
 					<table cellspacing="0" cellpadding="0" border="0">
 						<tr>
 							<td colspan="3" height="25" style="background:#c00c3f">
-								<h1 style="margin:0;padding-left:5px;font-size:14px;color:white">FOSSLight System Notification</h1>
+								<h1 style="margin:0;padding-left:5px;font-size:14px;color:white">FOSSLight Hub Notification</h1>
 							</td>
 						</tr>
 						<tr>
@@ -62,12 +62,12 @@
 										<td style="padding:5px;">$!license_basic_info.shortIdentifier</td>
 									</tr>
 									<tr>
-										<th align="left" style="padding:5px;background:#f0f0f0;">Nick Name</th>
+										<th align="left" style="padding:5px;background:#f0f0f0;">Nickname</th>
 										<td style="padding:5px;">$!license_basic_info.licenseNickname</td>
 									</tr>
 									<tr>
 										<th align="left" style="padding:5px;background:#f0f0f0;">Web site for the license</th>
-										<td style="padding:5px;">#if($!{license_basic_info.webpage} != "")<a href="$license_basic_info.webpage" target="_blank">$!license_basic_info.webpage</a>#end</td>
+										<td style="padding:5px;">#if( $license_basic_info.webpageLinkFormat )$!license_basic_info.webpageLinkFormat#end</td>
 									</tr>
 									<tr>
 										<th align="left" style="padding:5px;background:#f0f0f0;">User Guide</th>

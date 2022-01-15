@@ -5,6 +5,8 @@
 
 package oss.fosslight.service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,8 +19,8 @@ public interface ApiProjectService {
 	public Map<String, Object> selectProjectList(Map<String, Object> paramMap);
 	
 	public boolean existProjectCnt(Map<String, Object> paramMap);
-	
-	public Map<String, Object> getSheetData(UploadFile ufile, String prjId, String readType);
+
+	public Map<String, Object> getSheetData(UploadFile ufile, String prjId, String readType, String[] sheet);
 	
 	public Map<String, Object> readAndroidBuildImage(UploadFile ossReportBean, UploadFile noticeHtmlBean, UploadFile resultTxtBean);
 	
@@ -41,4 +43,22 @@ public interface ApiProjectService {
 	public boolean checkDistributionType(Map<String, Object> paramMap);
 	
 	public Map<String, Object> selectModelList(Map<String, Object> paramMap);
+
+	public List<Map<String, Object>> getVerifyOssList(Map<String, Object> project);
+
+	public List<Map<String, Object>> serMergeGridData(List<Map<String, Object>> list);
+
+	public String setClearFiles(Map<String, Object> map);
+
+	public boolean getChangedPackageFile(String prjId, List<String> fileSeqs);
+
+	public Map<String, Object> processVerification(Map<String, Object> map, Map<String, Object> file, Map<String, Object> project);
+
+	public void updateVerifyFileCount(ArrayList<String> arrayList);
+
+	public void updateVerifyFileCount(HashMap<String, Object> hashMap);
+
+	public List<String> getPackageFileList(String prjId);
+
+	public void registBom(String prjId, String string);
 }

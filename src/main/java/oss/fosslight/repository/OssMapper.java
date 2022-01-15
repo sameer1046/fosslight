@@ -15,6 +15,7 @@ import oss.fosslight.domain.OssAnalysis;
 import oss.fosslight.domain.OssComponentsLicense;
 import oss.fosslight.domain.OssLicense;
 import oss.fosslight.domain.OssMaster;
+import oss.fosslight.domain.PartnerMaster;
 import oss.fosslight.domain.Project;
 import oss.fosslight.domain.ProjectIdentification;
 import oss.fosslight.domain.Vulnerability;
@@ -63,7 +64,9 @@ public interface OssMapper {
 	
 	int insertOssLicenseDetected(OssMaster ossMaster);
 	
-	int updateOssForProject(OssMaster ossMaster);				
+	int updateOssForProject(OssMaster ossMaster);
+	
+	int mergeOssName(OssMaster ossMaster);
 	
 	List<OssMaster> selectOssList2(OssMaster ossMaster); 				
 	
@@ -170,15 +173,23 @@ public interface OssMapper {
 	List<OssMaster> checkOssNameUrl2(ProjectIdentification bean);
 	
 	int updateOssCheckNameBySelfCheck(ProjectIdentification bean);
-	
+
+	int updateOssCheckLicenseBySelfCheck(ProjectIdentification bean);
+
+	int updateOssCheckNameByPartner(ProjectIdentification bean);
+
+	int updateOssCheckLicenseByPartner(ProjectIdentification bean);
+
 	int updateOssCheckName(ProjectIdentification bean);
-	
+
+	int updateOssCheckLicense(ProjectIdentification bean);
+
 	int checkOssNameCnt(ProjectIdentification bean);
 	
 	int checkOssNameUrlCnt(ProjectIdentification bean);
 	
 	int checkOssNameUrl2Cnt(ProjectIdentification bean);
-	
+
 	int ossAnalysisListCnt(@Param("prjId") String prjId, @Param("startAnalysisFlag") String startAnalysisFlag);
 	
 	void deleteOssAnalysisList(@Param("prjId") String prjId);
@@ -200,4 +211,16 @@ public interface OssMapper {
 	int getAnalysisListPage(@Param("rows") int rows, @Param("prjId") String prjId);
 	
 	OssAnalysis getAutoAnalysisSuccessOssInfo(@Param("referenceOssId") String referenceOssId);
+	
+	void setDeactivateFlag(OssMaster ossMaster);
+
+	List<PartnerMaster> getOssNameMergePartnerList(OssMaster ossMaster);
+
+	List<Project> getOssNameMergeProjectList(OssMaster ossMaster);
+
+	void updateOssMasterSync(OssMaster ossMaster);
+
+	void deleteOssLicenseDeclaredSync(OssMaster ossMaster);
+
+	void deleteOssLicenseDetectedSync(OssMaster ossMaster);
 }

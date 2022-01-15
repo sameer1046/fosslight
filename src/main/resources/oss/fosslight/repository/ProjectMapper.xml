@@ -20,7 +20,7 @@
 					ELSE 4 
 			      END), ${sidx} ${sord}
     		</when>
-    		<when test="!@oss.fosslight.util.StringUtil@isEmpty(sidx) and @oss.fosslight.util.StringUtil@equals('PRJ_NAME', sidx) and  @oss.fosslight.util.StringUtil@equals('desc', sord)">
+			<when test="!@oss.fosslight.util.StringUtil@isEmpty(sidx) and @oss.fosslight.util.StringUtil@equals('PRJ_NAME', sidx) and  @oss.fosslight.util.StringUtil@equals('desc', sord)">
     			ORDER BY (
     			  CASE 
     				WHEN ${sidx} REGEXP '^[a-zA-Z].+$' then 4 
@@ -77,6 +77,79 @@
     		</when>
     		<otherwise>ORDER BY ${sidx} ${sord}</otherwise>
     	</choose>
+    </sql>
+
+	<sql id="filters">
+		<foreach collection="filtersMap.rules" item="item">
+			AND
+			<choose>
+				<when test="@oss.fosslight.util.StringUtil@equals('ossId', item.field)">
+					OSS_ID
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('ossName', item.field)">
+					OSS_NAME
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('ossVersion', item.field)">
+					OSS_VERSION
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('cveId', item.field)">
+					CVE_ID
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('cvssScore', item.field)">
+					CVSS_SCORE
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('cveIdTo', item.field)">
+					CVE_ID_TO
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('cvssScoreTo', item.field)">
+					CVSS_SCORE_TO
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('regDt', item.field)">
+					DATE_FORMAT(REG_DT, '%Y-%m-%d')
+				</when>
+			</choose>
+			<choose>
+				<when test="@oss.fosslight.util.StringUtil@equals('eq', item.op)">
+					= #{item.data}
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('ne', item.op)">
+					<![CDATA[<>]]> #{item.data}
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('bw', item.op)">
+					LIKE CONCAT(#{item.data}, '%')
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('bn', item.op)">
+					NOT LIKE CONCAT(#{item.data}, '%')
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('ew', item.op)">
+					LIKE CONCAT('%', #{item.data})
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('en', item.op)">
+					NOT LIKE CONCAT('%', #{item.data})
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('cn', item.op)">
+					LIKE CONCAT('%', #{item.data}, '%')
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('nc', item.op)">
+					NOT LIKE CONCAT('%', #{item.data}, '%')
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('lt', item.op)">
+					<![CDATA[<]]> #{item.data}
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('le', item.op)">
+					<![CDATA[<=]]> #{item.data}
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('gt', item.op)">
+					<![CDATA[>]]> #{item.data}
+				</when>
+				<when test="@oss.fosslight.util.StringUtil@equals('ge', item.op)">
+					<![CDATA[>=]]> #{item.data}
+				</when>
+				<otherwise>
+
+				</otherwise>
+			</choose>
+		</foreach>
     </sql>
     	
 	<select id="selectProjectTotalCount" parameterType="oss.fosslight.domain.Project" resultType="int">
@@ -582,6 +655,8 @@
 			 , IF(A.ALLOW_DOWNLOAD_BIT_FLAG & 0x10, 'Y', 'N') AS ALLOW_DOWNLOAD_SPDX_SHEET_YN
 			 , IF(A.ALLOW_DOWNLOAD_BIT_FLAG & 0x20, 'Y', 'N') AS ALLOW_DOWNLOAD_SPDX_RDF_YN
 			 , IF(A.ALLOW_DOWNLOAD_BIT_FLAG & 0x40, 'Y', 'N') AS ALLOW_DOWNLOAD_SPDX_TAG_YN
+			 , IF(A.ALLOW_DOWNLOAD_BIT_FLAG & 0x80, 'Y', 'N') AS ALLOW_DOWNLOAD_SPDX_JSON_YN
+			 , IF(A.ALLOW_DOWNLOAD_BIT_FLAG & 0x100, 'Y', 'N') AS ALLOW_DOWNLOAD_SPDX_YAML_YN
 			 ]]>
 			
 			/** DISTRIBUTION **/
@@ -938,7 +1013,58 @@
 									AND B.OSS_NICKNAME = #{ossName})
 					)
 	</select>
-	
+
+	<select id="getOssFindByNameAndVersion" parameterType="string" resultType="oss.fosslight.domain.ProjectIdentification">
+		SELECT A.OSS_ID
+				 , A.LICENSE_DIV
+				 , A.HOMEPAGE
+				 , A.DOWNLOAD_LOCATION
+				 , A.VULN_YN
+				 , A.CVE_ID
+				 , A.CVSS_SCORE
+				 , A.COPYRIGHT AS COPYRIGHT_TEXT
+		  FROM OSS_MASTER A
+		WHERE A.USE_YN = 'Y'
+			AND A.OSS_VERSION = #{ossVersion}
+			AND (A.OSS_NAME = #{ossName}
+			  OR EXISTS (	SELECT 1
+								  FROM OSS_NICKNAME B
+								WHERE A.OSS_NAME = B.OSS_NAME
+									AND B.OSS_NICKNAME = #{ossName})
+					)
+	</select>
+
+	<select id="getOssFindByVersionAndDownloadLocation" parameterType="string" resultType="oss.fosslight.domain.ProjectIdentification">
+		SELECT A.OSS_ID
+				 , A.LICENSE_DIV
+				 , A.HOMEPAGE
+				 , A.DOWNLOAD_LOCATION
+				 , A.VULN_YN
+				 , A.CVE_ID
+				 , A.CVSS_SCORE
+				 , A.COPYRIGHT AS COPYRIGHT_TEXT
+		  FROM OSS_MASTER A
+		WHERE A.USE_YN = 'Y'
+			AND A.OSS_VERSION = #{ossVersion}
+			AND A.DOWNLOAD_LOCATION = #{downloadLocation}
+	</select>
+
+	<select id="getOssFindByDownloadLocation" parameterType="string" resultType="oss.fosslight.domain.ProjectIdentification">
+		SELECT A.OSS_ID
+				 , A.LICENSE_DIV
+				 , A.HOMEPAGE
+				 , A.DOWNLOAD_LOCATION
+				 , A.VULN_YN
+				 , A.CVE_ID
+				 , A.CVSS_SCORE
+				 , A.COPYRIGHT AS COPYRIGHT_TEXT
+				 , B.VERSION_DIFF_FLAG
+		  FROM OSS_MASTER A
+		  INNER JOIN OSS_MASTER_LICENSE_FLAG B ON A.OSS_ID = B.OSS_ID
+		WHERE A.USE_YN = 'Y'
+			AND A.DOWNLOAD_LOCATION = #{downloadLocation}
+	</select>
+
 	<select id="getLicenses" parameterType="string" resultType="oss.fosslight.domain.ProjectIdentification">
 	/* ProjectMapper.getLicenses */
 		SELECT T1.LICENSE_ID, T1.OSS_LICENSE_COMB, T1.OSS_COPYRIGHT, CASE WHEN IFNULL(SHORT_IDENTIFIER, '') = '' THEN T2.LICENSE_NAME ELSE T2.SHORT_IDENTIFIER END AS LICENSE_NAME
@@ -1084,6 +1210,7 @@
 			<if test="!@oss.fosslight.util.StringUtil@isEmpty(refComponentId)">
 			, REF_COMPONENT_ID
 			</if>
+			, REF_DIV
 			, PRE_OBLIGATION_TYPE
 			, ADMIN_CHECK_YN
 			)
@@ -1123,6 +1250,14 @@
 			<if test="!@oss.fosslight.util.StringUtil@isEmpty(refComponentId)">
 			, #{refComponentId}
 			</if>
+			<choose>
+				<when test="!@oss.fosslight.util.StringUtil@isEmpty(refDiv)">
+				, #{refDiv}
+				</when>
+				<otherwise>
+				, (SELECT REFERENCE_DIV FROM OSS_COMPONENTS WHERE COMPONENT_ID = #{refComponentId})
+				</otherwise>
+			</choose>
 			, #{preObligationType}
 			, #{adminCheckYn}
 			)
@@ -1141,7 +1276,6 @@
 		  AND  A.COMPONENT_ID = #{componentId}
 		  AND  A.LICENSE_ID = #{licenseId}
 		  AND  A.LICENSE_NAME = #{licenseName}
-		  AND  A.LICENSE_TEXT = #{licenseText}
 		  AND  A.COPYRIGHT_TEXT = #{copyrightText}
 	</select>	
 	
@@ -1152,7 +1286,6 @@
 			COMPONENT_ID
 			, LICENSE_ID
 			, LICENSE_NAME
-			, LICENSE_TEXT
 			, COPYRIGHT_TEXT
 			, EXCLUDE_YN
 			)
@@ -1161,7 +1294,6 @@
 			#{componentId}
 			, #{licenseId}
 			, TRIM(#{licenseName})
-			, #{licenseText}
 			, #{copyrightText}
 			, #{excludeYn}
 			)
@@ -1441,7 +1573,7 @@
 				, GROUP_CONCAT(A2.LICENSE_ID ORDER BY A2.LICENSE_ID DESC SEPARATOR ',') AS LICENSE_ID
 				, GROUP_CONCAT(A2.LICENSE_NAME ORDER BY A2.LICENSE_ID DESC SEPARATOR ',') AS LICENSE_NAME
 				, IFNULL(NVD.CVSS_SCORE, 0) AS CVSS_SCORE, IFNULL(NVD.VULN_YN, 'N') AS VULN_YN, NVD.CVE_ID 
-				, (SELECT S.REFERENCE_DIV FROM OSS_COMPONENTS S WHERE S.COMPONENT_ID = A1.REF_COMPONENT_ID) AS REF_DIV
+				, IFNULL(A1.REF_DIV, (SELECT S.REFERENCE_DIV FROM OSS_COMPONENTS S WHERE S.COMPONENT_ID = A1.REF_COMPONENT_ID)) AS REF_DIV
 				, (CASE WHEN GROUP_CONCAT(A3.LICENSE_TYPE) REGEXP 'PMS|WCP|CP' THEN 1 WHEN A3.LICENSE_TYPE IS NULL THEN 1 ELSE CONCAT(GROUP_CONCAT(A2.LICENSE_NAME ORDER BY A2.LICENSE_ID DESC SEPARATOR ','), '-', 2) END) AS LICENSE_TYPE_IDX
 				, (SELECT CONCAT(CVSS_SCORE, '@', MAX(CVE_ID))
 				     FROM NVD_DATA_SCORE_V3 WHERE PRODUCT = IFNULL(A4.OSS_NAME, A1.OSS_NAME)
@@ -1961,7 +2093,6 @@
 			COMPONENT_ID
 			, LICENSE_ID
 			, LICENSE_NAME
-			, LICENSE_TEXT
 			, COPYRIGHT_TEXT
 			, EXCLUDE_YN
 			)
@@ -1970,7 +2101,6 @@
 			#{componentId}
 			, #{licenseId}
 			, #{licenseName}
-			, #{licenseText}
 			, #{copyrightText}
 			, #{excludeYn}
 			)
@@ -1989,7 +2119,9 @@
 			 IF(T1.ALLOW_DOWNLOAD_BIT_FLAG & 0x08, 'Y', 'N') AS ALLOW_DOWNLOAD_SIMPLE_TEXT_YN,
 			 IF(T1.ALLOW_DOWNLOAD_BIT_FLAG & 0x10, 'Y', 'N') AS ALLOW_DOWNLOAD_SPDX_SHEET_YN,
 			 IF(T1.ALLOW_DOWNLOAD_BIT_FLAG & 0x20, 'Y', 'N') AS ALLOW_DOWNLOAD_SPDX_RDF_YN,
-			 IF(T1.ALLOW_DOWNLOAD_BIT_FLAG & 0x40, 'Y', 'N') AS ALLOW_DOWNLOAD_SPDX_TAG_YN
+			 IF(T1.ALLOW_DOWNLOAD_BIT_FLAG & 0x40, 'Y', 'N') AS ALLOW_DOWNLOAD_SPDX_TAG_YN,
+			 IF(T1.ALLOW_DOWNLOAD_BIT_FLAG & 0x80, 'Y', 'N') AS ALLOW_DOWNLOAD_SPDX_JSON_YN,
+			 IF(T1.ALLOW_DOWNLOAD_BIT_FLAG & 0x100, 'Y', 'N') AS ALLOW_DOWNLOAD_SPDX_YAML_YN
 			 ]]>
 		  FROM PROJECT_MASTER T1
 		  LEFT OUTER JOIN OSS_NOTICE T2 ON T1.PRJ_ID = T2.PRJ_ID
@@ -2013,6 +2145,8 @@
 					, SPDX_SHEET_FILE_ID = NULL
 					, SPDX_RDF_FILE_ID = NULL
 					, SPDX_TAG_FILE_ID = NULL
+					, SPDX_JSON_FILE_ID = NULL
+					, SPDX_YAML_FILE_ID = NULL
 					, ZIP_FILE_ID = NULL
 				</when>
 				<when test="!@oss.fosslight.util.StringUtil@isEmpty(verificationStatus)">
@@ -2034,6 +2168,8 @@
 						, SPDX_SHEET_FILE_ID = NULL
 						, SPDX_RDF_FILE_ID = NULL
 						, SPDX_TAG_FILE_ID = NULL
+						, SPDX_JSON_FILE_ID = NULL
+						, SPDX_YAML_FILE_ID = NULL
 						, ZIP_FILE_ID = NULL
 					</if>
 					, ALLOW_DOWNLOAD_BIT_FLAG = #{allowDownloadBitFlag}
@@ -2277,6 +2413,8 @@
 						, SPDX_SHEET_FILE_ID = NULL
 						, SPDX_RDF_FILE_ID = NULL
 						, SPDX_TAG_FILE_ID = NULL
+						, SPDX_JSON_FILE_ID = NULL
+						, SPDX_YAML_FILE_ID = NULL
 						, ZIP_FILE_ID = NULL
 					</if>
 				</when>
@@ -2385,7 +2523,10 @@
 			</choose>
 			IFNULL(M.HOMEPAGE, '') AS HOMEPAGE,
 			IFNULL(M.FILE_PATH, '') AS FILE_PATH,
-			IFNULL(M.BINARY_NAME, '') AS BINARY_NAME,
+			<choose>
+				<when test="@oss.fosslight.util.StringUtil@equals('20', referenceDiv)">IF(M.BINARY_NAME IS NOT NULL AND M.BINARY_NAME != '', M.BINARY_NAME, M.FILE_PATH) AS BINARY_NAME,</when>
+				<otherwise>IFNULL(M.BINARY_NAME, '') AS BINARY_NAME,</otherwise>
+			</choose>
 			IFNULL(M.BINARY_SIZE, '') AS BINARY_SIZE,
 			IFNULL(M.BINARY_NOTICE, '') AS BINARY_NOTICE,
 			IFNULL(M.CUSTOM_BINARY_YN, 'N') AS CUSTOM_BINARY_YN,
@@ -2445,6 +2586,7 @@
 		, T1.DOWNLOAD_LOCATION
 		, T1.HOMEPAGE
 		, T1.FILE_PATH
+		, IF(T1.BINARY_NAME IS NOT NULL AND T1.BINARY_NAME != '', T1.BINARY_NAME, T1.FILE_PATH) AS BINARY_NAME
 		, T1.REF_PARTNER_ID
 		, (SELECT PARTNER_NAME FROM PARTNER_MASTER WHERE PARTNER_ID = IFNULL(T1.REF_PARTNER_ID, T1.REFERENCE_ID)) AS REF_PARTNER_NAME
 		, T1.REF_PRJ_ID
@@ -2481,6 +2623,7 @@
 		, T1.DOWNLOAD_LOCATION
 		, T1.HOMEPAGE
 		, T1.FILE_PATH
+		, IF(T1.BINARY_NAME IS NOT NULL AND T1.BINARY_NAME != '', T1.BINARY_NAME, T1.FILE_PATH) AS BINARY_NAME
 		, T1.REF_PARTNER_ID
 		, (SELECT PARTNER_NAME FROM PARTNER_MASTER WHERE PARTNER_ID = IFNULL(T1.REF_PARTNER_ID, T1.REFERENCE_ID)) AS REF_PARTNER_NAME
 		, T1.REF_PRJ_ID
@@ -2577,14 +2720,6 @@
 		</if>
 		<if test="sortOrder eq 'desc'">
 			ORDER BY IFNULL(T1.EXCLUDE_YN, 'N') ASC, GROUP_CONCAT(T2.LICENSE_NAME ORDER BY T2.LICENSE_ID DESC SEPARATOR ',') DESC
-		</if>
-	</if>
-	<if test="sortField eq 'licenseText'">
-		<if test="sortOrder eq 'asc'">
-			ORDER BY IFNULL(T1.EXCLUDE_YN, 'N') ASC, GROUP_CONCAT(T2.LICENSE_TEXT ORDER BY T2.LICENSE_ID DESC SEPARATOR ',') ASC
-		</if>
-		<if test="sortOrder eq 'desc'">
-			ORDER BY IFNULL(T1.EXCLUDE_YN, 'N') ASC, GROUP_CONCAT(T2.LICENSE_TEXT ORDER BY T2.LICENSE_ID DESC SEPARATOR ',') DESC
 		</if>
 	</if>
 	<if test="sortField eq 'copyrightText'">
@@ -3676,15 +3811,15 @@
 				END
    			) ${sord}
    		</when>
-   		<otherwise>ORDER BY ${sidx} ${sord}</otherwise>
+		<otherwise>ORDER BY ${sidx} ${sord}</otherwise>
    	</choose>
-		 <include refid="limitPage"/>
+	<include refid="limitPage"/>
 	</select>
 	
 	<update id="updateProjectAllowDownloadBitFlag"  parameterType="oss.fosslight.domain.Project">
 		UPDATE PROJECT_MASTER
 		   SET ALLOW_DOWNLOAD_BIT_FLAG = #{allowDownloadBitFlag}
-		 WHERE PRJ_ID = ${prjId}
+		 WHERE PRJ_ID = #{prjId}
 	</update>
 	
 	<update id="updateProjectDistributionStatus"  parameterType="String">
@@ -3806,8 +3941,7 @@
 		 WHERE PRJ.PRJ_ID = #{prjId}
 				 OR USER.USER_ID = #{loginUser}
 	 </select>
-	 
-	 <!-- 20210616_BOM COMPARE FUNC ADD -->
+
 	 <select id="selectProjectCount" parameterType="oss.fosslight.domain.Project" resultType="int">
 		/* bomCompareMapper.selectProjectCount */
 		SELECT COUNT(*) FROM (
@@ -3873,5 +4007,133 @@
 	     AND A.IDENTIFICATION_STATUS != 'CONF'
 	   </if>
 	</select>
-	<!-- 20210616_BOM COMPARE FUNC ADD -->
+
+	<insert id="insertStatisticsMostUsedOssInfo" parameterType="oss.fosslight.domain.Project">
+		INSERT INTO STATISTICS_MOSTUSED (
+			PRJ_ID
+			, COMPONENT_NAME
+			, CREATED_DATE
+			, DIV_NO
+			, CHART_TYPE
+			)
+			SELECT T1.REFERENCE_ID
+				 , T1.OSS_NAME AS COMPONENT_NAME
+				 , T2.CREATED_DATE
+				 , T4.CD_DTL_NO AS DIV_NO
+				 , 'OSS' AS CHART_TYPE
+			  FROM (SELECT REFERENCE_ID
+					  	 , OSS_NAME
+					  FROM OSS_COMPONENTS
+					 WHERE REFERENCE_ID IN (SELECT PRJ_ID
+											  FROM PROJECT_MASTER
+											 WHERE IDENTIFICATION_STATUS = 'CONF'
+											   AND PRJ_ID = #{prjId}
+											   AND USE_YN = 'Y')
+					   AND REFERENCE_DIV IN ('13','14')
+					   AND OSS_NAME NOT IN ('','-')
+					   AND EXCLUDE_YN = 'N'
+				  GROUP BY REFERENCE_ID, OSS_NAME, OSS_VERSION) T1
+					 INNER JOIN PROJECT_MASTER T2
+						ON T1.REFERENCE_ID = T2.PRJ_ID
+					 INNER JOIN T2_USERS T3
+						ON T2.CREATOR = T3.USER_ID
+			 		 INNER JOIN (SELECT CD_DTL_NO
+							  		  , CD_DTL_NM
+						   		   FROM T2_CODE_DTL
+						  		  WHERE CD_NO = '200'
+									AND USE_YN = 'Y') T4
+						ON T3.DIVISION = T4.CD_DTL_NO
+	</insert>
+
+	<insert id="insertStatisticsMostUsedLicenseInfo" parameterType="oss.fosslight.domain.Project">
+		INSERT INTO STATISTICS_MOSTUSED (
+			PRJ_ID
+			, COMPONENT_NAME
+			, CREATED_DATE
+			, DIV_NO
+			, CHART_TYPE
+			)
+			SELECT PM.PRJ_ID
+				 , OC.LICENSE_NAME AS COMPONENT_NAME
+				 , PM.CREATED_DATE
+				 , T2.CD_DTL_NO AS DIV_NO
+				 , 'LICENSE' AS CHART_TYPE
+			  FROM (SELECT T1.REFERENCE_ID
+			  			 , T2.LICENSE_NAME
+					  FROM (SELECT COMPONENT_ID
+					   			 , REFERENCE_ID
+					   			 , OSS_NAME
+					   			 , OSS_VERSION
+							  FROM OSS_COMPONENTS T1
+							 WHERE REFERENCE_ID IN (SELECT PRJ_ID
+												FROM PROJECT_MASTER
+												WHERE IDENTIFICATION_STATUS = 'CONF'
+												AND PRJ_ID = #{prjId}
+												AND USE_YN = 'Y')
+							   AND REFERENCE_DIV IN ('13','14')
+							   AND OSS_NAME NOT IN ('', '-')
+							   AND EXCLUDE_YN = 'N'
+						  GROUP BY COMPONENT_ID, REFERENCE_ID, OSS_NAME, OSS_VERSION) T1
+						     INNER JOIN OSS_COMPONENTS_LICENSE T2
+								ON T1.COMPONENT_ID = T2.COMPONENT_ID
+							   AND UPPER(T2.LICENSE_NAME) NOT IN ('', 'LGE PROPRIETARY LICENSE', 'OTHER PROPRIETARY LICENSE')
+						  GROUP BY T1.REFERENCE_ID, T1.OSS_NAME, T1.OSS_VERSION, T2.LICENSE_NAME) OC
+			     	 INNER JOIN PROJECT_MASTER PM
+				    	ON OC.REFERENCE_ID = PM.PRJ_ID
+				 	 INNER JOIN T2_USERS T1
+				    	ON PM.CREATOR = T1.USER_ID
+				 	 INNER JOIN (SELECT CD_DTL_NO
+				 	 				  , CD_DTL_NM
+							   	   FROM T2_CODE_DTL
+							   	  WHERE CD_NO = '200'
+							    	AND USE_YN = 'Y') T2
+						ON T1.DIVISION = T2.CD_DTL_NO
+	</insert>
+
+	<delete id="deleteStatisticsMostUsedInfo" parameterType="oss.fosslight.domain.Project">
+		DELETE FROM STATISTICS_MOSTUSED
+		WHERE PRJ_ID = #{prjId}
+	</delete>
+	
+	<select id="selectAdminCheckCnt" parameterType="oss.fosslight.domain.ProjectIdentification" resultType="int">
+		SELECT COUNT(1) AS CNT 
+		  FROM OSS_COMPONENTS 
+		 WHERE REFERENCE_ID = #{referenceId}
+		   AND REFERENCE_DIV = '13' 
+		   AND (
+				 REF_COMPONENT_ID = #{componentId}
+		    	 OR (
+				  	  	(
+				  	  		OSS_NAME IN (SELECT OSS_NAME FROM OSS_NICKNAME WHERE OSS_NICKNAME = #{ossName})
+				  	  		OR OSS_NAME = #{ossName}
+				  	  	)
+						AND OSS_VERSION = #{ossVersion} 
+						AND REF_DIV = #{referenceDiv}
+				 	)
+		   	   )
+		   AND ADMIN_CHECK_YN = 'Y'
+	</select>
+	
+	<select id="selectPartnerRefPrjList" parameterType="oss.fosslight.domain.PartnerMaster" resultType="oss.fosslight.domain.Project">
+		SELECT PM.PRJ_ID
+			 , PM.PRJ_NAME
+			 , PM.PRJ_VERSION
+			 , PM.MODIFIED_DATE
+		  FROM PROJECT_MASTER PM
+		 INNER JOIN PROJECT_PARTNER_MAP PP
+		    ON PM.PRJ_ID = PP.PRJ_ID
+		 WHERE PP.PARTNER_ID = #{partnerId}
+		 <if test="@oss.fosslight.util.StringUtil@notEquals('ROLE_ADMIN', loginUserRole)">
+		   AND (
+				PM.CREATOR = #{loginUserName} 
+				OR EXISTS (
+							SELECT 1
+						  	  FROM PROJECT_WATCHER PW 
+						 	 INNER JOIN T2_USERS USR ON USR.USE_YN = 'Y' AND USR.USER_ID = #{loginUserName}
+						 	 WHERE PW.PRJ_ID = PM.PRJ_ID AND (PW.USER_ID = USR.USER_ID OR (PW.USER_ID = 'all' AND PW.DIVISION = USR.DIVISION))
+				)
+			)
+		 </if>
+		ORDER BY PM.MODIFIED_DATE DESC LIMIT 100
+	</select>
 </mapper>

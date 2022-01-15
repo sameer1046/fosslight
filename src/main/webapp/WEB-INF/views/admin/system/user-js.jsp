@@ -85,10 +85,9 @@
 			return (ids.length == 0) ? 0 : Math.max.apply(Math, ids);
 		},
 		downloadExcel : function(){
-			//location.href = '<c:url value="/exceldownload/getExcel?type=user"/>'
 			$.ajax({
 				type: "POST",
-				url: '/exceldownload/getExcelPost',
+				url: '<c:url value="/exceldownload/getExcelPost"/>',
 				data: JSON.stringify({"type":"user"}),
 				dataType : 'json',
 				cache : false,
@@ -111,7 +110,7 @@
 			
 			return $.ajax({
 				type: 'POST',
-				url: "/system/user/getDivisionList",
+				url: '<c:url value="/system/user/getDivisionList"/>',
 				data: JSON.stringify({"cdNo" : code}),
 				async: false,
 				contentType : 'application/json',
@@ -138,7 +137,7 @@
 			}
 
 			$.ajax({
-				url : '/system/user/tokenProc',
+				url: '<c:url value="/system/user/tokenProc"/>',
 				type : 'POST',
 				dataType : 'json',
 				cache : false,
@@ -149,7 +148,7 @@
 						$(".ajs-close").trigger("click"); // dialog popup close
 						$(".ajs-dialog").css("height", ""); // height rollback
 						
-						alertify.alert(data.validMsg);
+						alertify.alert(data.validMsg, function(){});
 					}else {
 						$(".ajs-close").trigger("click"); // dialog popup close
 						$("#list").jqGrid().trigger('reloadGrid');
@@ -162,7 +161,7 @@
 			$("#list").jqGrid('saveRow', rowId); // editMode exit
 
 			if(rowId != ""){
-				var url = "/system/user/tokenProc/"+type;
+				var url = '<c:url value="/system/user/tokenProc/"/>'+type;
 				var mainData = $("#list").getRowData(rowId);
 				var params = {
 					mainData : JSON.stringify(mainData)
@@ -193,13 +192,13 @@
 		resetPassword : function(rowId){
 				$.ajax({
 					type: 'POST',
-					url: '/system/user/changePassword',
+					url: '<c:url value="/system/user/changePassword"/>',
 					data: JSON.stringify({'userId': rowId}),
 					contentType : 'application/json',
 			        success: function(json){
 			        	loading.hide();
 						if(json.resCd == '10'){
-							alertify.alert('Change the password to be the same as ID.'); 
+							alertify.alert('Change the password to be the same as ID.', function(){}); 
 						}else{
 							alertify.error('<spring:message code="msg.common.valid2" />', 0);
 						}
@@ -220,7 +219,7 @@
 		setUser: function(param){
 			$.ajax({
 				type: 'POST',
-				url: "user/modAjax",
+				url: '<c:url value="/system/user/modAjax"/>',
 				data: param,
 				headers: {
 					'Accept': 'application/json',
@@ -243,7 +242,7 @@
 			
 			//그리드 생성
 			$('#list').jqGrid({
-				url:'/system/user/listAjax'
+				url: '<c:url value="/system/user/listAjax"/>'
 				, datatype: 'json'
 				, data: data 
 				, jsonReader:{

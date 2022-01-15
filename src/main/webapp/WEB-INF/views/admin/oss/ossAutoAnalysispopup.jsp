@@ -16,7 +16,7 @@
 				
 				window.setTimeout(function(){
 					var postData = Ctrl_fn.makeParam();
-					$("#ossList").jqGrid('setGridParam', {postData:postData, page : 0, url:'/oss/getAnalysisResultList'}).trigger('reloadGrid');
+					$("#ossList").jqGrid('setGridParam', {postData:postData, page : 0, url:'<c:url value="/oss/getAnalysisResultList"/>'}).trigger('reloadGrid');
 				}, 1000);
 			} else {
 				Ctrl_fn.loadAnalysisListGrid();
@@ -301,11 +301,13 @@
 								var postData = $("#ossList").getRowData().filter(function(cur,idx){
 								    return cur.groupId == groupId;
 								});
-								
+								for (var i=0; i<postData.length; i++){
+									postData[i].licenseName = postData[i].licenseName.replace(/ /gi,"");
+								}
 								var param = {"dataString":JSON.stringify(postData), "groupId":groupId};
 							
 							    $.ajax({
-									url : '/oss/setSessionAnalysisResultData',
+							    	url : '<c:url value="/oss/setSessionAnalysisResultData"/>',
 									dataType : 'json',
 									type:'POST',
 									cache : false,
@@ -313,10 +315,10 @@
 									contentType : 'application/json',
 									success : function(resultData){
 										if(resultData){
-											_popupAnalysisDetailData = window.open("/oss/getAnalysisResultDetail/"+groupId, "OSS Auto Analysis Result Detail", "width=1550, height=814, toolbar=no, location=no, resizable=yes, scrollbars=yes");
+											_popupAnalysisDetailData = window.open('<c:url value="/oss/getAnalysisResultDetail/'+groupId+'"/>', "OSS Auto Analysis Result Detail"+groupId, "width=1550, height=814, toolbar=no, location=no, resizable=yes, scrollbars=yes");
 
 											if(!_popupAnalysisDetailData || _popupAnalysisDetailData.closed || typeof _popupAnalysisDetailData.closed=='undefined') {
-												alertify.alert('<spring:message code="msg.common.window.allowpopup" />');
+												alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
 											}
 										} else {
 											alertify.error('<spring:message code="msg.common.valid2" />', 0);
@@ -348,7 +350,7 @@
 				$('#loading_wrap_popup').show();
 
 				$.ajax({
-					url : '/oss/getAutoAnalysisList',
+					url : '<c:url value="/oss/getAutoAnalysisList"/>',
 					dataType : 'json',
 					cache : false,
 					data : Ctrl_fn.makeParam(),
@@ -388,7 +390,7 @@
 													var value = e.value;
 													
 													if(value.charAt(value.length-1) == "/"){
-														value = value.slice(0, -1); // 마지막 문자열 제거
+														value = value.slice(0, -1); // Remove the last string.
 														$("#"+e.id).val(value);
 													}
 												});
@@ -442,7 +444,7 @@
 					                    lastSelection = rowid;
 					                }
 					                
-			                    	// 이미 처리완료된 경우 체크박스의 값을 초기화한다.
+			                    	// If processing is already completed, the value of the check box is initialized.
 			                    	if($("input:checkbox[id='jqg_ossList_"+rowid+"']").attr( 'disabled') == "disabled") {
 				                    	$("input:checkbox[id='jqg_ossList_"+rowid+"']").attr( 'checked', false );
 			                    	}
@@ -466,26 +468,26 @@
 					}
 					
 					return arr;
-				}, []); // checkbox를 선택한 행만 가져옴.
+				}, []); // Imported only rows that selected checkbox.
 
 				var result = [];
 				
-				// check 여부 
+				// Check whether it's okay or not.
 				var hasChecked = false;
 				var gridObj = $("#ossList");
 				var gridStr = "ossList";
 				
 				window.setTimeout(function(){
-					for (var i = 0; i < idArry.length; i++) { //row id수만큼 실행
+					for (var i = 0; i < idArry.length; i++) { //Run as many times as row id.
 				    	var rowId = idArry[i];
 				    	cleanErrMsg("ossList", rowId);
 				    	gridObj.jqGrid('saveRow',rowId);
-					    var rowdata = gridObj.getRowData(rowId); // 해당 id의 row 데이터를 가져옴
+					    var rowdata = gridObj.getRowData(rowId); // Obtained row data of the id.
 					    
 					    hasChecked = true;
 					    
 						$.ajax({
-							url : "/oss/saveOssAnalysisList/popup", 
+							url : '<c:url value="/oss/saveOssAnalysisList/popup"/>', 
 							type : 'POST',
 							dataType : 'json',
 							cache : false,
@@ -506,7 +508,7 @@
 					}
 
 					if(!hasChecked) {
-						alertify.alert('Please select OSS to register');
+						alertify.alert('<spring:message code="msg.oss.required.select" />', function(){});
 						$('#loading_wrap_popup').hide();
 					}
 				}, 0);
@@ -514,7 +516,7 @@
 			startAnalysis : function(){
 				$('#loading_wrap_popup').show();
 				$.ajax({
-					url : "/oss/startAnalysis", 
+					url : '<c:url value="/oss/startAnalysis"/>',
 					type : 'POST',
 					dataType : 'json',
 					cache : false,
@@ -556,7 +558,7 @@
 				var name = $(target).attr("name");
 				var isChecked = $(target).prop("checked");
 				
-				$("[name='"+name+"']").attr("checked", false); // 동일한 group Id를 가진 row는 1건 초과하여 check를 할 수 없음.
+				$("[name='"+name+"']").attr("checked", false); // Row with the same group ID cannot be checked in more than one case.
 				
 				if(isChecked){
 					$(target).attr("checked", true);
@@ -572,22 +574,22 @@
 				    return arr;
 				}, []);
 
-				// 완료시 쌓는 data
+				// Imported only rows that selected checkbox.
 				var result = [];
 
-				// check 여부
+				// Check whether it's okay or not.
 				var hasChecked = false;
 				var gridObj = $("#ossList");
 				var gridStr = "ossList";
 
 				window.setTimeout(function(){
-					for (var i = 0; i < checkedRows.length; i++) { //row id수만큼 실행
+					for (var i = 0; i < checkedRows.length; i++) { //Run as many times as row id.
 					    	var rowId = checkedRows[i].gridId;
 					    	var groupId = checkedRows[i].groupId;
 					    	
 					    	cleanErrMsg("ossList", rowId);
 					    	gridObj.jqGrid('saveRow',rowId);
-						    var rowdata = $("#ossList").getRowData(rowId); // 해당 id의 row 데이터를 가져옴
+						    var rowdata = $("#ossList").getRowData(rowId); // Obtained row data of the id.
 
 						    hasChecked = true;
 							
@@ -599,7 +601,7 @@
 							);
 							
 						    $.ajax({
-								url : '/oss/saveOssAnalysisData',
+						    	url : '<c:url value="${suffixUrl}/oss/saveOssAnalysisData"/>',
 								type : 'POST',
 								data : JSON.stringify(rowdata),
 								dataType : 'json',
@@ -618,37 +620,45 @@
 					        			    $("#"+gridId + " > td > [type='checkbox']").attr({"disabled": true, "checked": false});
 					        			});
 									}else {
-										$('#ossList').jqGrid('setCell', rowId, 'result', resultData.validMsg);
-				        			    $("#"+rowId + " > td > [type='checkbox']").attr("checked", false);
-										
-				        			    if(resultData.validMsg.toUpperCase() == "FAIL"){
-					        			    var resultValidMap = resultData.resultData.validMapResult;
-					        			    var resultDiffMap = resultData.resultData.diffMapResult;
+										try {
+											$('#ossList').jqGrid('setCell', rowId, 'result', resultData.validMsg);
+					        			    $("#"+rowId + " > td > [type='checkbox']").attr("checked", false);
+											
+					        			    if(resultData.validMsg.toUpperCase() == "FAIL"){
+						        			    var resultValidMap = resultData.resultData.validMapResult;
+						        			    var resultDiffMap = resultData.resultData.diffMapResult;
 
-					        			    if(resultValidMap) {
-					        			    	$.each(resultValidMap,function(key,value) {
-					        			    		if("isValid" != key && "validMsg" != key && "resultData" != key && "externalData" != key && "externalData2" != key && "externalData3" != key) {
-						        			    		var errRow = $("#"+rowId+" > td[aria-describedby='ossList_" + key+"']");
+						        			    if(resultValidMap) {
+						        			    	$.each(resultValidMap,function(key,value) {
+						        			    		if("isValid" != key && "validMsg" != key && "resultData" != key && "externalData" != key && "externalData2" != key && "externalData3" != key) {
+							        			    		var errRow = $("#"+rowId+" > td[aria-describedby='ossList_" + key+"']");
 
-						        			    		if(errRow) {
-						        			    			errRow.append('<div class=\"ossList_'+rowId+' retxt\">'+ value +'</div>');
+							        			    		if(errRow) {
+							        			    			errRow.append('<div class=\"ossList_'+rowId+' retxt\">'+ value +'</div>');
+							        			    		}
 						        			    		}
-					        			    		}
-					        			    	});
-					        			    }
+						        			    	});
+						        			    }
 
-					        			    if(resultDiffMap){
-					        			    	$.each(resultDiffMap,function(key,value) {
-					        			    		if("isValid" != key && "validMsg" != key && "resultData" != key && "externalData" != key && "externalData2" != key && "externalData3" != key) {
-					        			    			var diffRow = $("#"+rowId+" > td[aria-describedby='ossList_" + key+"']");
-					        			    			
-					        			    			if(diffRow) {
-					        			    				diffRow.append('<div class=\"ossList_'+rowId+' retxtb\">'+ value +'</div>');
-					        			    			}
-					        			    		}
-					        			    	});
-					        			    }
-					        			}
+						        			    if(resultDiffMap){
+						        			    	$.each(resultDiffMap,function(key,value) {
+						        			    		if("isValid" != key && "validMsg" != key && "resultData" != key && "externalData" != key && "externalData2" != key && "externalData3" != key) {
+						        			    			var diffRow = $("#"+rowId+" > td[aria-describedby='ossList_" + key+"']");
+						        			    			
+						        			    			if(diffRow) {
+						        			    				diffRow.append('<div class=\"ossList_'+rowId+' retxtb\">'+ value +'</div>');
+						        			    			}
+						        			    		}
+						        			    	});
+						        			    }
+						        			}
+										} catch(e) {
+											$('#ossList').jqGrid('setCell', rowId, 'result', "Failed");
+					        			    $("#"+rowId).addClass("excludeRow");
+					        			    $("#"+rowId + " > td > [type='checkbox']").attr({"disabled": true, "checked": false});
+					        			    
+											alertify.error(e);
+										}
 									}
 
 									if(result.length == checkedRows.length){
@@ -660,7 +670,7 @@
 					}
 					
 					if(!hasChecked) {
-						alertify.alert('Please select OSS to register');
+						alertify.alert('<spring:message code="msg.oss.required.select" />', function(){});
 
 						$('#loading_wrap_popup').hide();
 					}
@@ -672,7 +682,7 @@
 	<body>
 		<div id="loading_wrap_popup" class="loading" style="display:none;">
 			<div class="loadingBlind"></div>
-			<img src="/images/loading.gif" alt="loading" />
+			<img src="${ctxPath}/images/loading.gif" alt="loading" />
 		</div>
 		<div id="wrap" style="padding-top: 15px;">
 			<div  align="center" >

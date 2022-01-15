@@ -55,7 +55,9 @@
 					A1.REFERENCE_ID = #{prjId}
 					AND A1.REFERENCE_DIV='50' 
 					AND A1.MERGE_PRE_DIV IS NULL 
+				<if test="@oss.fosslight.util.StringUtil@isEmpty(ossNameMergeFlag)">
 					AND A1.OBLIGATION_TYPE = '11'
+				</if>
 		) T2
 		INNER JOIN OSS_COMPONENTS_LICENSE T3 ON T2.COMPONENT_ID = T3.COMPONENT_ID
 		WHERE 1=1
@@ -178,8 +180,8 @@
 			, T3.LICENSE_ID, T5.LICENSE_TEXT
 			, REGEXP_REPLACE((CASE WHEN T2.OSS_NAME = '-' OR T2.ADMIN_CHECK_YN = 'Y' THEN T2.COPYRIGHT ELSE T4.COPYRIGHT END), '$\n', '') AS COPYRIGHT_TEXT
 			, REGEXP_REPLACE((CASE WHEN T2.ADMIN_CHECK_YN = 'Y' THEN NULL ELSE T3.COPYRIGHT_TEXT END), '$\n', '') AS OSS_COPYRIGHT
-			, IF(IFNULL(T5.SHORT_IDENTIFIER,'') = '', T5.LICENSE_NAME, T5.SHORT_IDENTIFIER) AS LICENSE_NAME
-			, T5.ATTRIBUTION
+ 			, IF(IFNULL(T5.SHORT_IDENTIFIER,'') = '', T5.LICENSE_NAME, T5.SHORT_IDENTIFIER) AS LICENSE_NAME
+ 			, T5.ATTRIBUTION
 			, T2.ADMIN_CHECK_YN
 			, T5.LICENSE_TYPE
 		FROM PROJECT_MASTER T1 
@@ -320,6 +322,12 @@
 			</if>
 			<if test="!@oss.fosslight.util.StringUtil@isEmpty(spdxTagFileId)">
 				, SPDX_TAG_FILE_ID = #{spdxTagFileId}
+			</if>
+			<if test="!@oss.fosslight.util.StringUtil@isEmpty(spdxJsonFileId)">
+				, SPDX_JSON_FILE_ID = #{spdxJsonFileId}
+			</if>
+			<if test="!@oss.fosslight.util.StringUtil@isEmpty(spdxYamlFileId)">
+				, SPDX_YAML_FILE_ID = #{spdxYamlFileId}
 			</if>
 			<if test="!@oss.fosslight.util.StringUtil@isEmpty(zipFileId)">
 				, ZIP_FILE_ID = #{zipFileId}

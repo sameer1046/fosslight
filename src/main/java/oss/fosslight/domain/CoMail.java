@@ -17,6 +17,9 @@ import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class CoMail extends ComBean {
 	
 	/** The Constant serialVersionUID. */
@@ -140,6 +143,8 @@ public class CoMail extends ComBean {
 	
 	/** The bcc ids. */
 	private String[] bccIds = new String[]{};	// 숨김 참조 아이디들
+	
+	private String binaryCommitResult;
 	
 	/**
 	 *  //.
@@ -418,7 +423,7 @@ public class CoMail extends ComBean {
 	 * @return the to ids
 	 */
 	public String[] getToIds() {
-		return toIds;
+        return toIds != null ? toIds.clone() : null;
 	}
 	
 	/**
@@ -445,7 +450,7 @@ public class CoMail extends ComBean {
 	 * @return the cc ids
 	 */
 	public String[] getCcIds() {
-		return ccIds;
+        return ccIds != null ? ccIds.clone() : null;
 	}
 	
 	/**
@@ -471,7 +476,7 @@ public class CoMail extends ComBean {
 	 * @return the bcc ids
 	 */
 	public String[] getBccIds() {
-		return bccIds;
+        return bccIds != null ? bccIds.clone() : null;
 	}
 	
 	/**
@@ -605,7 +610,7 @@ public class CoMail extends ComBean {
 			return writer.toString();
 		} catch (Exception e) {
 			System.out.println("Exception occured while processing velocity template");
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 		return "";
 	}
@@ -949,6 +954,13 @@ public class CoMail extends ComBean {
 	public void setParamOssInfoMap(Map<String, OssMaster> paramOssInfoMap) {
 		this.paramOssInfoMap = paramOssInfoMap;
 	}
-	
-	
+
+	public String getBinaryCommitResult() {
+		return binaryCommitResult;
+	}
+
+	public void setBinaryCommitResult(String binaryCommitResult) {
+		this.binaryCommitResult = binaryCommitResult;
+	}
+
  } 

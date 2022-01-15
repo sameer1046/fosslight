@@ -137,5 +137,11 @@ public interface PartnerMapper {
 	
 	PartnerMaster getOssAnalysisData(@Param("partnerId") String partnerId);
 	
-	String getReviewerEmail(@Param("partnerId") String partnerId, @Param("loginUser") String loginUser);	
+	String getReviewerEmail(@Param("partnerId") String partnerId, @Param("loginUser") String loginUser);
+
+	List<OssComponents> findBinAutoIdentificationWithBinaryText(String partnerId);
+	
+	void insertBinaryOssComponents(ProjectIdentification projectIdentification);
+	
+	void updateOssList(ProjectIdentification projectIdentification);
 }

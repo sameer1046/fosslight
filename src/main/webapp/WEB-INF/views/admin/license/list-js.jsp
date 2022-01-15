@@ -58,7 +58,7 @@
 						postData.restrictions = "";
 					}
 					
-					$("#list").jqGrid('setGridParam', {postData:postData, page : 1, url:'/license/listAjax' }).trigger('reloadGrid');
+					$("#list").jqGrid('setGridParam', {postData:postData, page : 1, url:'<c:url value="/license/listAjax"/>' }).trigger('reloadGrid');
 				}
 			});
 			
@@ -89,7 +89,7 @@
 				
 				$.ajax({
 					type: "POST",
-					url: '/exceldownload/getExcelPost',
+					url: '<c:url value="/exceldownload/getExcelPost"/>',
 					data: JSON.stringify({"type":"license", "parameter":JSON.stringify(data)}),
 					dataType : 'json',
 					cache : false,
@@ -123,11 +123,11 @@
 				
 			} else {
 				if(!cStart){
-					alert("시작 날짜를 확인해 주세요");
+					alert('<spring:message code="msg.license.confirm.startdate" />');
 
 					flag = false;
 				} else {
-					alert("끝 날짜를 확인해 주세요");
+					alert('<spring:message code="msg.license.confirm.enddate" />');
 
 					flag = false;
 				}
@@ -137,11 +137,11 @@
 					
 				} else {
 					if(!mStart){
-						alert("시작 날짜를 확인해 주세요");
+						alert('<spring:message code="msg.license.confirm.startdate" />');
 
 						flag = false;
 					} else {
-						alert("끝 날짜를 확인해 주세요");
+						alert('<spring:message code="msg.license.confirm.enddate" />');
 
 						flag = false;
 					}
@@ -165,7 +165,7 @@
 					total:function(obj){return obj.total;},
 					records:function(obj){return obj.records;}
 				},
-				colNames: ['ID','License Name', 'Identifier', 'License Type', 'Restriction', 'Obligation', 'Web site', 'User Guide'<c:if test="${ct:isAdmin()}">, 'Creator', 'Created Date', 'Modifier', 'Modified Date'</c:if>],
+				colNames: ['ID','License Name', 'Identifier', 'License Type', 'Restriction', 'Obligation', 'Website', 'User Guide'<c:if test="${ct:isAdmin()}">, 'Creator', 'Created Date', 'Modifier', 'Modified Date'</c:if>],
 				colModel: [
 					  {name: 'licenseId', index: 'licenseId', width: 40, align: 'center', sorttype: 'int'}
 					, {name: 'licenseName', index: 'licenseName', width: 200, align: 'left', formatter: 'linkLicenseName'}
@@ -209,7 +209,7 @@
 
 						if((diffNum > 0 && cEndDate > 0) 
 								|| (diffNum2 > 0 && mEndDate > 0)){
-							alertify.alert('<spring:message code="msg.common.search.check.date" />');
+							alertify.alert('<spring:message code="msg.common.search.check.date" />', function(){});
 						}
 					}
 					
@@ -223,7 +223,7 @@
 						
 						$.ajax({
 							type: 'GET',
-							url: "/system/processGuide/getProcessGuide",
+							url: '<c:url value="/system/processGuide/getProcessGuide"/>',
 							data: {"id":"License_List_License_Type"},
 							success : function(data){
 								if(data.processGuide){
@@ -245,7 +245,7 @@
 						// Restriction 툴팁 추가
 						$.ajax({
 							type: 'GET',
-							url: "/system/processGuide/getProcessGuide",
+							url: '<c:url value="/system/processGuide/getProcessGuide"/>',
 							data: {"id":"License_List_Restriction"},
 							success : function(data){
 								if(data.processGuide){
@@ -272,7 +272,7 @@
 				},
 				ondblClickRow: function(rowid,iRow,iCol,e) {
 					var rowData = $("#list").jqGrid('getRowData',rowid);
-					createTabInFrame(rowData['licenseId']+'_License', '#/license/edit/'+rowData['licenseId']);
+					createTabInFrame(rowData['licenseId']+'_License', '#<c:url value="/license/edit/'+rowData['licenseId']+'"/>');
 				}
 			});
 		}

@@ -5,23 +5,23 @@
 <!-- 		<meta http-equiv="content-type" content="text/html; charset=UTF-8"> -->
 		<meta charset="utf-8" />
 		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-		<title>FOSSLight System</title>
+		<title>FOSSLight Hub</title>
 		<%@ include file="/WEB-INF/constants.jsp"%>
-<%-- 스크립트 추가 --%>
-<link rel="stylesheet" type="text/css" href="/css/jquery-ui.css">
-<link rel="stylesheet" type="text/css" href="/css/common.css?${cssVersion}" />
-<script type="text/javascript" src="/js/jquery-1.11.0.min.js"></script>
-<script type="text/javascript" src="/js/jquery-migrate-1.2.1.min.js"></script>
-<script type="text/javascript" src="/js/jquery-ui.min.js"></script>
+<%-- Add script --%>
+<link rel="stylesheet" type="text/css" href="${ctxPath}/css/jquery-ui.css">
+<link rel="stylesheet" type="text/css" href="${ctxPath}/css/common.css?${cssVersion}" />
+<script type="text/javascript" src="${ctxPath}/js/jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="${ctxPath}/js/jquery-migrate-1.2.1.min.js"></script>
+<script type="text/javascript" src="${ctxPath}/js/jquery-ui.min.js"></script>
 
-<script type="text/javascript" src="/js/jquery.form.min.js"></script>
-<script type="text/javascript" src="/js/basic.js?${jsVersion}"></script>
+<script type="text/javascript" src="${ctxPath}/js/jquery.form.min.js"></script>
+<script type="text/javascript" src="${ctxPath}/js/basic.js?${jsVersion}"></script>
 
 <!-- alertify -->
-<script type="text/javascript" src="/js/alertifyjs/alertify.min.js"></script>
+<script type="text/javascript" src="${ctxPath}/js/alertifyjs/alertify.min.js"></script>
 
-<link rel="stylesheet" type="text/css" href="/js/alertifyjs/css/alertify.min.css" />
-<link rel="stylesheet" type="text/css" href="/js/alertifyjs/css/themes/default.min.css" />
+<link rel="stylesheet" type="text/css" href="${ctxPath}/js/alertifyjs/css/alertify.min.css" />
+<link rel="stylesheet" type="text/css" href="${ctxPath}/js/alertifyjs/css/themes/default.min.css" />
 		<script>
 			if (top.location!= self.location) {
 			   top.location = self.location.href;
@@ -135,7 +135,7 @@
 			
 			function registSubmit(){
 			    $("#registForm").ajaxForm({
-                    url :'/system/user/saveAjax',
+			    	url :'<c:url value="/system/user/saveAjax"/>',
                     type : 'POST',
                     dataType:"json",
                     cache : false,
@@ -150,7 +150,7 @@
 				var formData = $("#loginForm").serialize();
 				
 				$.ajax({
-					url : "/session/login-proc",
+					url : '<c:url value="/session/login-proc"/>',
 					type : "POST",
 					data : formData,
 					cache : false,
@@ -170,8 +170,8 @@
                     
                     showErrMsg();
                 } else {
-                    location.href = "/index";
-                    
+                	location.href = '<c:url value="/index?lang=' + json.response.locale + '"/>';
+
                     return; 
                 }
             };
@@ -258,9 +258,8 @@
             }
             
             function CheckChar() {
-            	if(event.keyCode == 64){//@ 특수문자 체크
-            		alertify.alert("\'@\' Special characters are not allowed!");
-
+            	if(event.keyCode == 64){//@ Special character check
+                    alertify.alert('<spring:message code="msg.login.check.char" />', function(){});
             		event.returnValue = false;
             	}
             }
@@ -283,7 +282,7 @@
 					<fieldset>
 						<div>
 							<h1><img src="../images/img_login_logo1.png" alt="FOSSLIGHT" /></h1>
-							<form name="loginForm" id="loginForm" action="/session/login-proc">
+							<form name="loginForm" id="loginForm" action="<c:url value="/session/login-proc"/>">
 								<dl>
 									<dt><label for="accountInput">ID</label></dt>
 									<dd class="required">
@@ -303,7 +302,7 @@
 						</div>
 					</fieldset>
 					<!------------>
-					<p>If you have forgotten your password, please contact administrator</p>
+					<p><spring:message code="msg.login.description.forgot.pw" /></p>
 				</div>
 			</div>
 		</div>

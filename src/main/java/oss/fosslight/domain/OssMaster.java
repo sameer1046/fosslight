@@ -258,6 +258,8 @@ public class OssMaster extends ComBean implements Serializable{
 	
 	private String ossNameAllSearchFlag;
 	
+	private String ossTypeSearch;
+
 	private String licenseNameAllSearchFlag;
 	
 	private String startAnalysisFlag;
@@ -267,6 +269,18 @@ public class OssMaster extends ComBean implements Serializable{
 	private String addNicknameYn = "N";
 	
 	private String referenceDiv;
+	
+	private String deactivateFlag = "N";
+	
+	private String[] ossIds;
+	private String syncRefOssId;
+	private String[] syncItem;
+	
+	private String ossMergeReferenceId;
+	private String registMergeFlag;
+	private String mergeOssId;
+	private String mergeOssName;
+	private String mergeOssVersion;
 
 	/**
 	 * Instantiates a new oss master.
@@ -477,11 +491,12 @@ public class OssMaster extends ComBean implements Serializable{
 	}
 	
 	public String[] getDownloadLocations() {
-		return downloadLocations;
+		return downloadLocations != null ? downloadLocations.clone() : null;
 	}
 
 	public void setDownloadLocations(String[] downloadLocations) {
-		this.downloadLocations = downloadLocations;
+		this.downloadLocations = downloadLocations != null ?
+			downloadLocations.clone() : null;
 	}
 	
 	/**
@@ -724,7 +739,7 @@ public class OssMaster extends ComBean implements Serializable{
 	 * @return the copyrights
 	 */
 	public String[] getCopyrights() {
-		return copyrights;
+		return copyrights != null ? copyrights.clone() : null;
 	}
 	
 	/**
@@ -1003,7 +1018,7 @@ public class OssMaster extends ComBean implements Serializable{
 	 * @return the oss names
 	 */
 	public String[] getOssNames() {
-		return ossNames;
+		return ossNames != null ? ossNames.clone() : null;
 	}
 	
 	/**
@@ -1012,7 +1027,7 @@ public class OssMaster extends ComBean implements Serializable{
 	 * @param ossNames the new oss names
 	 */
 	public void setOssNames(String[] ossNames) {
-		this.ossNames = ossNames;
+		this.ossNames = ossNames != null ? ossNames.clone() : null;
 	}
 	
 	/**
@@ -1078,7 +1093,7 @@ public class OssMaster extends ComBean implements Serializable{
 	 * @return the oss nicknames
 	 */
 	public String[] getOssNicknames() {
-		return ossNicknames;
+		return ossNicknames != null ? ossNicknames.clone() : null;
 	}
 	
 	/**
@@ -1087,7 +1102,7 @@ public class OssMaster extends ComBean implements Serializable{
 	 * @param ossNicknames the new oss nicknames
 	 */
 	public void setOssNicknames(String[] ossNicknames) {
-		this.ossNicknames = ossNicknames;
+		this.ossNicknames = ossNicknames != null ? ossNicknames.clone() : null;
 	}
 	
 	/**
@@ -1749,6 +1764,14 @@ public class OssMaster extends ComBean implements Serializable{
 		this.licenseNameAllSearchFlag = licenseNameAllSearchFlag;
 	}
 
+	public String getOssTypeSearch() {
+		return ossTypeSearch;
+	}
+
+	public void setOssTypeSearch(String ossTypeSearch) {
+		this.ossTypeSearch = ossTypeSearch;
+	}
+
 	public List<String> getComponentIdList() {
 		return componentIdList;
 	}
@@ -1833,5 +1856,77 @@ public class OssMaster extends ComBean implements Serializable{
 
 	public void setReferenceDiv(String referenceDiv) {
 		this.referenceDiv = referenceDiv;
+	}
+	
+	public String getDeactivateFlag() {
+		return deactivateFlag;
+	}
+
+	public void setDeactivateFlag(String deactivateFlag) {
+		this.deactivateFlag = deactivateFlag;
+	}
+
+	public String[] getOssIds() {
+		return ossIds != null ? ossIds.clone() : null;
+	}
+
+	public void setOssIds(String[] ossIds) {
+		this.ossIds = ossIds != null ? ossIds.clone() : null;
+	}
+
+	public String getSyncRefOssId() {
+		return syncRefOssId;
+	}
+
+	public void setSyncRefOssId(String syncRefOssId) {
+		this.syncRefOssId = syncRefOssId;
+	}
+
+	public String[] getSyncItem() {
+		return syncItem != null ? syncItem.clone() : null;
+	}
+
+	public void setSyncItem(String[] syncItem) {
+		this.syncItem = syncItem != null ? syncItem.clone() : null;
+	}
+
+	public String getOssMergeReferenceId() {
+		return ossMergeReferenceId;
+	}
+
+	public void setOssMergeReferenceId(String ossMergeReferenceId) {
+		this.ossMergeReferenceId = ossMergeReferenceId;
+	}
+
+	public String getRegistMergeFlag() {
+		return registMergeFlag;
+	}
+
+	public void setRegistMergeFlag(String registMergeFlag) {
+		this.registMergeFlag = registMergeFlag;
+	}
+
+	public String getMergeOssName() {
+		return mergeOssName;
+	}
+
+	public void setMergeOssName(String mergeOssName) {
+		this.mergeOssName = mergeOssName;
+	}
+
+	public String getMergeOssVersion() {
+		return mergeOssVersion;
+	}
+
+	public void setMergeOssVersion(String mergeOssVersion) {
+		this.mergeOssVersion = mergeOssVersion;
+	}
+
+	public String getMergeOssId() {
+		return mergeOssId;
+	}
+
+	public void setMergeOssId(String mergeOssId) {
+		this.mergeOssId = mergeOssId;
 	}
 }

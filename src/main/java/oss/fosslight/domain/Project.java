@@ -115,6 +115,12 @@ public class Project extends ComBean implements Serializable {
 	/** The allow download SPDX tag yn. */
 	private String allowDownloadSPDXTagYn;
 
+	/** The allow download SPDX json yn. */
+	private String allowDownloadSPDXJsonYn;
+
+	/** The allow download SPDX yaml yn. */
+	private String allowDownloadSPDXYamlYn;
+
 	/** The identification status. */
 	private String identificationStatus;
 	
@@ -320,6 +326,7 @@ public class Project extends ComBean implements Serializable {
 	/* The ossReportFlag */
 	private String ossReportFlag;
 	
+	private String ossNameMergeFlag;
 
 	public String getIgnoreUserCommentReg() {
 		return ignoreUserCommentReg;
@@ -427,6 +434,12 @@ public class Project extends ComBean implements Serializable {
 	
 	/** The spdx tag file id. */
 	private String spdxTagFileId;
+
+	/** The spdx json file id. */
+	private String spdxJsonFileId;
+
+	/** The spdx yaml file id. */
+	private String spdxYamlFileId;
 	
 	/** The zip file id. */
 	private String zipFileId;
@@ -1267,7 +1280,7 @@ public class Project extends ComBean implements Serializable {
 	 * @return the watchers
 	 */
 	public String[] getWatchers() {
-		return watchers;
+		return watchers != null ? watchers.clone() : null;
 	}
 
 	/**
@@ -1276,7 +1289,7 @@ public class Project extends ComBean implements Serializable {
 	 * @param watchers the new watchers
 	 */
 	public void setWatchers(String[] watchers) {
-		this.watchers = watchers;
+		this.watchers = watchers != null ? watchers.clone() : null;
 	}
 
 	/**
@@ -1806,7 +1819,7 @@ public class Project extends ComBean implements Serializable {
 	 * @return the prj ids
 	 */
 	public String[] getPrjIds() {
-		return prjIds;
+		return prjIds != null ? prjIds.clone() : null;
 	}
 
 	/**
@@ -1815,7 +1828,7 @@ public class Project extends ComBean implements Serializable {
 	 * @param prjIds the new prj ids
 	 */
 	public void setPrjIds(String[] prjIds) {
-		this.prjIds = prjIds;
+		this.prjIds = prjIds != null ? prjIds.clone() : null;
 	}
 
 	/**
@@ -2208,7 +2221,7 @@ public class Project extends ComBean implements Serializable {
 	 * @return the android sheet num
 	 */
 	public String[] getAndroidSheetNum() {
-		return androidSheetNum;
+		return androidSheetNum != null ? androidSheetNum.clone() : null;
 	}
 
 	/**
@@ -2217,7 +2230,8 @@ public class Project extends ComBean implements Serializable {
 	 * @param androidSheetNum the new android sheet num
 	 */
 	public void setAndroidSheetNum(String[] androidSheetNum) {
-		this.androidSheetNum = androidSheetNum;
+		this.androidSheetNum = androidSheetNum != null ?
+			androidSheetNum.clone() : null;
 	}
 
 	/**
@@ -3321,6 +3335,42 @@ public class Project extends ComBean implements Serializable {
 	}
 
 	/**
+	 * Gets the allow download SPDX json yn.
+	 *
+	 * @return the allow download SPDX json yn
+	 */
+	public String getAllowDownloadSPDXJsonYn() {
+		return allowDownloadSPDXJsonYn;
+	}
+
+	/**
+	 * Sets the allow download SPDX json yn.
+	 *
+	 * @param allowDownloadSPDXJsonYn the new allow download SPDX json yn
+	 */
+	public void setAllowDownloadSPDXJsonYn(String allowDownloadSPDXJsonYn) {
+		this.allowDownloadSPDXJsonYn = allowDownloadSPDXJsonYn;
+	}
+
+	/**
+	 * Gets the allow download SPDX yaml yn.
+	 *
+	 * @return the allow download SPDX yaml yn
+	 */
+	public String getAllowDownloadSPDXYamlYn() {
+		return allowDownloadSPDXYamlYn;
+	}
+
+	/**
+	 * Sets the allow download SPDX yaml yn.
+	 *
+	 * @param allowDownloadSPDXYamlYn the new allow download SPDX yaml yn
+	 */
+	public void setAllowDownloadSPDXYamlYn(String allowDownloadSPDXYamlYn) {
+		this.allowDownloadSPDXYamlYn = allowDownloadSPDXYamlYn;
+	}
+
+	/**
 	 * Gets the distribute deploy user.
 	 *
 	 * @return the distribute deploy user
@@ -3584,6 +3634,42 @@ public class Project extends ComBean implements Serializable {
 	}
 
 	/**
+	 * Gets the spdx json file id.
+	 *
+	 * @return the spdx json file id
+	 */
+	public String getSpdxJsonFileId() {
+		return spdxJsonFileId;
+	}
+
+	/**
+	 * Sets the spdx json file id.
+	 *
+	 * @param spdxJsonFileId the new spdx json file id
+	 */
+	public void setSpdxJsonFileId(String spdxJsonFileId) {
+		this.spdxJsonFileId = spdxJsonFileId;
+	}
+
+	/**
+	 * Gets the spdx yaml file id.
+	 *
+	 * @return the spdx yaml file id
+	 */
+	public String getSpdxYamlFileId() {
+		return spdxYamlFileId;
+	}
+
+	/**
+	 * Sets the spdx yaml file id.
+	 *
+	 * @param spdxYamlFileId the new spdx yaml file id
+	 */
+	public void setSpdxYamlFileId(String spdxYamlFileId) {
+		this.spdxYamlFileId = spdxYamlFileId;
+	}
+
+	/**
 	 * Gets the zip file id.
 	 *
 	 * @return the zip file id
@@ -3618,11 +3704,12 @@ public class Project extends ComBean implements Serializable {
 	}
 
 	public String[] getOssNickNames() {
-		return ossNickNames;
+		return ossNickNames != null ? ossNickNames.clone() : null;
 	}
 
 	public void setOssNickNames(String[] ossNickNames) {
-		this.ossNickNames = ossNickNames;
+		this.ossNickNames = ossNickNames != null ?
+			ossNickNames.clone() : null;
 	}
 
 	public String getStatuses() {
@@ -3634,11 +3721,12 @@ public class Project extends ComBean implements Serializable {
 	}
 
 	public String[] getArrStatuses() {
-		return arrStatuses;
+		return arrStatuses != null ? arrStatuses.clone() : null;
 	}
 
 	public void setArrStatuses(String[] arrStatuses) {
-		this.arrStatuses = arrStatuses;
+		this.arrStatuses = arrStatuses != null ?
+			arrStatuses.clone() : null;
 	}
 	
 	public String getPublicYn() {
@@ -3978,5 +4066,13 @@ public class Project extends ComBean implements Serializable {
 
 	public void setModelSeq(String modelSeq) {
 		this.modelSeq = modelSeq;
+	}
+
+	public String getOssNameMergeFlag() {
+		return ossNameMergeFlag;
+	}
+
+	public void setOssNameMergeFlag(String ossNameMergeFlag) {
+		this.ossNameMergeFlag = ossNameMergeFlag;
 	}
 }

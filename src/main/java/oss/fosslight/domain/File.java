@@ -144,10 +144,10 @@ public class File extends ComBean implements Serializable{
 		this.resultCode = resultCode;
 	}
 	public String[] getFileSeqs() {
-		return fileSeqs;
+        return fileSeqs != null ? fileSeqs.clone() : null;
 	}
 	public void setFileSeqs(String[] fileSeqs) {
-		this.fileSeqs = fileSeqs;
+		this.fileSeqs = fileSeqs != null ? fileSeqs.clone() : null;
 	}
 	public String getEtpId() {
 		return etpId;

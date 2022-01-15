@@ -6,6 +6,7 @@
 package oss.fosslight.api.controller.v1;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ import java.util.Map;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -61,6 +63,7 @@ import oss.fosslight.service.HistoryService;
 import oss.fosslight.service.ProjectService;
 import oss.fosslight.service.T2UserService;
 import oss.fosslight.util.ExcelDownLoadUtil;
+import oss.fosslight.util.ExcelUtil;
 import oss.fosslight.util.StringUtil;
 import oss.fosslight.validation.T2CoValidationResult;
 import oss.fosslight.validation.custom.T2CoProjectValidator;
@@ -109,7 +112,7 @@ public class ApiProjectController extends CoTopComponent {
     		@ApiParam(value = "Division (\"Check the input value with /api/v1/code_search\")", required = false) @RequestParam(required = false) String division,
     		@ApiParam(value = "Model Name", required = false) @RequestParam(required = false) String modelName,
     		@ApiParam(value = "Create Date (Format: fromDate-toDate > yyyymmdd-yyyymmdd)", required = false) @RequestParam(required = false) String createDate,
-    		@ApiParam(value = "Status (PROG:progress, REQ:Request, REV:Review, COMP:Complete)", required = false, allowableValues = "PROG,REQ,REV,COMP") @RequestParam(required = false) String status,
+    		@ApiParam(value = "Status (PROG:progress, REQ:Request, REV:Review, COMP:Complete, DROP:Drop)", required = false, allowableValues = "PROG,REQ,REV,COMP,DROP") @RequestParam(required = false) String status,
     		@ApiParam(value = "Update Date (Format: fromDate-toDate > yyyymmdd-yyyymmdd)", required = false) @RequestParam(required = false) String updateDate,
     		@ApiParam(value = "Creator", required = false) @RequestParam(required = false) String creator){
 		
@@ -125,7 +128,7 @@ public class ApiProjectController extends CoTopComponent {
 //			paramMap.put("userRole", userInfo.getAuthority());
 			paramMap.put("creator", 	creator);
 			paramMap.put("userId", 		userInfo.getUserId());
-			paramMap.put("userRole", 	loginUserRole());
+			paramMap.put("userRole", userRole(userInfo));
 			paramMap.put("division", 	division);
 			paramMap.put("modelName", 	modelName);
 			paramMap.put("status", 		status);
@@ -369,7 +372,8 @@ public class ApiProjectController extends CoTopComponent {
 	@GetMapping(value = {Url.API.FOSSLIGHT_API_PROJECT_BOM_EXPORT})
     public ResponseEntity<FileSystemResource> getPrjBomExport(
     		@RequestHeader String _token,
-    		@ApiParam(value = "Project id", required = true) @RequestParam(required = true) String prjId){
+    		@ApiParam(value = "Project id", required = true) @RequestParam(required = true) String prjId,
+    		@ApiParam(value = "Merge & Save Flag (YES : Y, NO : N)", required = false, allowableValues = "Y,N") @RequestParam(required = false) String mergeSaveFlag){
 		
 		// 사용자 인증
 		String downloadId = "";
@@ -381,7 +385,7 @@ public class ApiProjectController extends CoTopComponent {
 			List<String> prjIdList = new ArrayList<String>();
 			prjIdList.add(prjId);
 			paramMap.put("userId", userInfo.getUserId());
-			paramMap.put("userRole", loginUserRole());
+			paramMap.put("userRole", userRole(userInfo));
 			paramMap.put("prjId", prjIdList);
 			paramMap.put("ossReportFlag", CoConstDef.FLAG_NO);
 			paramMap.put("distributionType", "normal");
@@ -389,6 +393,9 @@ public class ApiProjectController extends CoTopComponent {
 			boolean searchFlag = apiProjectService.existProjectCnt(paramMap);
 			
 			if(searchFlag) {
+				if("Y".equals(mergeSaveFlag)) {
+					apiProjectService.registBom(prjId, mergeSaveFlag);
+				}
 				downloadId = ExcelDownLoadUtil.getExcelDownloadId("bom", prjId, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
 				fileInfo = fileService.selectFileInfo(downloadId);
 			}
@@ -421,7 +428,7 @@ public class ApiProjectController extends CoTopComponent {
 			prjIdList.add(beforePrjId);
 			prjIdList.add(afterPrjId);
 			paramMap.put("userId", userInfo.getUserId());
-			paramMap.put("userRole", loginUserRole());
+			paramMap.put("userRole", userRole(userInfo));
 			paramMap.put("prjId", prjIdList);
 			paramMap.put("distributionType", "normal");
 			
@@ -458,7 +465,7 @@ public class ApiProjectController extends CoTopComponent {
 	public CommonResult ossReportSrc(
     		@RequestHeader String _token,
     		@ApiParam(value = "Project id", required = true) @RequestParam(required = true) String prjId,
-    		@ApiParam(value = "OSS Report > sheetName : 'SRC'", required = false) @RequestPart(required = false) MultipartFile ossReport,
+    		@ApiParam(value = "OSS Report > sheetName : all sheets starting with 'SRC'", required = false) @RequestPart(required = false) MultipartFile ossReport,
     		@ApiParam(value = "Comment", required = false) @RequestParam(required = false) String comment){
 		
 		T2Users userInfo = userService.checkApiUserAuth(_token);
@@ -469,7 +476,7 @@ public class ApiProjectController extends CoTopComponent {
 			List<String> prjIdList = new ArrayList<String>();
 			prjIdList.add(prjId);
 			paramMap.put("userId", userInfo.getUserId());
-			paramMap.put("userRole", loginUserRole());
+			paramMap.put("userRole", userRole(userInfo));
 			paramMap.put("prjId", prjIdList);
 			paramMap.put("ossReportFlag", CoConstDef.FLAG_YES);
 			paramMap.put("distributionType", "normal");
@@ -487,7 +494,18 @@ public class ApiProjectController extends CoTopComponent {
 						}
 						
 						UploadFile bean = apiFileService.uploadFile(ossReport); // file 등록 처리 이후 upload된 file정보를 return함.
-						Map<String, Object> result = apiProjectService.getSheetData(bean, prjId, "SRC");
+
+						// get Excel Sheet name starts with SRC
+						List<String> sheet = null;
+						try {
+							sheet = ExcelUtil.getSheetNoStartsWith("SRC", Arrays.asList(bean),
+									CommonFunction.emptyCheckProperty("upload.path", "/upload"));
+						}  catch (Exception e) {
+							log.error(e.getMessage(), e);
+						}
+
+						Map<String, Object> result = apiProjectService.getSheetData(bean, prjId, "SRC", 
+							sheet != null ? sheet.toArray(new String[sheet.size()]) : ArrayUtils.EMPTY_STRING_ARRAY);
 						String errorMsg = (String) result.get("errorMessage");
 						List<ProjectIdentification> ossComponents = (List<ProjectIdentification>) result.get("ossComponents");
 						List<List<ProjectIdentification>> ossComponentsLicense = (List<List<ProjectIdentification>>) result.get("ossComponentLicense");
@@ -599,7 +617,7 @@ public class ApiProjectController extends CoTopComponent {
 			List<String> prjIdList = new ArrayList<String>();
 			prjIdList.add(prjId);
 			paramMap.put("userId", userInfo.getUserId());
-			paramMap.put("userRole", loginUserRole());
+			paramMap.put("userRole", userRole(userInfo));
 			paramMap.put("prjId", prjIdList);
 			paramMap.put("ossReportFlag", CoConstDef.FLAG_YES);
 			paramMap.put("distributionType", "normal");
@@ -607,7 +625,7 @@ public class ApiProjectController extends CoTopComponent {
 			boolean searchFlag = apiProjectService.existProjectCnt(paramMap); // 조회가 안된다면 권한이 없는 project id를 입력함.
 			
 			if(searchFlag) {
-				List<ProjectIdentification> ossComponents = null;
+				List<ProjectIdentification> ossComponents = new ArrayList<>();
 				List<List<ProjectIdentification>> ossComponentsLicense = null;
 				String changeExclude = "";
 				String changeAdded = "";
@@ -631,9 +649,11 @@ public class ApiProjectController extends CoTopComponent {
 						}
 						
 						ossReportBean = apiFileService.uploadFile(ossReport); // file 등록 처리 이후 upload된 file정보를 return함.
-						Map<String, Object> result = apiProjectService.getSheetData(ossReportBean, prjId, "BIN");
+						String[] sheet = new String[1];
+						Map<String, Object> result = apiProjectService.getSheetData(ossReportBean, prjId, "BIN", sheet);
 						String errorMsg = (String) result.get("errorMessage");
 						ossComponents = (List<ProjectIdentification>) result.get("ossComponents");
+						ossComponents = (ossComponents != null ? ossComponents : new ArrayList<>()); 
 						ossComponentsLicense = (List<List<ProjectIdentification>>) result.get("ossComponentLicense");
 						
 						if(!isEmpty(errorMsg)) {
@@ -654,7 +674,7 @@ public class ApiProjectController extends CoTopComponent {
 							// 현재 osslist의 binary 목록을 격납
 							Map<String, ProjectIdentification> componentBinaryList = new HashMap<>();
 							for(ProjectIdentification bean : ossComponents) {
-								if(!isEmpty(bean.getBinaryName())) {
+								if(bean != null && !isEmpty(bean.getBinaryName())) {
 									componentBinaryList.put(bean.getBinaryName(), bean);
 								}
 							}
@@ -852,7 +872,7 @@ public class ApiProjectController extends CoTopComponent {
 			List<String> prjIdList = new ArrayList<String>();
 			prjIdList.add(prjId);
 			paramMap.put("userId", userInfo.getUserId());
-			paramMap.put("userRole", loginUserRole());
+			paramMap.put("userRole", userRole(userInfo));
 			paramMap.put("prjId", prjIdList);
 			paramMap.put("ossReportFlag", CoConstDef.FLAG_YES);
 			paramMap.put("distributionType", "android");
@@ -1054,34 +1074,45 @@ public class ApiProjectController extends CoTopComponent {
 		return responseService.getSingleResult(resultMap);
 	}
 	
+	@SuppressWarnings("unchecked")
 	@ApiOperation(value = "Verification Package File Upload", notes = "Verification > Package File Upload")
     @ApiImplicitParams({
         @ApiImplicitParam(name = "_token", value = "token", required = true, dataType = "String", paramType = "header")
     })
 	@PostMapping(value = {Url.API.FOSSLIGHT_API_PACKAGE_UPLOAD})
-	public void ossReportAndroid(
+	public CommonResult ossReportAndroid(
     		@RequestHeader String _token,
     		@ApiParam(value = "Project id", required = true) @RequestParam(required = true) String prjId,
-    		@ApiParam(value = "Package FIle", required = true) @RequestPart(required = true) MultipartFile packageFile){
+    		@ApiParam(value = "Package FIle", required = true) @RequestPart(required = true) MultipartFile packageFile,
+    		@ApiParam(value = "Verify when file is uploaded (YES : Y, NO : N)", required = false, allowableValues = "Y,N") @RequestParam(required = false) String verifyFlag){
+		
+		Map<String, Object> resultMap = new HashMap<String, Object>(); // 성공, 실패에 대한 정보를 return하기 위한 map;
 		
 		T2Users userInfo = userService.checkApiUserAuth(_token); // token이 정상적인 값인지 확인 
 		Map<String, Object> paramMap = new HashMap<>();
 		List<String> prjIdList = new ArrayList<String>();
 		prjIdList.add(prjId);
 		paramMap.put("userId", userInfo.getUserId());
-		paramMap.put("userRole", loginUserRole());
+		paramMap.put("userRole", userRole(userInfo));
 		paramMap.put("prjId", prjIdList);
 		
 		boolean searchFlag = apiProjectService.existProjectCnt(paramMap);
 		String errorMsg = "";
+		String afterFileSeq = "";
+		boolean uploadFlag = false;
 		
 		if(searchFlag) {
-			String filePath = CommonFunction.emptyCheckProperty("packaging.path", "/upload/packaging") + "/" + prjId;
-			UploadFile packageFileBean = apiFileService.uploadFile(packageFile, filePath); // packagingFile 등록
 			Map<String, Object> result = apiProjectService.selectVerificationCheck(prjId);
-			
 			String useYn = (String) result.get("useYn");
 			String packageFileSeq = (String) result.get("packageFileSeq").toString();
+						
+			if(CoConstDef.CD_OPEN_API_PACKAGE_FILE_LIMIT < Integer.parseInt(packageFileSeq)) {
+				return responseService.getFailResult(CoConstDef.CD_OPEN_API_PARAMETER_ERROR_MESSAGE, "Up to 3 packaging files can be uploaded.");
+			}
+			
+			String filePath = CommonFunction.emptyCheckProperty("packaging.path", "/upload/packaging") + "/" + prjId;
+			UploadFile packageFileBean = apiFileService.uploadFile(packageFile, filePath); // packagingFile 등록
+			afterFileSeq = packageFileBean.getRegistSeq();
 			
 			if(CoConstDef.FLAG_YES.equals(useYn) && CoConstDef.CD_OPEN_API_PACKAGE_FILE_LIMIT >= Integer.parseInt(packageFileSeq)) {
 				// packaging File comment
@@ -1100,11 +1131,10 @@ public class ApiProjectController extends CoTopComponent {
 				commentService.registComment(commHisBean);
 				
 				errorMsg = null; // 정상적으로 처리됨.
+				uploadFlag = true;
 			} else {
 				if(!CoConstDef.FLAG_YES.equals(useYn)) {
 					errorMsg = "delete project"; // 삭제된 project
-				}else if(CoConstDef.CD_OPEN_API_PACKAGE_FILE_LIMIT < Integer.parseInt(packageFileSeq)) {
-					errorMsg = "package File overflow"; // 이미 packaging file이 3개가 등록이 된 상태.
 				}
 			}
 		} else {
@@ -1126,5 +1156,68 @@ public class ApiProjectController extends CoTopComponent {
 		} catch (Exception e) {
 			log.error(e.getMessage(), e);
 		}
+		
+		// after upload complete, verify
+		if ("Y".equals(verifyFlag) && uploadFlag) {
+			try {
+				Map<String, Object> file = new HashMap<>();
+				
+				List<Map<String, Object>> result = new ArrayList<Map<String,Object>>();
+				Map<String, Object> map = new HashMap<String, Object>();
+				Map<String, Object> resMap = null;
+				
+				List<String> fileSeqs = apiProjectService.getPackageFileList(prjId);
+								
+				map.put("prjId", prjId);
+				map.put("fileSeqs", fileSeqs);
+				
+				String packagingComment = apiProjectService.setClearFiles(map);
+				map.put("packagingComment", packagingComment);
+				
+				Map<String, Object> project = new HashMap<>();
+				project.put("prjId", prjId);
+				
+				List<Map<String, Object>> list = apiProjectService.getVerifyOssList(project);
+				list = apiProjectService.serMergeGridData(list);
+				
+				List<String> filePaths = new ArrayList<String>();
+				List<String> componentsList = new ArrayList<String>();
+				
+				for (Map<String, Object> ossComponents : list) {
+					componentsList.add(Integer.toString((int) ossComponents.get("componentId")));
+					filePaths.add((String) ossComponents.get("filePath"));
+				}
+				
+				map.put("gridFilePaths", filePaths);
+				map.put("gridComponentIds", componentsList);
+				
+				boolean isChangedPackageFile = apiProjectService.getChangedPackageFile(prjId, fileSeqs);
+				int seq = 1;
+				
+				map.put("packagingFileIdx", seq);
+				map.put("isChangedPackageFile", isChangedPackageFile);
+				
+				for (String fileSeq : fileSeqs) {
+					map.put("fileSeq", fileSeq);
+					map.put("packagingFileIdx", seq++);
+					map.put("isChangedPackageFile", isChangedPackageFile);
+					result.add(apiProjectService.processVerification(map, file, project));
+				}
+				
+				resMap = result.get(0);
+				
+				if(fileSeqs.size() > 1){
+					resMap.put("verifyValid", result.get(result.size()-1).get("verifyValid"));
+					resMap.put("fileCounts", result.get(result.size()-1).get("fileCounts"));
+				}
+				
+				apiProjectService.updateVerifyFileCount((ArrayList<String>) resMap.get("verifyValid"));
+				apiProjectService.updateVerifyFileCount((HashMap<String,Object>) resMap.get("fileCounts"));
+			}catch(Exception e) {
+				log.error(e.getMessage(), e);
+			}
+		}
+		
+		return responseService.getSingleResult(resultMap);
 	}
 }

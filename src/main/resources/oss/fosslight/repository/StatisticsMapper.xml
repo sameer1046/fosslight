@@ -30,6 +30,7 @@
 		 	SELECT SUBSTRING_INDEX(CD_DTL_NM, '(', 1) AS TITLE_NM
 		 	  FROM T2_CODE_DTL 
 		 	 WHERE CD_NO = '207' 
+		 	 AND USE_YN = 'Y'
 		 	 ORDER BY CD_ORDER ASC
 		 </if>
 	</select>
@@ -79,6 +80,7 @@
 				  LEFT JOIN (SELECT T2.CD_DTL_NM
 				  				  , CASE 
 										WHEN PM.COMPLETE_YN = 'Y' AND STATUS_REQUEST_YN = 'N' THEN 'COMP'
+										WHEN PM.DROP_YN = 'Y' AND STATUS_REQUEST_YN = 'N' THEN 'DROP'
 										WHEN PM.IDENTIFICATION_STATUS = 'REV' OR PM.VERIFICATION_STATUS = 'REV' THEN 'REV'
 										WHEN PM.IDENTIFICATION_STATUS = 'REQ' OR PM.VERIFICATION_STATUS = 'REQ' OR STATUS_REQUEST_YN = 'Y' THEN 'REQ'
 										WHEN PM.IDENTIFICATION_STATUS = 'CONF' AND PM.VERIFICATION_STATUS = 'CONF' AND PM.DESTRIBUTION_STATUS = 'DONE' THEN 'REV'
@@ -95,7 +97,7 @@
 										   WHERE CD_NO = '200'
 										     AND USE_YN = 'Y') T2
 								 ON T1.DIVISION = T2.CD_DTL_NO
-							  WHERE PM.CREATED_DATE BETWEEN ${startDate} AND ${endDate} AND PM.USE_YN ='Y') STAT
+							  WHERE PM.CREATED_DATE BETWEEN #{startDate} AND #{endDate} AND PM.USE_YN ='Y') STAT
 				    ON A.CD_DTL_NM = STAT.CD_DTL_NM
 				 GROUP BY A.CD_DTL_NM, STAT.CATEGORY
 			</if>
@@ -119,7 +121,7 @@
 						 				  INNER JOIN T2_AUTHORITIES AUTH
 						    				 ON USR.USER_ID = AUTH.USER_ID AND AUTH.AUTHORITY='ROLE_ADMIN') ADMIN
 						        ON PM.REVIEWER = ADMIN.USER_ID
-						     WHERE PM.CREATED_DATE BETWEEN ${startDate} AND ${endDate} AND PM.USE_YN ='Y') STAT
+						     WHERE PM.CREATED_DATE BETWEEN #{startDate} AND #{endDate} AND PM.USE_YN ='Y') STAT
 		    	   ON A.CD_DTL_NM = STAT.CD_DTL_NM
 		 	    GROUP BY A.CD_DTL_NM, STAT.CATEGORY
 			</if>
@@ -137,7 +139,25 @@
 										 WHERE CD_NO = '200'
 										   AND USE_YN = 'Y') T2
 							   ON T1.DIVISION = T2.CD_DTL_NO
-							WHERE PM.CREATED_DATE BETWEEN #{startDate} AND #{endDate} AND PM.USE_YN ='Y') STAT
+							WHERE PM.CREATED_DATE BETWEEN #{startDate} AND #{endDate} AND PM.USE_YN ='Y'
+							) STAT
+		    	  ON A.CD_DTL_NM = STAT.CD_DTL_NM
+		 	   GROUP BY A.CD_DTL_NM, STAT.CATEGORY
+			</if>
+			<if test="@oss.fosslight.util.StringUtil@equals('NET', categoryType)">
+				LEFT JOIN (SELECT T2.CD_DTL_NM
+						        , CASE WHEN NETWORK_SERVER_TYPE = 'Y' THEN 'Network Service' ELSE 'Others' END CATEGORY
+							 FROM PROJECT_MASTER PM
+						    INNER JOIN T2_USERS T1
+							   ON PM.CREATOR = T1.USER_ID
+						    INNER JOIN (SELECT CD_DTL_NO
+											 , CD_DTL_NM
+										  FROM T2_CODE_DTL 
+										 WHERE CD_NO = '200'
+										   AND USE_YN = 'Y') T2
+							   ON T1.DIVISION = T2.CD_DTL_NO
+							WHERE PM.CREATED_DATE BETWEEN #{startDate} AND #{endDate} AND PM.USE_YN ='Y'
+							) STAT
 		    	  ON A.CD_DTL_NM = STAT.CD_DTL_NM
 		 	   GROUP BY A.CD_DTL_NM, STAT.CATEGORY
 			</if>
@@ -298,11 +318,11 @@
 					<choose>
 						<when test="@oss.fosslight.util.StringUtil@equals('ADD', updateType)">
 							  	 ON OM.CREATOR = ADMIN.USER_ID AND OM.USE_YN = 'Y'
-							  WHERE DATE_FORMAT(OM.CREATED_DATE, '%Y%m%d') BETWEEN ${startDate} AND ${endDate}) STAT
+							  WHERE DATE_FORMAT(OM.CREATED_DATE, '%Y%m%d') BETWEEN #{startDate} AND #{endDate}) STAT
 						</when>
 						<when test="@oss.fosslight.util.StringUtil@equals('MOD', updateType)">
 							  	 ON OM.MODIFIER = ADMIN.USER_ID AND OM.USE_YN = 'Y'
-							  WHERE DATE_FORMAT(OM.MODIFIED_DATE, '%Y%m%d') BETWEEN ${startDate} AND ${endDate} 
+							  WHERE DATE_FORMAT(OM.MODIFIED_DATE, '%Y%m%d') BETWEEN #{startDate} AND #{endDate} 
 								AND OM.CREATOR != OM.MODIFIER) STAT
 						</when>
 					</choose>    
@@ -358,11 +378,11 @@
 					<choose>
 						<when test="@oss.fosslight.util.StringUtil@equals('ADD', updateType)">
 							  	 ON LM.CREATOR = ADMIN.USER_ID AND LM.USE_YN = 'Y'
-							  WHERE DATE_FORMAT(LM.CREATED_DATE, '%Y%m%d') BETWEEN ${startDate} AND ${endDate}) STAT
+							  WHERE DATE_FORMAT(LM.CREATED_DATE, '%Y%m%d') BETWEEN #{startDate} AND #{endDate}) STAT
 						</when>
 						<when test="@oss.fosslight.util.StringUtil@equals('MOD', updateType)">
 							  	 ON LM.MODIFIER = ADMIN.USER_ID AND LM.USE_YN = 'Y'
-							  WHERE DATE_FORMAT(LM.MODIFIED_DATE, '%Y%m%d') BETWEEN ${startDate} AND ${endDate} 
+							  WHERE DATE_FORMAT(LM.MODIFIED_DATE, '%Y%m%d') BETWEEN #{startDate} AND #{endDate} 
 							    AND LM.CREATOR != LM.MODIFIER) STAT
 						</when>
 					</choose>
@@ -417,7 +437,7 @@
 										   WHERE CD_NO = '200'
 										     AND USE_YN = 'Y') T2
 								 ON T1.DIVISION = T2.CD_DTL_NO
-							  WHERE PM.CREATED_DATE BETWEEN ${startDate} AND ${endDate}) STAT
+							  WHERE PM.CREATED_DATE BETWEEN #{startDate} AND #{endDate}) STAT
 				    ON A.CD_DTL_NM = STAT.CD_DTL_NM
 				 GROUP BY A.CD_DTL_NM, STAT.CATEGORY
 			</if>
@@ -441,7 +461,7 @@
 						 				  INNER JOIN T2_AUTHORITIES AUTH
 						    				 ON USR.USER_ID = AUTH.USER_ID AND AUTH.AUTHORITY='ROLE_ADMIN') ADMIN
 						        ON PM.REVIEWER = ADMIN.USER_ID
-						     WHERE PM.CREATED_DATE BETWEEN ${startDate} AND ${endDate}) STAT
+						     WHERE PM.CREATED_DATE BETWEEN #{startDate} AND #{endDate}) STAT
 		    	   ON A.CD_DTL_NM = STAT.CD_DTL_NM
 		 	    GROUP BY A.CD_DTL_NM, STAT.CATEGORY
 			</if>
@@ -471,10 +491,24 @@
 						 ON USR.USER_ID = PM.CREATOR AND PM.USE_YN = 'Y'
 					  INNER JOIN (SELECT * FROM T2_CODE_DTL WHERE CD_NO = '200' AND USE_YN = 'Y') DIVISION
 					     ON USR.DIVISION = DIVISION.CD_DTL_NO
-						AND PM.CREATED_DATE BETWEEN ${startDate} AND ${endDate}
+						AND PM.CREATED_DATE BETWEEN #{startDate} AND #{endDate}
 					  GROUP BY USR.USER_ID) STAT
 		    ON A.CD_DTL_NM = STAT.CD_DTL_NM
 		 GROUP BY A.CD_DTL_NM
 		 ORDER BY A.CD_ORDER ASC
+	</select>
+	
+	<select id="getMostUsedChartData" parameterType="oss.fosslight.domain.Statistics" resultType="oss.fosslight.domain.Statistics">
+		SELECT COMPONENT_NAME AS COLUMN_NAME
+		     , COUNT(1) AS COLUMN_CNT
+		  FROM STATISTICS_MOSTUSED
+		 WHERE CHART_TYPE = #{chartType}
+		   AND DATE_FORMAT(CREATED_DATE, '%Y%m%d') BETWEEN #{startDate} AND #{endDate}
+		 <if test="!@oss.fosslight.util.StringUtil@isEmpty(divisionNo)">
+		   AND DIV_NO = #{divisionNo}
+		 </if>
+		 GROUP BY COMPONENT_NAME
+		 ORDER BY COLUMN_CNT DESC
+		 LIMIT 0, #{pieSize}
 	</select>
 </mapper>

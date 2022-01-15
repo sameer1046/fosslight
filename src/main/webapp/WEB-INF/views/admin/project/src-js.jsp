@@ -44,20 +44,24 @@ var src_evt = {
 		
 		// 그리드 저장 버튼
 		$("#srcSave, #srcSaveUp").click(function(e){
-			e.preventDefault();
-			
-			com_fn.exitCell(_mainLastsel, "srcList");
-			
-			alertify.confirm('<spring:message code="msg.common.confirm.save" />', function (e) {
-				if (e) {
-					// 메인, 서브 그리드 세이브 모드
-					fn_grid_com.totalGridSaveMode('srcList');
-					// 닉네임 체크
-					src_fn.saveMakeData();
-				} else {
-					return false;
-				}
-			});
+			if (com_fn.checkStatus()){
+				e.preventDefault();
+				
+				com_fn.exitCell(_mainLastsel, "srcList");
+				
+				alertify.confirm('<spring:message code="msg.common.confirm.save" />', function (e) {
+					if (e) {
+						// 메인, 서브 그리드 세이브 모드
+						fn_grid_com.totalGridSaveMode('srcList');
+						// 닉네임 체크
+						src_fn.saveMakeData();
+					} else {
+						return false;
+					}
+				});
+			}else {
+				alertify.alert('<spring:message code="msg.project.warn.project.status" />', function(){});
+			}
 		});
 		
 		// 프로젝트 조회 버튼
@@ -80,7 +84,7 @@ var src_evt = {
 		
 		//파일업로드
 		$('#srcCsvFile').uploadFile({
-			url:'/project/csvFile',
+			url:'<c:url value="/project/csvFile"/>',
 			multiple:false,
 			dragDrop:true,
 			fileName:'myfile',
@@ -105,7 +109,15 @@ var src_evt = {
 							$('.ajax-file-upload-statusbar').fadeOut('slow');
 							$('.ajax-file-upload-statusbar').remove();
 						});
-					} else {
+					} else if(result[2] == "CSV_FILE") {
+						src_fn.getCsvData(result[0][0].registSeq);
+
+						$('#srcCsvFileId').val(result[0][0].registFileId);
+						$('.ajax-file-upload-statusbar').fadeOut('slow');
+						$('.ajax-file-upload-statusbar').remove();
+
+						src_fn.makeFileTag(result[0][0]);
+					} else if(result[2] == "EXCEL_FILE") {
 						if(result[1].length != 0) {
 							$('.sheetSelectPop').show();
 							$('.sheetSelectPop .sheetNameArea').children().remove();
@@ -129,6 +141,19 @@ var src_evt = {
 						$('.ajax-file-upload-statusbar').remove();
 						
 						src_fn.makeFileTag(result[0][0]);	
+					} else if(result[2] == "SPDX_SPREADSHEET_FILE"){
+						src_fn.getSpdxSpreadsheetData(result[0][0].registSeq);
+
+						$('#srcCsvFileId').val(result[0][0].registFileId);
+						$('.ajax-file-upload-statusbar').fadeOut('slow');
+						$('.ajax-file-upload-statusbar').remove();
+
+						src_fn.makeFileTag(result[0][0]);
+					}
+					else {
+						alertify.error('<spring:message code="msg.common.valid" />', 0);
+						$('.ajax-file-upload-statusbar').fadeOut('slow');
+						$('.ajax-file-upload-statusbar').remove();
 					}
 				}
 			}
@@ -174,9 +199,11 @@ var srcDiffMsgData;
 var src_fn = {
 	// src 그리드 데이터
 	getSrcGridData : function(param, type){
-		var url = "append".indexOf(type) > -1  ? '/project/identificationMergedGrid/${project.prjId}/11' : '/project/identificationGrid/${project.prjId}/11'
-		  , type = "append".indexOf(type) > -1  ? 'POST' : 'GET'
-		  , data = param || {referenceId : '${project.prjId}', typeFlag : 'N'};
+		var url = "append".indexOf(type) > -1  
+				? '<c:url value="${suffixUrl}/project/identificationMergedGrid/${project.prjId}/11"/>' 
+				: '<c:url value="${suffixUrl}/project/identificationGrid/${project.prjId}/11"/>'
+		, type = "append".indexOf(type) > -1  ? 'POST' : 'GET'
+		, data = param || {referenceId : '${project.prjId}', typeFlag : 'N'};
 		
 		$.ajax({
 			url : url,
@@ -236,7 +263,7 @@ var src_fn = {
 	// 저장
 	exeSave : function(finalData){
 		$.ajax({
-			url : '/project/saveSrc',
+			url : '<c:url value="/project/saveSrc"/>',
 			type : 'POST',
 			data : JSON.stringify(finalData),
 			dataType : 'json',
@@ -266,14 +293,14 @@ var src_fn = {
 						src_evt.csvFileSeq = [];
 						com_fn.saveFlagObject["SRC"] = true;
 						alertify.success('<spring:message code="msg.common.success" />');
+
+						curIdenStatus = data.resultData||"";
+						if(curIdenStatus == "PROG"){
+							com_fn.btnCtl(userRole, curIdenStatus);
+						}
 					} else {
 						alertify.error('<spring:message code="msg.common.valid2" />', 0);
 					}
-				}
-				
-				if(curIdenStatus == ""){
-					curIdenStatus = "PROG";
-					com_fn.btnCtl(userRole, curIdenStatus);
 				}
 			},
 			error: function(data){
@@ -302,7 +329,7 @@ var src_fn = {
 	// 프로젝트 검색
 	setParamProject1 : function(){
 		return {
-			url: '/project/identificationProject/11',
+			url: '<c:url value="/project/identificationProject/11"/>',
 			datatype: 'json',
 			jsonReader:{
 				repeatitems: false,
@@ -386,7 +413,7 @@ var src_fn = {
 	},
 	setParamProject3 : function(){
 		return {
- 			url: '/project/getAddList',
+			url: '<c:url value="/project/getAddList"/>',
 			datatype: 'json',
 			postData : {prjId : '${project.prjId}', referenceDiv : '11'},
 			jsonReader:{
@@ -438,7 +465,7 @@ var src_fn = {
 		var postData = {"mainData" : JSON.stringify(mainData), "prjId" : prjId};
 
 		$.ajax({
-			url : '/project/nickNameValid/11',
+			url : '<c:url value="/project/nickNameValid/11"/>',
 			type : 'POST',
 			data : JSON.stringify(postData),
 			dataType : 'json',
@@ -454,8 +481,8 @@ var src_fn = {
 	},
 	makeFileTag : function(obj){
 		var appendHtml = '<br>'+obj.createdDate;
-
-		$('.csvFileArea').append('<li><span><strong><a href="/download/'+obj.registSeq+'/'+obj.fileName+'">'+obj.originalFilename+'</a>'+appendHtml+'<input type="hidden" value="'+obj.registSeq+'"/><input type="button" value="Delete" class="smallDelete" onclick="src_fn.deleteCsv(this, \'1\')"/></strong></span></li>');
+		var _url = '<c:url value="/download/'+obj.registSeq+'/'+obj.fileName+'"/>';
+		$('.csvFileArea').append('<li><span><strong><a href="'+_url+'">'+obj.originalFilename+'</a>'+appendHtml+'<input type="hidden" value="'+obj.registSeq+'"/><input type="button" value="Delete" class="smallDelete" onclick="src_fn.deleteCsv(this, \'1\')"/></strong></span></li>');
 	},
 	deleteCsv : function(obj, type){
 		var Seq = $(obj).prev().val();
@@ -481,7 +508,7 @@ var src_fn = {
 				}).length > 0;
 				
 				if(duplicateFlag){
-			    	alertify.alert('<spring:message code="msg.id.duplicate" />');
+			    	alertify.alert('<spring:message code="msg.id.duplicate" />', function(){});
 
 			    	return;
 			    }
@@ -516,7 +543,7 @@ var src_fn = {
 	downloadExcel : function(){
 		$.ajax({
 			type: "POST",
-			url: '/exceldownload/getExcelPost',
+			url: '<c:url value="/exceldownload/getExcelPost"/>',
 			data: JSON.stringify({"type":"src", "parameter":'${project.prjId}'}),
 			dataType : 'json',
 			cache : false,
@@ -540,6 +567,20 @@ var src_fn = {
 	closeAndroidPop : function(){
 		$('.ossSelectPop').hide();
 	},
+	getCsvData : function (seq){
+		loading.show();
+		fn_grid_com.totalGridSaveMode('srcList');
+		cleanErrMsg("srcList");
+
+		var target = $("#srcList");
+		var mainData = target.jqGrid('getGridParam','data');
+		var sheetNum = ["0"];
+		var finalData = {"readType":"src","prjId" : '${project.prjId}', "sheetNums" : sheetNum , "fileSeq" : ""+seq, "mainData" : JSON.stringify(mainData)};
+		var object = {fileSeq : seq};
+
+		src_evt.csvFileSeq.push(object);
+		src_fn.exeLoadReportData(finalData);
+	},
 	getSheetData : function(seq){
 		var sheetNum = [];
 		
@@ -550,7 +591,7 @@ var src_fn = {
 		});
 		
 		if(sheetNum.length == 0) {
-			alert('please select sheet');
+			alert('<spring:message code="msg.common.check.sheet" />');
 			
 			return;
 		} else {
@@ -559,7 +600,7 @@ var src_fn = {
 			cleanErrMsg("srcList");
 			
 			var target = $("#srcList");
-			var mainData = target.jqGrid('getGridParam','data');////
+			var mainData = target.jqGrid('getGridParam','data');
 			var finalData = {"readType":"src","prjId" : '${project.prjId}', "sheetNums" : sheetNum , "fileSeq" : ""+seq, "mainData" : JSON.stringify(mainData)};
 			var object = {fileSeq : seq};
 
@@ -567,10 +608,25 @@ var src_fn = {
 			src_fn.exeLoadReportData(finalData);
 		}
 	},
+	getSpdxSpreadsheetData : function(seq){
+		var sheetNum = ["1", "4"];
+
+		loading.show();
+		fn_grid_com.totalGridSaveMode('srcList');
+		cleanErrMsg("srcList");
+
+		var target = $("#srcList");
+		var mainData = target.jqGrid('getGridParam','data');
+		var finalData = {"readType":"src","prjId" : '${project.prjId}', "sheetNums" : sheetNum , "fileSeq" : ""+seq, "mainData" : JSON.stringify(mainData)};
+		var object = {fileSeq : seq};
+
+		src_evt.csvFileSeq.push(object);
+		src_fn.exeLoadReportData(finalData);
+	},
 	// load report data
 	exeLoadReportData : function(finalData){
 		$.ajax({
-			url : '/project/getSheetData',
+			url : '<c:url value="/project/getSheetData"/>',
 			type : 'POST',
 			data : JSON.stringify(finalData),
 			dataType : 'json',
@@ -581,7 +637,7 @@ var src_fn = {
 
 				if("false" == data.isValid) {
 					if(data.validMsg) {
-						alertify.alert(data.validMsg);
+						alertify.alert(data.validMsg, function(){});
 					} else {
 						alertify.error('<spring:message code="msg.common.valid" />', 0);
 					}
@@ -599,9 +655,9 @@ var src_fn = {
 					src_fn.makeOssList(data.resultData);
 
 					if(data.validMsg) {
-						alertify.alert(data.validMsg);
+						alertify.alert(data.validMsg, function(){});
 					} else if(data.resultData.systemChangeHisStr && data.resultData.systemChangeHisStr != "") {
-						alertify.alert(data.resultData.systemChangeHisStr);
+						alertify.alert(data.resultData.systemChangeHisStr, function(){});
 					}
 				}
 			},
@@ -646,7 +702,7 @@ var src_fn = {
 		var Data = {"csvDelFileIds" : JSON.stringify(FileSeq)};
 
 		$.ajax({
-			url : '/project/cancelFileDelSrc',
+			url : '<c:url value="/project/cancelFileDelSrc"/>',
 			type : 'POST',
 			data : JSON.stringify(Data),
 			dataType : 'json',
@@ -674,7 +730,7 @@ var src_fn = {
 		var postData = $("#_srcProjectList2").jqGrid('getGridParam', 'postData');
 		postData.referenceId = id;
         $.ajax({
-            url : '/project/identificationProjectSearch/11',
+        	url : '<c:url value="/project/identificationProjectSearch/11"/>',
             type : 'GET',
             dataType : 'json',
             data : postData,
@@ -805,6 +861,18 @@ var src_grid = {
  				{name: 'licenseName', index: 'licenseName', width: 150, align: 'left', editable:false, edittype:'text', template: searchStringOptions, 
  					editoptions: {
  						dataInit: function (e) {
+ 								var licenseNameId = $(e).attr("id").split('_')[0];
+								var licenseNameTd = $(e).parent();
+
+								var displayLicenseNameCell = '<div style="width:100%; display:table; table-layout:fixed;">';
+								displayLicenseNameCell += '<div id="'+licenseNameId+'_licenseNameDiv" style="width:60px; display:table-cell; vertical-align:middle;"></div>';
+								displayLicenseNameCell += '<div id="'+licenseNameId+'_licenseNameBtn" style="display:table-cell; vertical-align:middle;"></div>';
+								displayLicenseNameCell += '</div>';
+						
+								$(licenseNameTd).empty();
+								$(licenseNameTd).html(displayLicenseNameCell);
+								$('#'+licenseNameId+'_licenseNameDiv').append(e);
+ 	 						
 								// licenseName auto complete
 								$(e).autocomplete({
 									source: licenseNames
@@ -821,22 +889,27 @@ var src_grid = {
 								$(e).on( "autocompletechange", function() {
 									var rowid = (e.id).split('_')[0];
 									var mult = null;
+									var multText = null;
 									
 									for(var i in licenseNames){
 										if("" != e.value && e.value == licenseNames[i].value){
 											var licenseIds = $('#'+rowid+'_licenseId').val();
 											
-											mult = "<span class=\"btnMulti\">" + licenseNames[i].value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-
+											mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + licenseNames[i].value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+											multText = licenseNames[i].value;
 											break;
 										}
 									}
 									
 									if(mult == null){
-										mult = "<span class=\"btnMulti\">" + e.value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+										mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + e.value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+										multText = e.value;
 									}
 									
-									$('#'+rowid+'_licenseName').parent().append(mult);
+									var licenseNameBtnText = $('#'+rowid+'_licenseNameBtn').text();
+									if (multText != null && licenseNameBtnText.indexOf(multText) < 0){
+										$('#'+rowid+'_licenseNameBtn').append(mult);
+									}
 									$('#'+rowid+'_licenseName').val("");
 									
 									fn_grid_com.saveCellData("srcList",rowid,e.name,e.value,srcValidMsgData,srcDiffMsgData);
@@ -844,22 +917,27 @@ var src_grid = {
 									if(evt.keyCode == 13){
 										var rowid = (e.id).split('_')[0];
 										var mult = null;
+										var multText = null;
 										
 										for(var i in licenseNames){
 											if("" != e.value && e.value == licenseNames[i].value){
 												var licenseIds = $('#'+rowid+'_licenseId').val();
 
-												mult = "<span class=\"btnMulti\">" + licenseNames[i].value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-
+												mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + licenseNames[i].value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+												multText = licenseNames[i].value;
 												break;
 											}
 										}
 										
 										if(mult == null && "" != e.value){
-											mult = "<span class=\"btnMulti\">" + e.value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+											mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + e.value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+											multText = e.value;
 										}
 										
-										$('#'+rowid+'_licenseName').parent().append(mult);
+										var licenseNameBtnText = $('#'+rowid+'_licenseNameBtn').text();
+										if (multText != null && licenseNameBtnText.indexOf(multText) < 0){
+											$('#'+rowid+'_licenseNameBtn').append(mult);
+										}
 										$('#'+rowid+'_licenseName').val("");
 
 										fn_grid_com.saveCellData("srcList",rowid,e.name,e.value,srcValidMsgData,srcDiffMsgData);
@@ -974,6 +1052,7 @@ var src_grid = {
 			cellEdit : true,
 			cellsubmit : 'clientArray',
 			ignoreCase: true,
+			multiselect: true,
 		    onSortCol: function (index, columnIndex, sortOrder) {
 		    	isSort = true;
 		    },
@@ -1006,6 +1085,9 @@ var src_grid = {
 						} else if(className.indexOf('ui-subgrid') !== -1){
 							rowIdx++;
 						}
+
+						// checkbox click event
+						$("#"+row.id).find("input[type=checkbox]").removeClass("cbox");
 					}
 					
 					// 한번에 처리
@@ -1020,12 +1102,26 @@ var src_grid = {
 				}
 			},
 			beforeSelectRow: function(rowid, e) {
-				// 경고 클래스 설정
-				fn_grid_com.setWarningClass(srcList,rowid,["ossName","licenseName"]);
-				return true;
+				var $self = $(this), iCol, cm,
+			    $td = $(e.target).closest("tr.jqgrow>td"),
+			    $tr = $td.closest("tr.jqgrow"),
+			    p = $self.jqGrid("getGridParam");
+
+			    if ($(e.target).is("input[type=checkbox]") && $td.length > 0) {
+			       iCol = $.jgrid.getCellIndex($td[0]);
+			       cm = p.colModel[iCol];
+			       
+			       if (cm != null && cm.name === "cb") {
+			           // multiselect checkbox is clicked
+			           $self.jqGrid("setSelection", $tr.attr("id"), true ,e);
+			       }
+			    }
+			 	// 경고 클래스 설정
+			    fn_grid_com.setWarningClass(srcList,rowid,["ossName","licenseName"]);
+			    return false;
 			},
 			onCellSelect: function(rowid,iCol,cellcontent,e) {
-				if(iCol=="2") {
+				if(iCol=="3") {
 					fn_grid_com.showOssViewPage(srcList, rowid, true, srcValidMsgData, srcDiffMsgData, null, com_fn.getLicenseName);
 				}
 			},
@@ -1039,15 +1135,15 @@ var src_grid = {
 				ondblClickRowBln = false;
 				
  	 			$('#'+rowid+'_licenseName').addClass('autoCom');
- 	 			$('#'+rowid+'_licenseName').css({'width' : '60px'});
+ 	 			$('#'+rowid+'_licenseName').css({'width' : '100%'});
  	 			
 				var result = $('#'+rowid+'_licenseName').val().split(",");
 
 				result.forEach(function(cur,idx){
 					if(cur != ""){
-						var mult = "<span class=\"btnMulti\">" + cur + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+						var mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + cur + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
 
-						$('#'+rowid+'_licenseName').parent().append(mult);
+						$('#'+rowid+'_licenseNameBtn').append(mult);
 					}
 				});
 				
@@ -1085,9 +1181,9 @@ var src_grid = {
 		srcList.jqGrid('navGrid',"#srcPager",{add:true,edit:false,del:true,search:false,refresh:false
 												  , addfunc: function () { 
 													  com_fn.saveFlagObject["SRC"] = false;
-													  fn_grid_com.rowAdd('srcList',srcList,"main", null, com_fn.getLicenseName);
+													  fn_grid_com.rowAddNew('srcList',srcList,"main", null, com_fn.getLicenseName);
 												  }
-												  , delfunc: function () { fn_grid_com.rowDel(srcList,"main");}
+												  , delfunc: function () { fn_grid_com.rowDelNew(srcList,"main");}
 												  , cloneToTop:true
 		});
 		

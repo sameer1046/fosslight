@@ -17,15 +17,19 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.Maps;
+import com.google.gson.Gson;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -182,6 +186,8 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 					prjParam.setStatusVerifyYn(CoConstDef.FLAG_NO);
 				}			
 				
+				List<T2File> deleteFileList = new ArrayList<>();
+				
 				// packaging File comment
 				try {
 					Project project = projectMapper.selectProjectMaster(prjParam);
@@ -199,6 +205,7 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 							fileInfo.setFileSeq(fileId);
 							fileInfo = fileMapper.getFileInfo(fileInfo);
 							deleteComment += "Packaging file, "+fileInfo.getOrigNm()+", was deleted by "+loginUserName()+". <br>";
+							deleteFileList.add(fileInfo);
 						}
 						
 						if(!isEmpty(newPackagingFileIdList.get(idx)) && !newPackagingFileIdList.get(idx).equals(fileId)){
@@ -228,6 +235,11 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 				
 				verificationMapper.updatePackagingReuseMap(prjParam);
 				verificationMapper.updatePackageFile(prjParam);
+				
+				// delete physical file
+				for(T2File delFile : deleteFileList){
+					fileService.deletePhysicalFile(delFile, "VERIFY");
+				}
 				
 				if(CoConstDef.FLAG_YES.equals(deleteFlag)){
 					projectMapper.updateReadmeContent(prjParam); // README Clear
@@ -392,7 +404,8 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 				return "binAndroid"; 
 			} else {
 				ossNotice.setNetworkServerFlag(prjInfo.getNetworkServerType());
-				
+
+				// Convert Map to Apache Velocity Template
 				return CommonFunction.VelocityTemplateToString(getNoticeHtmlInfo(ossNotice));
 			}
 		}
@@ -783,11 +796,16 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 				checkResultMap.put(pathCheckList35.get(idx), deCompResultMap.containsKey(pathCheckList35.get(idx)) ? deCompResultMap.get(pathCheckList35.get(idx)) : 0);
 				checkResultMap.put(pathCheckList45.get(idx), deCompResultMap.containsKey(pathCheckList45.get(idx)) ? deCompResultMap.get(pathCheckList45.get(idx)) : 0);
 
-				checkResultMap.put(pathCheckList16.get(idx), deCompResultMap.containsKey(pathCheckList16.get(idx)) ? deCompResultMap.get(pathCheckList16.get(idx)) : 0);
-				checkResultMap.put(pathCheckList26.get(idx), deCompResultMap.containsKey(pathCheckList26.get(idx)) ? deCompResultMap.get(pathCheckList26.get(idx)) : 0);
-				checkResultMap.put(pathCheckList36.get(idx), deCompResultMap.containsKey(pathCheckList36.get(idx)) ? deCompResultMap.get(pathCheckList36.get(idx)) : 0);
-				checkResultMap.put(pathCheckList46.get(idx), deCompResultMap.containsKey(pathCheckList46.get(idx)) ? deCompResultMap.get(pathCheckList46.get(idx)) : 0);
-
+				
+				String _tmp = addDecompressionRootPath(decompressionRootPath, deCompResultMap.containsKey(pathCheckList16.get(idx)), pathCheckList16.get(idx));
+				checkResultMap.put(pathCheckList16.get(idx), deCompResultMap.containsKey(_tmp) ? deCompResultMap.get(_tmp) : 0);
+				_tmp = addDecompressionRootPath(decompressionRootPath, deCompResultMap.containsKey(pathCheckList26.get(idx)), pathCheckList26.get(idx));
+				checkResultMap.put(pathCheckList26.get(idx), deCompResultMap.containsKey(_tmp) ? deCompResultMap.get(_tmp) : 0);
+				_tmp = addDecompressionRootPath(decompressionRootPath, deCompResultMap.containsKey(pathCheckList36.get(idx)), pathCheckList36.get(idx));
+				checkResultMap.put(pathCheckList36.get(idx), deCompResultMap.containsKey(_tmp) ? deCompResultMap.get(_tmp) : 0);
+				_tmp = addDecompressionRootPath(decompressionRootPath, deCompResultMap.containsKey(pathCheckList46.get(idx)), pathCheckList46.get(idx));
+				checkResultMap.put(pathCheckList46.get(idx), deCompResultMap.containsKey(_tmp) ? deCompResultMap.get(_tmp) : 0);
+				
 				idx ++;
 			}
 
@@ -1063,6 +1081,10 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 		return resMap;
 	}
 	
+	private String addDecompressionRootPath(String path, boolean flag, String val) {
+		return flag ? val : path + "/" + val;
+	}
+
 	@Override
 	public void updateVerifyFileCount(HashMap<String,Object> fileCounts) {
 		for(String componentId : fileCounts.keySet()){
@@ -1099,10 +1121,20 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 		return ossComponentList == null || ossComponentList.isEmpty();
 	}
 	
+	@Transactional
+	@CacheEvict(value="autocompleteProjectCache", allEntries=true)
+	private void updateProjectStatus(Project project) {
+		//다운로드 허용 플래그
+		project.setAllowDownloadBitFlag(allowDownloadMultiFlagToBitFlag(project));
+		
+		// 프로젝트 상태 변경
+		projectMapper.updateProjectMaster(project);
+	}
+	
 	@Override
 	@Transactional
 	public void updateStatusWithConfirm(Project project, OssNotice ossNotice) throws Exception {
-		projectService.updateProjectStatus(project);
+		updateProjectStatus(project);
 		
 		boolean makeZipFile = false;
 		String spdxComment = "";
@@ -1134,7 +1166,9 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 		// SPDX
 		String spdxSheetFileId = null;
 		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSPDXSheetYn())) {
-			spdxSheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", project.getPrjId(), EXPORT_TEMPLATE_PATH);
+			Map<String, String> data = new HashMap<>(); data.put("prjId", project.getPrjId());
+			String dataStr = toJson(data);
+			spdxSheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, EXPORT_TEMPLATE_PATH);
 			if(!isEmpty(spdxSheetFileId)) {
 				T2File spdxFileInfo = fileService.selectFileInfo(spdxSheetFileId);
 				Project prjInfo = projectService.getProjectBasicInfo(ossNotice.getPrjId());
@@ -1151,7 +1185,9 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 		
 		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSPDXRdfYn())) {
 			if(isEmpty(spdxSheetFileId)) {
-				spdxSheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", project.getPrjId(), EXPORT_TEMPLATE_PATH);
+				Map<String, String> data = new HashMap<>(); data.put("prjId", project.getPrjId());
+				String dataStr = toJson(data);
+				spdxSheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, EXPORT_TEMPLATE_PATH);
 			}
 			
 			if(!isEmpty(spdxSheetFileId)) {
@@ -1172,7 +1208,7 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 				}
 				
 				tagFullPath += targetFileName;
-				SPDXUtil2.spreadsheetToRDF(project.getPrjId(), sheetFullPath, tagFullPath);
+				SPDXUtil2.convert(project.getPrjId(), sheetFullPath, tagFullPath);
 				File spdxRdfFile = new File(tagFullPath);
 				
 				if(spdxRdfFile.exists() && spdxRdfFile.length() <= 0) {
@@ -1193,7 +1229,9 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 		
 		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSPDXTagYn())) {
 			if(isEmpty(spdxSheetFileId)) {
-				spdxSheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", project.getPrjId(), EXPORT_TEMPLATE_PATH);
+				Map<String, String> data = new HashMap<>(); data.put("prjId", project.getPrjId());
+				String dataStr = toJson(data);
+				spdxSheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, EXPORT_TEMPLATE_PATH);
 			}
 			
 			if(!isEmpty(spdxSheetFileId)) {
@@ -1215,7 +1253,7 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 				}
 				
 				tagFullPath += targetFileName;
-				SPDXUtil2.spreadsheetToTAG(project.getPrjId(), sheetFullPath, tagFullPath);
+				SPDXUtil2.convert(project.getPrjId(), sheetFullPath, tagFullPath);
 				
 				File spdxTafFile = new File(tagFullPath);
 				
@@ -1231,6 +1269,94 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 				FileUtil.moveTo(tagFullPath, filePath, resultFileName);
 				project.setSpdxTagFileId(fileService.registFileDownload(filePath, resultFileName, resultFileName));
 				
+				makeZipFile = true;
+			}
+		}
+
+		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSPDXJsonYn())) {
+			if(isEmpty(spdxSheetFileId)) {
+				Map<String, String> data = new HashMap<>(); data.put("prjId", project.getPrjId());
+				String dataStr = toJson(data);
+				spdxSheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, EXPORT_TEMPLATE_PATH);
+			}
+
+			if(!isEmpty(spdxSheetFileId)) {
+				T2File spdxFileInfo = fileService.selectFileInfo(spdxSheetFileId);
+				String sheetFullPath = spdxFileInfo.getLogiPath();
+
+				if(!sheetFullPath.endsWith("/")) {
+					sheetFullPath += "/";
+				}
+
+				sheetFullPath += spdxFileInfo.getLogiNm();
+				String targetFileName = FilenameUtils.getBaseName(spdxFileInfo.getLogiNm())+".json";
+				String resultFileName = FilenameUtils.getBaseName(spdxFileInfo.getOrigNm())+".json";
+				String tagFullPath = spdxFileInfo.getLogiPath();
+
+				if(!tagFullPath.endsWith("/")) {
+					tagFullPath += "/";
+				}
+
+				tagFullPath += targetFileName;
+				SPDXUtil2.convert(project.getPrjId(), sheetFullPath, tagFullPath);
+				File spdxJsonFile = new File(tagFullPath);
+
+				if(spdxJsonFile.exists() && spdxJsonFile.length() <= 0) {
+					if(!isEmpty(spdxComment)) {
+						spdxComment += "<br>";
+					}
+
+					spdxComment += getMessage("spdx.json.failure");
+				}
+
+				String filePath = NOTICE_PATH + "/" + project.getPrjId();
+				FileUtil.moveTo(tagFullPath, filePath, resultFileName);
+				project.setSpdxJsonFileId(fileService.registFileDownload(filePath, resultFileName, resultFileName));
+
+				makeZipFile = true;
+			}
+		}
+
+		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSPDXYamlYn())) {
+			if(isEmpty(spdxSheetFileId)) {
+				Map<String, String> data = new HashMap<>(); data.put("prjId", project.getPrjId());
+				String dataStr = toJson(data);
+				spdxSheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, EXPORT_TEMPLATE_PATH);
+			}
+
+			if(!isEmpty(spdxSheetFileId)) {
+				T2File spdxFileInfo = fileService.selectFileInfo(spdxSheetFileId);
+				String sheetFullPath = spdxFileInfo.getLogiPath();
+
+				if(!sheetFullPath.endsWith("/")) {
+					sheetFullPath += "/";
+				}
+
+				sheetFullPath += spdxFileInfo.getLogiNm();
+				String targetFileName = FilenameUtils.getBaseName(spdxFileInfo.getLogiNm())+".yaml";
+				String resultFileName = FilenameUtils.getBaseName(spdxFileInfo.getOrigNm())+".yaml";
+				String tagFullPath = spdxFileInfo.getLogiPath();
+
+				if(!tagFullPath.endsWith("/")) {
+					tagFullPath += "/";
+				}
+
+				tagFullPath += targetFileName;
+				SPDXUtil2.convert(project.getPrjId(), sheetFullPath, tagFullPath);
+				File spdxYamlFile = new File(tagFullPath);
+
+				if(spdxYamlFile.exists() && spdxYamlFile.length() <= 0) {
+					if(!isEmpty(spdxComment)) {
+						spdxComment += "<br>";
+					}
+
+					spdxComment += getMessage("spdx.yaml.failure");
+				}
+
+				String filePath = NOTICE_PATH + "/" + project.getPrjId();
+				FileUtil.moveTo(tagFullPath, filePath, resultFileName);
+				project.setSpdxYamlFileId(fileService.registFileDownload(filePath, resultFileName, resultFileName));
+
 				makeZipFile = true;
 			}
 		}
@@ -1570,6 +1696,7 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 		String prjId = "";
 		String distributeSite = "";
 		int dashSeq = 0;
+		boolean hideOssVersionFlag = CoConstDef.FLAG_YES.equals(ossNotice.getHideOssVersionYn());
 		
 		// NETWORK SERVER 여부를 체크한다.
 		
@@ -1599,14 +1726,18 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 		List<OssComponents> ossComponentList = verificationMapper.selectVerificationNotice(ossNotice);
 		
 		// TYPE별 구분
-		Map<String, OssComponents> noticeInfo = new LinkedHashMap<>();
-		Map<String, OssComponents> srcInfo = new LinkedHashMap<>();
-		Map<String, OssComponentsLicense> licenseInfo = new LinkedHashMap<>();
+		Map<String, OssComponents> noticeInfo = new HashMap<>();
+		Map<String, OssComponents> srcInfo = new HashMap<>();
+		Map<String, OssComponentsLicense> licenseInfo = new HashMap<>();
+		Map<String, List<String>> componentCopyright = new HashMap<>();
+		Map<String, List<String>> componentAttribution = new HashMap<>();
 		
 		OssComponents ossComponent;
 		
 		for(OssComponents bean : ossComponentList) {
-			String componentKey = (bean.getOssName() + "|" + bean.getOssVersion()).toUpperCase();
+			String componentKey = (hideOssVersionFlag
+									? bean.getOssName() 
+									: bean.getOssName() + "|" + bean.getOssVersion()).toUpperCase();
 			
 			if("-".equals(bean.getOssName())) {
 				componentKey += dashSeq++;
@@ -1634,6 +1765,7 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 			boolean addDisclosure = isDisclosure && srcInfo.containsKey(componentKey);
 			boolean addNotice = !isDisclosure && noticeInfo.containsKey(componentKey);
 			
+			
 			if(addDisclosure) {
 				ossComponent = srcInfo.get(componentKey);
 			} else if(addNotice) {
@@ -1641,56 +1773,147 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 			} else {
 				ossComponent = bean;
 			}
-					
-			// 라이선스 정보 생성
-			OssComponentsLicense license = new OssComponentsLicense();
-			license.setLicenseId(bean.getLicenseId());
-			license.setLicenseName(bean.getLicenseName());
-			license.setLicenseText(bean.getLicenseText());
-			license.setAttribution(bean.getAttribution());
-			// 하나의 oss에 대해서 동일한 LICENSE가 복수 표시되는 현상 
-			// 일단 여기서 막는다. (쿼리가 잘못된 건지, DATA가 꼬이는건지 모르겠음)
-			if(!checkLicenseDuplicated(ossComponent.getOssComponentsLicense(), license)) {
-				ossComponent.addOssComponentsLicense(license);
-				// OSS의 Copyright text를 수정하였음에도 Packaging > Notice Preview에 업데이트 안 됨.
-				// MULTI LICENSE를 가지는 oss의 개별로 추가된 copyright의 경우, Identification Confirm시에 DB에 업데이트한 정보를 기준으로 추출되기 때문에, preview 단계에서 오류가 발견되어 수정하여도 반영되지 않는다
-				// verification단계에서의 oss_component_license는 oss_license의 license등록 순번을 가지고 있지 않기 때문에 (exclude된 license는 이관하지 않음)
-				// 여기서 oss id와 license id를 이용하여 찾는다.
-				// 동이한 라이선스를 or 구분으로 여러번 정의한 경우 문제가 될 수 있으나, 동일한 oss의 동일한 license의 경우 같은 copyright를 추가한다는 전제하에 적용함 (이부분에서 추가적인 이슉가 발생할 경우 대응방법이 복잡해짐)
-				 if(CoConstDef.FLAG_NO.equals(ossComponent.getAdminCheckYn())) {
-					 bean.setOssCopyright(findAddedOssCopyright(bean.getOssId(), bean.getLicenseId(), bean.getOssCopyright()));
-				
-					 // multi license 추가 copyright
-					 if(!isEmpty(bean.getOssCopyright())) {
-						 String addCopyright = ossComponent.getCopyrightText();
-						
-						 if(!isEmpty(ossComponent.getCopyrightText())) {
-							 addCopyright += "\r\n";
-						 }
-						
-						 addCopyright += bean.getOssCopyright();
-						 ossComponent.setCopyrightText(addCopyright);
-					 }
-				 }
-			}
 			
-			if(isDisclosure) {
-				if(addDisclosure) {
-					srcInfo.replace(componentKey, ossComponent);
+			if(hideOssVersionFlag) {
+				
+				List<String> copyrightList = componentCopyright.containsKey(componentKey) 
+						? (List<String>) componentCopyright.get(componentKey) 
+						: new ArrayList<>();
+						
+				List<String> attributionList = componentAttribution.containsKey(componentKey) 
+						? (List<String>) componentAttribution.get(componentKey) 
+						: new ArrayList<>();
+						
+				if(!isEmpty(bean.getCopyrightText())) {
+					for(String copyright : bean.getCopyrightText().split("\n")) {
+						copyrightList.add(copyright);
+					}
+				}
+				
+				if(!isEmpty(bean.getOssAttribution())) {
+					attributionList.add(bean.getOssAttribution());
+				}
+
+				// 라이선스 정보 생성
+				OssComponentsLicense license = new OssComponentsLicense();
+				license.setLicenseId(bean.getLicenseId());
+				license.setLicenseName(bean.getLicenseName());
+				license.setLicenseText(bean.getLicenseText());
+				license.setAttribution(bean.getAttribution());
+
+				if(!checkLicenseDuplicated(ossComponent.getOssComponentsLicense(), license)) {
+					ossComponent.addOssComponentsLicense(license);
+				}
+				
+				if(CoConstDef.FLAG_NO.equals(bean.getAdminCheckYn())) {
+					String ossCopyright = findAddedOssCopyright(bean.getOssId(), bean.getLicenseId(), bean.getOssCopyright());
+					
+					// multi license 추가 copyright
+					if(!isEmpty(ossCopyright)) {
+						for(String copyright : ossCopyright.split("\n")) {
+							copyrightList.add(copyright);
+						}
+					}
+				}
+				
+				// 중복제거
+				copyrightList = copyrightList.stream()
+												.filter(CommonFunction.distinctByKey(c -> avoidNull(c).trim().toUpperCase()))
+												.collect(Collectors.toList()); 
+				ossComponent.setCopyrightText(String.join("\r\n", copyrightList));
+				componentCopyright.put(componentKey, copyrightList);
+				
+				attributionList = attributionList.stream()
+													.filter(CommonFunction.distinctByKey(a -> avoidNull(a).trim().toUpperCase()))
+													.collect(Collectors.toList()); 
+				ossComponent.setOssAttribution(String.join("\r\n", attributionList));
+				componentAttribution.put(componentKey, attributionList);
+				
+				if(isDisclosure) {
+					if(addDisclosure) {
+						srcInfo.replace(componentKey, ossComponent);
+					} else {
+						srcInfo.put(componentKey, ossComponent);
+					}
 				} else {
-					srcInfo.put(componentKey, ossComponent);
+					if(addNotice) {
+						noticeInfo.replace(componentKey, ossComponent);
+					} else {
+						noticeInfo.put(componentKey, ossComponent);
+					}
+				}
+				
+				if(!licenseInfo.containsKey(license.getLicenseName())) {
+					licenseInfo.put(license.getLicenseName(), license);
 				}
 			} else {
-				if(addNotice) {
-					noticeInfo.replace(componentKey, ossComponent);
+				
+				// 라이선스 정보 생성
+				OssComponentsLicense license = new OssComponentsLicense();
+				license.setLicenseId(bean.getLicenseId());
+				license.setLicenseName(bean.getLicenseName());
+				license.setLicenseText(bean.getLicenseText());
+				license.setAttribution(bean.getAttribution());
+				
+				// 하나의 oss에 대해서 동일한 LICENSE가 복수 표시되는 현상 
+				// 일단 여기서 막는다. (쿼리가 잘못된 건지, DATA가 꼬이는건지 모르겠음)
+				if(!checkLicenseDuplicated(ossComponent.getOssComponentsLicense(), license)) {
+					ossComponent.addOssComponentsLicense(license);
+					
+					// OSS의 Copyright text를 수정하였음에도 Packaging > Notice Preview에 업데이트 안 됨.
+					// MULTI LICENSE를 가지는 oss의 개별로 추가된 copyright의 경우, Identification Confirm시에 DB에 업데이트한 정보를 기준으로 추출되기 때문에, preview 단계에서 오류가 발견되어 수정하여도 반영되지 않는다
+					// verification단계에서의 oss_component_license는 oss_license의 license등록 순번을 가지고 있지 않기 때문에 (exclude된 license는 이관하지 않음)
+					// 여기서 oss id와 license id를 이용하여 찾는다.
+					// 동이한 라이선스를 or 구분으로 여러번 정의한 경우 문제가 될 수 있으나, 동일한 oss의 동일한 license의 경우 같은 copyright를 추가한다는 전제하에 적용함 (이부분에서 추가적인 이슉가 발생할 경우 대응방법이 복잡해짐)
+					if(CoConstDef.FLAG_NO.equals(ossComponent.getAdminCheckYn())) {
+						bean.setOssCopyright(findAddedOssCopyright(bean.getOssId(), bean.getLicenseId(), bean.getOssCopyright()));
+						
+						// multi license 추가 copyright
+						if(!isEmpty(bean.getOssCopyright())) {
+							String addCopyright = avoidNull(ossComponent.getCopyrightText());
+							
+							if(!isEmpty(ossComponent.getCopyrightText())) {
+								addCopyright += "\r\n";
+							}
+							 
+							addCopyright += bean.getOssCopyright();
+							ossComponent.setCopyrightText(addCopyright);
+						}
+					}
+				}
+				
+				if(isDisclosure) {
+					if(addDisclosure) {
+						srcInfo.replace(componentKey, ossComponent);
+					} else {
+						srcInfo.put(componentKey, ossComponent);
+					}
 				} else {
-					noticeInfo.put(componentKey, ossComponent);
+					if(addNotice) {
+						noticeInfo.replace(componentKey, ossComponent);
+					} else {
+						noticeInfo.put(componentKey, ossComponent);
+					}
+				}
+				
+				if(!licenseInfo.containsKey(license.getLicenseName())) {
+					licenseInfo.put(license.getLicenseName(), license);
+				}
+			}
+		}
+		
+		// copyleft에 존재할 경우 notice에서는 출력하지 않고 copyleft로 merge함.
+		if(hideOssVersionFlag) {
+			Map<String, OssComponents> hideOssVersionMergeNoticeInfo = new HashMap<>();
+			Set<String> noticeKeyList = noticeInfo.keySet();
+			
+			for(String key : noticeKeyList) {
+				if(!srcInfo.containsKey(key)) {
+					hideOssVersionMergeNoticeInfo.put(key, noticeInfo.get(key));
 				}
 			}
 			
-			if(!licenseInfo.containsKey(license.getLicenseName())) {
-				licenseInfo.put(license.getLicenseName(), license);
-			}
+			noticeInfo = hideOssVersionMergeNoticeInfo;
 		}
 		
 		// CLASS 파일만 등록한 경우 라이선스 정보만 추가한다.
@@ -1699,7 +1922,9 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 		
 		if(addOssComponentList != null) {
 			for(OssComponents bean : addOssComponentList) {
-				String componentKey = (bean.getOssName() + "|" + bean.getOssVersion()).toUpperCase();
+				String componentKey = (hideOssVersionFlag
+											? bean.getOssName() 
+											: bean.getOssName() + "|" + bean.getOssVersion()).toUpperCase();
 				
 				if("-".equals(bean.getOssName())) {
 					componentKey += dashSeq++;
@@ -1713,7 +1938,8 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 				bean.addOssComponentsLicense(license);
 				
 				if(CoConstDef.CD_DTL_OBLIGATION_DISCLOSURE.equals(bean.getObligationType())
-						|| CoConstDef.CD_DTL_NOTICE_TYPE_ACCOMPANIED.equals(ossNotice.getNoticeType())) { // Accompanied with source code 의 경우 source 공개 의무
+						|| CoConstDef.CD_DTL_NOTICE_TYPE_ACCOMPANIED.equals(ossNotice.getNoticeType())
+						|| hideOssVersionFlag) { // Accompanied with source code 의 경우 source 공개 의무
 					srcInfo.put(componentKey, bean);
 				} else {
 					noticeInfo.put(componentKey, bean);
@@ -1750,11 +1976,6 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 				bean.setOssName(StringUtil.replaceHtmlEscape(bean.getOssName()));
 			}
 			
-			// oss 없이 라이선스만 확인한 경우, 고지문구 oss tag가 link로 생성되지 않도록 downloadlocation을 초기화
-			if(isEmpty(bean.getOssName()) || "-".equals(bean.getOssName())) {
-				bean.setDownloadLocation("");
-			}
-			
 			noticeList.add(bean);
 		}
 		List<OssComponents> srcList = new ArrayList<>();
@@ -1777,11 +1998,6 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 			
 			if(!isEmpty(bean.getOssName())) {
 				bean.setOssName(StringUtil.replaceHtmlEscape(bean.getOssName()));
-			}
-			
-			// oss 없이 라이선스만 확인한 경우, 고지문구 oss tag가 link로 생성되지 않도록 downloadlocation을 초기화
-			if(isEmpty(bean.getOssName()) || "-".equals(bean.getOssName())) {
-				bean.setDownloadLocation("");
 			}
 			
 			srcList.add(bean);
@@ -1914,8 +2130,7 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 	private String findAddedOssCopyright(String ossId, String licenseId, String ossCopyright) {
 		if(!isEmpty(ossId) && !isEmpty(licenseId)) {
 			OssMaster bean = CoCodeManager.OSS_INFO_BY_ID.get(ossId);
-			
-			if(bean != null && CoConstDef.LICENSE_DIV_MULTI.equals(bean.getLicenseDiv())) {
+			if (bean != null) {
 				for(OssLicense license : bean.getOssLicenses()) {
 					if(licenseId.equals(license.getLicenseId()) && !isEmpty(license.getOssCopyright())) {
 						return license.getOssCopyright();
@@ -2105,5 +2320,54 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 			
 			commentService.registComment(commHisBean);
 		}
+	}
+	
+	@Override
+	public void updateProjectAllowDownloadBitFlag(Project project) {
+		project.setAllowDownloadBitFlag(allowDownloadMultiFlagToBitFlag(project));
+		
+		projectMapper.updateProjectAllowDownloadBitFlag(project);
+	}
+
+	public int allowDownloadMultiFlagToBitFlag(Project project) {
+		int bitFlag = 1;
+		
+		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadNoticeHTMLYn())) {
+			bitFlag |= CoConstDef.FLAG_A;
+		}
+			
+		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadNoticeTextYn())) {
+			bitFlag |= CoConstDef.FLAG_B;
+		}
+		
+		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSimpleHTMLYn())) {
+			bitFlag |= CoConstDef.FLAG_C;
+		}
+			
+		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSimpleTextYn())) {
+			bitFlag |= CoConstDef.FLAG_D;
+		}
+			
+		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSPDXSheetYn())) {
+			bitFlag |= CoConstDef.FLAG_E;
+		}
+			
+		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSPDXRdfYn())) {
+			bitFlag |= CoConstDef.FLAG_F;
+		}
+			
+		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSPDXTagYn())) {
+			bitFlag |= CoConstDef.FLAG_G;
+		}
+
+		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSPDXJsonYn())) {
+			bitFlag |= CoConstDef.FLAG_H;
+		}
+
+		if(CoConstDef.FLAG_YES.equals(project.getAllowDownloadSPDXYamlYn())) {
+			bitFlag |= CoConstDef.FLAG_I;
+		}
+		
+		return bitFlag;
 	}
 }

@@ -38,7 +38,7 @@
 	</div>
 	<div class="commentEditor" style="display:none;">
 		<div class="cBtn">
-		<input type="button" value="Save & Send comment" class="btnCLight saveEditor" onclick="fn.editorDialog();"/>
+		<input type="button" value="Save & Send comment" class="btnCLight saveEditor" onclick="fn.sendEditor('WR');"/>
 		<input type="button" value="Save draft" class="btnCLight" onclick="fn.saveEditor();"/>
 		</div>
 		<div class="grid-container">
@@ -60,6 +60,7 @@
 				<!-- 2018-07-19 choye 추가 -->
 				<input type="hidden" name="commId" />
 				<input type="hidden" name="statusRequestYn" />
+				<input type="hidden" id="refPartnerId" name="refPartnerId" value="${project.refPartnerId}" />
 				<table class="dCase">
 					<colgroup>
 						<col width="188" />
@@ -67,18 +68,18 @@
 					</colgroup>
 					<tbody>
 						<tr>
-							<th class="dCase txStr">Project Name</th>
+							<th class="dCase txStr"><spring:message code="msg.common.field.project.name" /></th>
 							<td class="dCase">
 								<div class="required">
 									<input name="prjName" type="text" class="autoComProjectNm w100P"/>
 									<span class="retxt">This field is required.</span>
 								</div>
-								<c:if test="${empty project.prjId}"><a class="right" id="helpLink" style="position:absolute; cursor: pointer; top:38px; left:1060px; display:none;"><img alt="" src="/images/user-guide.png" /></a></c:if>
-								<a class="right" id="helpLink" style="position:absolute; cursor: pointer; top:2px; left:1035px; display:none;"><img alt="" src="/images/user-guide.png" /></a>
+								<c:if test="${empty project.prjId}"><a class="right" id="helpLink" style="position:absolute; cursor: pointer; top:38px; left:1060px; display:none;"><img alt="" src="${ctxPath}/images/user-guide.png" /></a></c:if>
+								<a class="right" id="helpLink" style="position:absolute; cursor: pointer; top:2px; left:1035px; display:none;"><img alt="" src="${ctxPath}/images/user-guide.png" /></a>
 							</td>
 						</tr>
 						<tr>
-							<th class="dCase">Project Version</th>
+							<th class="dCase"><spring:message code="msg.common.field.project.version" /></th>
 							<td class="dCase">
 								<div class="required">
 									<input name="prjVersion" type="text" class="w100P"/>
@@ -88,7 +89,7 @@
 						</tr>
 						<c:if test="${project.viewOnlyFlag ne 'Y'}">
 						<tr>
-							<th class="dCase">Permission</th>
+							<th class="dCase"><spring:message code="msg.common.field.permission" /></th>
 							<td class="dCase">
 								<span>View : </span>
 								<span class="radioSet">
@@ -100,7 +101,7 @@
 						</tr>
 						</c:if>
 						<tr>
-							<th class="dCase txStr">Operating System</th>
+							<th class="dCase txStr"><spring:message code="msg.common.field.OS" /></th>
 							<td class="dCase">
 								<div class="required">
 									<span class="selectSet writeSelect">
@@ -116,7 +117,7 @@
 							</td>
 						</tr>
 						<tr>
-							<th class="dCase txStr"><a class="iconSet help left" id="helpLink_distributionType" style="display: none; position:relative; cursor: pointer; left:10px;"></a>Distribution Type</th>
+							<th class="dCase txStr"><a class="iconSet help left" id="helpLink_distributionType" style="display: none; position:relative; cursor: pointer; left:10px;"></a><spring:message code="msg.common.field.distributionType" /></th>
 							<td class="dCase">
 								${ct:genRadio(ct:getConstDef("CD_DISTRIBUTION_TYPE"), project.distributionType, project.networkServerType)}
 							</td>
@@ -183,7 +184,7 @@
 							</c:otherwise>
 						</c:choose>
 						<tr>
-							<th class="dCase txStr"><a class="iconSet help left" id="helpLink_priority" style="display: none; position:relative; cursor: pointer; left:10px;"></a>Priority</th>
+							<th class="dCase txStr"><a class="iconSet help left" id="helpLink_priority" style="display: none; position:relative; cursor: pointer; left:10px;"></a><spring:message code="msg.common.field.priority" /></th>
 							<td class="dCase">
 								<div class="required">
 									<span class="selectSet w150">
@@ -221,7 +222,7 @@
 							</td>
 						</tr>
 						<tr>
-							<th class="dCase">Additional Information</th>
+							<th class="dCase"><spring:message code="msg.common.field.additionalInformation" /></th>
 							<td class="dCase">
 								<div class="grid-container">
 									<div class="grid-width-100">
@@ -232,7 +233,7 @@
 						</tr>
 						<c:if test="${project.viewOnlyFlag ne 'Y'}">
 						<tr>
-							<th class="dCase">Watcher</th>
+							<th class="dCase"><spring:message code="msg.common.field.watcher" /></th>
 							<td class="dCase">
 								<div class="pb5">
 									<span class="selectSet w150">
@@ -294,7 +295,7 @@
 						</c:if>
 						<c:if test="${ct:isAdmin() and not empty project.prjId and 'Y' ne project.copyFlag}">
 						<tr>
-							<th class="dCase  txStr">Creator</th>
+							<th class="dCase  txStr"><spring:message code="msg.common.field.creator" /></th>
 							<td class="dCase">
 								<div class="required">
 									<input type="text" name="creatorNm" class="autoComCreatorDivision" value=""/>
@@ -306,7 +307,7 @@
 						</c:if>
 						<c:if test="${not empty project.prjId and 'Y' ne project.copyFlag}">
                         <tr>
-                            <th class="dCase  txStr">Reviewer</th>
+                            <th class="dCase  txStr"><spring:message code="msg.common.field.reviewer" /></th>
                             <td class="dCase">
                                 <div class="required">
                                     <input type="text" name="reviewer" value="${project.reviewerName}" disabled="disabled"/>
@@ -335,11 +336,11 @@
 			<c:if test="${not empty project.prjId}">
 				<span class="left">
 					<c:if test="${project.completeYn ne 'Y' and project.viewOnlyFlag eq 'N'}"><input id="delete" type="button" value="Delete" class="btnColor" /></c:if>
+					<c:if test="${project.viewOnlyFlag eq 'N'}"><input id="drop" type="button" value="Drop" class="btnColor wauto" style="display: none;"/></c:if>
 				</span>
 			</c:if>
 			<span class="right">
 				<c:if test="${project.viewOnlyFlag eq 'N'}">
-					<input id="drop" type="button" value="Drop" class="btnColor wauto" style="display: none;"/>
 					<input id="complete" type="button" value="Complete" class="btnColor wauto" style="display: none;"/>
 				</c:if>
 				<input id="copy" type="button" value="Copy" class="btnColor" onclick="fn.copy();" style="display: none;"/>

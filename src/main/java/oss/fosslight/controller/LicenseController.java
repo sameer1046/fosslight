@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import oss.fosslight.common.CoCodeManager;
 import oss.fosslight.common.CoConstDef;
 import oss.fosslight.common.CommonFunction;
 import oss.fosslight.common.Url.LICENSE;
+import oss.fosslight.common.CustomXssFilter;
 import oss.fosslight.domain.CoMail;
 import oss.fosslight.domain.CoMailManager;
 import oss.fosslight.domain.CommentsHistory;
@@ -88,7 +90,7 @@ public class LicenseController extends CoTopComponent{
 		licenseMaster.setPageListSize(rows);
 		licenseMaster.setSortField(sidx);
 		licenseMaster.setSortOrder(sord);
-		
+
 		if("search".equals(req.getParameter("act"))) {
 			// 검색 조건 저장
 			putSessionObject(SESSION_KEY_SEARCH, licenseMaster);
@@ -105,10 +107,11 @@ public class LicenseController extends CoTopComponent{
 			
 			licenseMaster.setTotListSize(licenseService.selectLicenseMasterTotalCount(licenseMaster));
 			map = licenseService.getLicenseMasterList(licenseMaster);
+
 		} catch(Exception e) {
 			log.error(e.getMessage(), e);
 		}
-		
+		CustomXssFilter.licenseMasterFilter((List<LicenseMaster>) map.get("rows"));
 		return makeJsonResponseHeader(map);
 	}
 	
@@ -230,6 +233,21 @@ public class LicenseController extends CoTopComponent{
 			beforeBean =  licenseService.getLicenseMasterOne(licenseMaster);
 		}
 		
+		// webpages이 n건일때 0번째 값은 oss Master로 저장.
+		String[] webpages = licenseMaster.getWebpages();
+		if(webpages != null){
+			if(webpages.length >= 1){
+				for(String url : webpages){
+					if(!isEmpty(url)){
+						licenseMaster.setWebpage(url); // 등록된 url 중 공백을 제외한 나머지에서 첫번째 url을 만나게 되면 등록을 함.
+						break;
+					}
+				}
+			}
+		} else if(webpages == null){
+			licenseMaster.setWebpage("");
+		}
+		
 		result = licenseService.registLicenseMaster(licenseMaster);
 		
 		if(!isNew) {
@@ -298,6 +316,7 @@ public class LicenseController extends CoTopComponent{
 					beforeBean.setDescription(CommonFunction.lineReplaceToBR(beforeBean.getDescription()));
 					beforeBean.setLicenseText(CommonFunction.lineReplaceToBR(beforeBean.getLicenseText()));
 					beforeBean.setAttribution(CommonFunction.lineReplaceToBR(beforeBean.getAttribution()));
+					if(beforeBean.getWebpages().length > 0) beforeBean.setWebpage(licenseService.webPageStringFormat(beforeBean.getWebpages()));
 				}
 				
 				if(afterBean != null) {
@@ -308,6 +327,7 @@ public class LicenseController extends CoTopComponent{
 					afterBean.setDescription(CommonFunction.lineReplaceToBR(afterBean.getDescription()));
 					afterBean.setLicenseText(CommonFunction.lineReplaceToBR(afterBean.getLicenseText()));
 					afterBean.setAttribution(CommonFunction.lineReplaceToBR(afterBean.getAttribution()));
+					if(afterBean.getWebpages().length > 0) afterBean.setWebpage(licenseService.webPageStringFormat(afterBean.getWebpages()));
 				}
 				
 				mailBean.setCompareDataBefore(beforeBean);
@@ -362,7 +382,7 @@ public class LicenseController extends CoTopComponent{
 			//validation check
 			 vResult = validate(req);	
 		}catch(Exception e){
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 		
 		if(!vResult.isValid()){
@@ -371,7 +391,7 @@ public class LicenseController extends CoTopComponent{
 		try{
 			commentService.deleteComment(commentsHistory);
 		} catch (Exception e){
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 		
 		return makeJsonResponseHeader(vResult.getValidMessageMap());
@@ -386,7 +406,7 @@ public class LicenseController extends CoTopComponent{
 			// validation check
 			vResult = validate(req);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 
 		if (!vResult.isValid()) {
@@ -399,7 +419,7 @@ public class LicenseController extends CoTopComponent{
 
 			result = commentService.registComment(commentsHistory);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error(e.getMessage());
 		}
 		
 		return makeJsonResponseHeader(result);
@@ -430,6 +450,21 @@ public class LicenseController extends CoTopComponent{
 			, Model model){
 		
 		List<LicenseMaster> list = licenseService.getLicenseNameList();
+		CustomXssFilter.licenseMasterFilter(list);
 		return makeJsonResponseHeader(list);
 	}	
+	
+	@PostMapping(value=LICENSE.LICENSE_ID)
+	public @ResponseBody ResponseEntity<Object> getLicenseId(HttpServletRequest req, HttpServletResponse res, 
+			@RequestParam(value="licenseName", required=true)String licenseName) {
+		Map<String, String> map = new HashMap<String, String>();
+		
+		LicenseMaster lm = new LicenseMaster();
+		lm.setLicenseName(licenseName.trim());
+		
+		lm = licenseService.getLicenseId(lm);
+		map.put("licenseId", lm.getLicenseId());
+		
+		return makeJsonResponseHeader(map);
+	}
 }

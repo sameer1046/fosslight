@@ -92,7 +92,7 @@
 		
 		if($(".warningPop").length > 0 && "CONF" != curIdenStatus 
 			&& (!$('input[name=fileSeq_1]') || $('input[name=fileSeq_1]').val() == "")){
-			alertify.alert($("body > div.pop.warningPop > div.popdata").html());
+			alertify.alert($("body > div.pop.warningPop > div.popdata").html(), function(){});
 		}
 		
 		if(userRole == "ROLE_USER"){
@@ -127,7 +127,7 @@
 		// 20210617_autoVerify Change Alert ADD
 		$("input:checkbox[name='autoVerify']").change(function(){
 			if($("input:checkbox[name='autoVerify']").is(":checked") == true){
-				alertify.alert('Verify when file is uploaded');
+				alertify.alert("<spring:message code='msg.project.upload.verify' />", function(){});
 			}
 		});
 	});
@@ -616,10 +616,7 @@
 				e.preventDefault();
 				
 				if(distributionStatus == "PROC"){
-					var br = "<br>";
-					var comment = "Thank you so much for your patience." + br;
-					comment += "The distribution has already begun and has not yet completed." + br;
-					comment += "It takes a long time to deploy because of the large packaging file size.";
+                    var comment = '<spring:message code="msg.project.distribution.loading" />';
 					
 					alertify.error(comment, 0);
 					
@@ -635,7 +632,7 @@
 				alertify.confirm().destroy(); // fullCustomize 와 중첩되는 영역을 초기화
 				alertify.confirm(innerHtml, function () {
 					if(CKEDITOR.instances['editor3'].getData() == ""){
-						alertify.alert('<spring:message code="msg.project.required.comments" />');
+						alertify.alert('<spring:message code="msg.project.required.comments" />', function(){});
 						
 						return false;
 					} else {
@@ -651,6 +648,8 @@
 								  , "allowDownloadSPDXSheetYn"  : $("#allowDownloadSPDXSheetYn").val()
 								  , "allowDownloadSPDXRdfYn" 	: $("#allowDownloadSPDXRdfYn").val()
 								  , "allowDownloadSPDXTagYn" 	: $("#allowDownloadSPDXTagYn").val()
+								  , "allowDownloadSPDXJsonYn"	: $("#allowDownloadSPDXJsonYn").val()
+								  , "allowDownloadSPDXYamlYn"	: $("#allowDownloadSPDXYamlYn").val()
 						};
 						
 						fn.exeProjectStatus(data, "PROG");
@@ -697,6 +696,8 @@
 						  , "allowDownloadSPDXSheetYn"  : $("#allowDownloadSPDXSheetYn").val()
 						  , "allowDownloadSPDXRdfYn" 	: $("#allowDownloadSPDXRdfYn").val()
 						  , "allowDownloadSPDXTagYn" 	: $("#allowDownloadSPDXTagYn").val()
+						  , "allowDownloadSPDXJsonYn" 	: $("#allowDownloadSPDXJsonYn").val()
+						  , "allowDownloadSPDXYamlYn" 	: $("#allowDownloadSPDXYamlYn").val()
 				};
 				
 				fn.exeProjectStatus(data, "REV");
@@ -877,6 +878,10 @@
 					fn.downloadSpdxRdf();
 				} else if(type == 'spdxTag') {
 					fn.downloadSpdxTag();
+				} else if(type == 'spdxJson') {
+					fn.downloadSpdxJson();
+				} else if(type == 'spdxYaml') {
+					fn.downloadSpdxYaml();
 				}
 			});
 			
@@ -959,7 +964,14 @@
 			$('#spdxTag').click(function(e){
 				fn.downloadSpdxTag();
 			});
-			
+
+			$('#spdxJson').click(function(e){
+				fn.downloadSpdxJson();
+			});
+
+			$('#spdxYaml').click(function(e){
+				fn.downloadSpdxYaml();
+			});
 			//// [Pakage Document Download END]
 			
 			$("#identificationTab").click(function(){
@@ -1277,7 +1289,7 @@
 			curIdenStatus = status;
 			$(".commentBtn.open").trigger( "click" );
 			$.ajax({
-				url : '<c:url value="${suffixUrl}/project/updateProjectStatus"/>',
+				url : '<c:url value="/project/updateProjectStatus"/>',
 				type : 'POST',
 				data : JSON.stringify(data),
 				dataType : 'json',
@@ -1384,7 +1396,7 @@
 			var customError;
 			
 			if(flag == 'save') {
-				customUrl      = '<c:url value="${suffixUrl}/project/verification/saveAjax"/>';
+				customUrl      = '<c:url value="/project/verification/saveAjax"/>';
 				customDataType = "json";
 				customSucess   = fn.onRegistSuccess;
 				customError	   = function(data){
@@ -1509,14 +1521,14 @@
 			var editorVal = CKEDITOR.instances.editor.getData();
 			
 			if(!editorVal || editorVal == "") {
-				alertify.alert("Please enter a comment");
+				alertify.alert("<spring:message code="msg.project.enter.comment" />", function(){});
 				return false;
 			}
 			
 			var param = {referenceId : '${project.prjId}', referenceDiv :'12', contents : editorVal, mailSendType : type};
 			
 			$.ajax({
-				url : '/project/sendComment',
+				url : '<c:url value="/project/sendComment"/>',
 				type : 'POST',
 				dataType : 'json',
 				cache : false,
@@ -1527,7 +1539,7 @@
 					} else {
 						$('.ajs-close').trigger("click");
 
-						alertify.success('<spring:message code="msg.common.success" />');
+						alertify.success('<spring:message code="msg.project.sent.comments.success" />');
 						resetEditor(CKEDITOR.instances.editor);
 
 						$(".commentBtn open").trigger( "click" );
@@ -1544,7 +1556,7 @@
 			var register = '${sessUserInfo.userId}';
 			var param = {referenceId : '${project.prjId}', referenceDiv :'13', contents : editorVal};
 			$.ajax({
-				url : '/project/saveComment',
+				url : '<c:url value="/project/saveComment"/>',
 				type : 'POST',
 				dataType : 'json',
 				cache : false,
@@ -1567,7 +1579,7 @@
 			var editorVal = CKEDITOR.instances.editor.getData();
 
 			if(!editorVal || editorVal == "") {
-				alertify.alert("Please enter a comment");
+				alertify.alert("<spring:message code="msg.project.enter.comment" />", function(){});
 				return false;
 			}
 			
@@ -1789,10 +1801,12 @@
 			}).submit();
 		},
 		downloadSpdxSpreadSheetExcel : function(){
+			var dataStr = JSON.stringify($('#noticeForm').serializeObject());
+			
 			$.ajax({
 				type: "POST",
 				url: '<c:url value="/spdxdownload/getSPDXPost"/>',
-				data: JSON.stringify({"type":"spdx", "parameter":'${project.prjId}'}),
+				data: JSON.stringify({"type":"spdx", "prjId":'${project.prjId}', "dataStr":dataStr}),
 				dataType : 'json',
 				cache : false,
 				contentType : 'application/json',
@@ -1810,10 +1824,12 @@
 		},
 		
 		downloadSpdxRdf : function() {
+			var dataStr = JSON.stringify($('#noticeForm').serializeObject());
+			
 			$.ajax({
 				type: "POST",
 				url: '<c:url value="/spdxdownload/getSPDXPost"/>',
-				data: JSON.stringify({"type":"spdxRdf", "parameter":'${project.prjId}'}),
+				data: JSON.stringify({"type":"spdxRdf", "prjId":'${project.prjId}', "dataStr":dataStr}),
 				dataType : 'json',
 				cache : false,
 				contentType : 'application/json',
@@ -1831,10 +1847,12 @@
 		},
 		
 		downloadSpdxTag : function() {
+			var dataStr = JSON.stringify($('#noticeForm').serializeObject());
+			
 			$.ajax({
 				type: "POST",				   
 				url: '<c:url value="/spdxdownload/getSPDXPost"/>',
-				data: JSON.stringify({"type":"spdxTag", "parameter":'${project.prjId}'}),
+				data: JSON.stringify({"type":"spdxTag", "prjId":'${project.prjId}', "dataStr":dataStr}),
 				dataType : 'json',
 				cache : false,
 				contentType : 'application/json',
@@ -1849,6 +1867,52 @@
 					alertify.error('<spring:message code="msg.common.valid2" />', 0);
 				}
 			});
+		},
+
+		downloadSpdxJson : function() {
+			var dataStr = JSON.stringify($('#noticeForm').serializeObject());
+			
+			$.ajax({
+				type: "POST",
+				url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+				data: JSON.stringify({"type":"spdxJson", "prjId":'${project.prjId}', "dataStr":dataStr}),
+				dataType : 'json',
+				cache : false,
+				contentType : 'application/json',
+				success: function (data) {
+					if("false" == data.isValid) {
+						alertify.error('<spring:message code="msg.common.valid2" />', 0);
+					} else {
+						window.location =  '<c:url value="/spdxdownload/getFile?id='+data.validMsg+'"/>';
+					}
+				},
+				error: function(data){
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				}
+			})
+		},
+
+		downloadSpdxYaml : function() {
+			var dataStr = JSON.stringify($('#noticeForm').serializeObject());
+			
+			$.ajax({
+				type: "POST",
+				url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+				data: JSON.stringify({"type":"spdxYaml", "prjId":'${project.prjId}', "dataStr":dataStr}),
+				dataType : 'json',
+				cache : false,
+				contentType : 'application/json',
+				success: function (data) {
+					if("false" == data.isValid) {
+						alertify.error('<spring:message code="msg.common.valid2" />', 0);
+					} else {
+						window.location =  '<c:url value="/spdxdownload/getFile?id='+data.validMsg+'"/>';
+					}
+				},
+				error: function(data){
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				}
+			})
 		},
 		appendEditVisible : function(target){
 			var checked = $(target).prop("checked");
@@ -1897,6 +1961,8 @@
 				$("#chkAllowDownloadSPDXSheet").attr("disabled", !checked);
 				$("#chkAllowDownloadSPDXRdf").attr("disabled", !checked);
 				$("#chkAllowDownloadSPDXTag").attr("disabled", !checked);
+				$("#chkAllowDownloadSPDXJson").attr("disabled", !checked);
+				$("#chkAllowDownloadSPDXYaml").attr("disabled", !checked);
 			} else {
 				$("#companyName").attr("disabled",!checked);
 				$("#ossDistributionSite").attr("disabled",!checked);
@@ -1920,7 +1986,9 @@
 				$("#chkAllowDownloadSPDXSheet").attr("disabled", !checked);
 				$("#chkAllowDownloadSPDXRdf").attr("disabled", !checked);
 				$("#chkAllowDownloadSPDXTag").attr("disabled", !checked);
-			}
+				$("#chkAllowDownloadSPDXJson").attr("disabled", !checked);
+				$("#chkAllowDownloadSPDXYaml").attr("disabled", !checked);
+            }
 		},
 		initNotice : function(){
 			window.setTimeout(function(){
@@ -2009,7 +2077,9 @@
 					  , "allowDownloadSPDXSheetYn"  : $("#allowDownloadSPDXSheetYn").val()
 					  , "allowDownloadSPDXRdfYn" 	: $("#allowDownloadSPDXRdfYn").val()
 					  , "allowDownloadSPDXTagYn" 	: $("#allowDownloadSPDXTagYn").val()
-			};
+					  , "allowDownloadSPDXJsonYn" 	: $("#allowDownloadSPDXJsonYn").val()
+					  , "allowDownloadSPDXYamlYn" 	: $("#allowDownloadSPDXYamlYn").val()
+            };
 			
 			//공개의무 리스트가 있고 파일업로드가 완료된 상태이며 verify가 완료 되었을때
 			var fileSeq = $("input[name='fileSeq_1']").val();
@@ -2251,7 +2321,7 @@
 							
 							verified = true;
 						} else {
-							alertify.alert(json.resMsg);
+							alertify.alert(json.resMsg, function(){});
 							verified = false;
 						}
 						
@@ -2277,7 +2347,7 @@
 						$("#deleteFlag").val("N");
 						$("#verifyBtnSet").show();
 					} else {
-						alertify.alert(json.resMsg);
+						alertify.alert(json.resMsg, function(){});
 					}
 					
 				},
@@ -2322,7 +2392,7 @@
 			activeTab = $(target).attr("rel");
 			
 			if(activeTab == "packaging" && datas.ossList.length < 1) {
-				alertify.alert("This project did not include open source under license that require you to make source code available. Therefore, you do not need to perform the OSS Packaging step.", function(){
+				alertify.alert('<spring:message code="msg.project.verification.confirm.package" />', function(){
 					tabMenuA.eq("1").click();
 				});
 			} else if(activeTab == "notice" && isAndroid == "Y") {

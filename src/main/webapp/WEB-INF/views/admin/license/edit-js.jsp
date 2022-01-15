@@ -26,13 +26,14 @@
 			commentTemp = $('<div>').append($('dl[name=commentClone]').clone());
 			$('dl[name=commentClone]').remove();
 			data.clone = $('.multiTxtSet').clone().html();
+			data.cloneWebPage = $('.multiWebPageSet').clone().html();
 			
 			if(data.detail){
 				$('input[name=licenseId]').val(data.detail.licenseId);
 				$('select[name=licenseType]').val(data.detail.licenseType).trigger('change');
 				$('input[name=licenseName]').val(data.detail.licenseName);
 				$('input[name=shortIdentifier]').val(data.detail.shortIdentifier);
-				$('input[name=webpage]').val(data.detail.webpage);
+				//$('input[name=webpage]').val(data.detail.webpage);
 				$('textarea[name=description]').val(data.detail.description);
 				$('textarea[name=licenseText]').val(data.detail.licenseText);
 				$('textarea[name=attribution]').val(data.detail.attribution);
@@ -62,6 +63,24 @@
 						});
 					}					
 				});
+
+				if(data.detail.webpages.length <= 0){
+					$('input[name=webpages]').val(data.detail.webpage);
+				}else{
+					data.detail.webpages.forEach(function(webpage, index, obj){
+						if(index == 0){
+							$('.multiWebPageSet span:first').remove();
+						}
+											
+						if(webpage !=''){
+							$(data.cloneWebPage).appendTo('.multiWebPageSet');
+							$('.multiWebPageSet input[type=text]:last').val(webpage);
+							$('.smallDelete').on('click', function(){
+								$(this).parent().remove();
+							});
+						}					
+					});
+				}
 				
 				$('textarea[name=licenseText]').height(240);
 				
@@ -75,6 +94,14 @@
 			//닉네임 인풋 추가
 			$('#nickAdd').on('click', function(){
 				$(data.clone).appendTo('.multiTxtSet');
+				$('.smallDelete').on('click', function(){
+					$(this).parent().parent().remove();
+				});
+			});
+
+			// add web page
+			$('#webpageAdd').on('click', function(){
+				$(data.cloneWebPage).appendTo('.multiWebPageSet');
 				$('.smallDelete').on('click', function(){
 					$(this).parent().parent().remove();
 				});
@@ -107,11 +134,11 @@
 				var editorVal = CKEDITOR.instances.editor.getData();
 				
 				if(editorVal == "") {
-					alertify.alert("Please enter reason for deletion");
+					alertify.alert('<spring:message code="msg.license.confirm.delete.required.comment" />', function(){});
 					return false;
 				}
 				
-				alertify.confirm("Are you sure you want to remove this license?\nThis will permanently delete all datas.", function (e) {
+				alertify.confirm('<spring:message code="msg.license.confirm.delete" />', function (e) {
 					if (e) {
 						$('input[name=comment]').val(editorVal);
 						deleteSubmit();
@@ -160,7 +187,7 @@
 	
 	function registSubmit(){
 	    $("#licenseForm").ajaxForm({
-            url :'/license/validation',
+	    	url :'<c:url value="/license/validation"/>',
             type : 'POST',
             dataType:"json",
             cache : false,
@@ -171,7 +198,7 @@
 	
 	function deleteSubmit(){
 		$("#licenseForm").ajaxForm({
-            url :'/license/delAjax',
+			url :'<c:url value="/license/delAjax"/>',
             type : 'POST',
             dataType:"json",
             cache : false,
@@ -201,7 +228,7 @@
 			}
 			
 			$("#licenseForm").ajaxForm({
-	            url :'/license/saveAjax',
+				url :'<c:url value="/license/saveAjax"/>',
 	            type : 'POST',
 	            dataType:"json",
 	            cache : false,
@@ -216,8 +243,8 @@
 		
 		if(json.resCd == '10') {
 			alertify.alert('<spring:message code="msg.common.success" />', function(){
-				deleteTabInFrame('#/license/edit/'+json.licenseId);
-				reloadTabInframe('/license/list');
+				deleteTabInFrame('#<c:url value="/license/edit/'+json.licenseId+'"/>');
+				reloadTabInframe('<c:url value="/license/list"/>');
 			}); 
 		} else {
 			alertify.error('<spring:message code="msg.common.valid2" />', 0);
@@ -227,15 +254,15 @@
 		var licenseId = $('input[name=licenseId]').val();
 		
 		if(json.isValid == 'false') {
-			alertify.alert(json.validMsg);
+			alertify.alert(json.validMsg, function(){});
 		} else {
 			alertify.alert('<spring:message code="msg.common.success" />',function(){
 				if(licenseId){
-					deleteTabInFrame('#/license/edit/'+licenseId);			
+					deleteTabInFrame('#<c:url value="/license/edit/'+licenseId+'"/>');			
 				}else{
-					deleteTabInFrame('#/license/edit');
+					deleteTabInFrame('#<c:url value="/license/edit"/>');
 				}
-				reloadTabInframe('/license/list');
+				reloadTabInframe('<c:url value="/license/list"/>');
 			});
 		}
 	}
@@ -248,7 +275,7 @@
 		if(!confirm("Are you sure you want to delete this comment?")) return;
 		var commId = $(obj).next().val();
 		$.ajax({
-			url : '/license/deleteComment',
+			url : '<c:url value="/license/deleteComment"/>',
 			type : 'POST',
 			dataType : 'json',
 			cache : false,
@@ -278,7 +305,7 @@
 			var register = '${sessUserInfo.userId}';
 			var param = {commId : modifyCommentId, referenceId : data.detail.licenseId, referenceDiv :'30', contents : editorVal};
 			$.ajax({
-				url : '/license/saveComment',
+				url : '<c:url value="/license/saveComment"/>',
 				type : 'POST',
 				dataType : 'json',
 				cache : false,
@@ -310,7 +337,7 @@
 var fn_commemt = {
     getCommentList : function(){
         $.ajax({
-            url : '/comment/getCommentList',
+        	url : '<c:url value="/comment/getCommentList"/>',
             type : 'GET',
             dataType : 'html',
             cache : false,
@@ -332,7 +359,7 @@ var fn_commemt = {
         }
         
         $.ajax({
-            url : '/comment/deleteComment',
+        	url : '<c:url value="/comment/deleteComment"/>',
             type : 'POST',
             dataType : 'json',
             cache : false,
@@ -369,7 +396,7 @@ var fn_commemt = {
             var param = {commId : _commId, contents : _editor.getData(), referenceDiv: '30', referenceId: _referenceId};
 
             $.ajax({
-                url : '/comment/updateComment',
+            	url : '<c:url value="/comment/updateComment"/>',
                 type : 'POST',
                 dataType : 'json',
                 cache : false,
@@ -382,7 +409,10 @@ var fn_commemt = {
                 },
                 error : function(){
                     alertify.error('<spring:message code="msg.common.valid2" />', 0);
-                }
+                },
+                complete : function(){
+                	fn_commemt.getCommentList();
+	            }
             });
             
             return false;
@@ -396,7 +426,7 @@ var fn_commemt = {
         }
 
         if($('#comm_editor_'+_commId).html().length > 0) {
-            CKEDITOR.replace('comm_editor_'+_commId, {customConfig:'/js/customEditorConf_Comment.js'});
+            CKEDITOR.replace('comm_editor_'+_commId, {customConfig:'<c:url value="/js/customEditorConf_Comment.js"/>'});
         }
     }
 }

@@ -63,6 +63,7 @@ public class LicenseMaster extends ComBean implements Serializable {
 	/** The webpage. */
 	private String webpage;						//URL
 	private String webpageLinkFormat;						//URL
+	private String[] webpages;
 	
 	/** The internal url. */
 	private String internalUrl;
@@ -136,6 +137,8 @@ public class LicenseMaster extends ComBean implements Serializable {
 	
 	private String licenseNameAllSearchFlag;
 	
+	/** sort order **/
+	private String sOrder;
 	
 	/**
 	 * Instantiates a new license master.
@@ -550,7 +553,7 @@ public class LicenseMaster extends ComBean implements Serializable {
 	 * @return the license nicknames
 	 */
 	public String[] getLicenseNicknames() {
-		return licenseNicknames;
+		return licenseNicknames != null ? licenseNicknames.clone() : null;
 	}
 	
 	/**
@@ -559,7 +562,8 @@ public class LicenseMaster extends ComBean implements Serializable {
 	 * @param licenseNicknames the new license nicknames
 	 */
 	public void setLicenseNicknames(String[] licenseNicknames) {
-		this.licenseNicknames = licenseNicknames;
+		this.licenseNicknames = licenseNicknames != null ?
+			licenseNicknames.clone() : null;
 	}
 	
 	/**
@@ -734,7 +738,20 @@ public class LicenseMaster extends ComBean implements Serializable {
 
 	public String getWebpageLinkFormat() {
 		if(StringUtil.isEmpty(this.webpageLinkFormat) && !StringUtil.isEmpty(this.webpage)) {
-			return "<a href='"+this.webpage+"' target='_blank'>" + this.webpage + "</a>";
+			if(this.webpage.contains(",")){
+				String[] webpages = this.webpage.split(",");
+				String result = "";
+							
+				for(int i = 0 ; i < webpages.length ; i++){
+					if(i > 0){ result += "<br>"; }
+								
+					result += "<a href='"+webpages[i]+"' target='_blank'>" + webpages[i] + "</a>";
+				}
+							
+				return result;
+			}else{
+				return "<a href='"+this.webpage+"' target='_blank'>" + this.webpage + "</a>";
+			}
 		}
 		return webpageLinkFormat;
 	}
@@ -768,11 +785,12 @@ public class LicenseMaster extends ComBean implements Serializable {
 	}
 	
 	public String[] getArrRestriction() {
-		return arrRestriction;
+		return arrRestriction != null ? arrRestriction.clone() : null;
 	}
 
 	public void setArrRestriction(String[] arrRestriction) {
-		this.arrRestriction = arrRestriction;
+		this.arrRestriction = arrRestriction != null ?
+			arrRestriction.clone() : null;
 	}
 	
 	public String getRestrictionList() {
@@ -805,6 +823,22 @@ public class LicenseMaster extends ComBean implements Serializable {
 
 	public void setLicenseNameAllSearchFlag(String licenseNameAllSearchFlag) {
 		this.licenseNameAllSearchFlag = licenseNameAllSearchFlag;
+	}
+
+	public String[] getWebpages() {
+		return webpages != null ? webpages.clone() : null;
+	}
+
+	public void setWebpages(String[] webpages) {
+		this.webpages = webpages != null ? webpages.clone() : null;
+	}
+
+	public String getsOrder() {
+		return sOrder;
+	}
+
+	public void setsOrder(String sOrder) {
+		this.sOrder = sOrder;
 	}
 	
 	

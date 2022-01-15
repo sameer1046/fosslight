@@ -18,6 +18,7 @@ import oss.fosslight.domain.OssComponents;
 import oss.fosslight.domain.OssComponentsLicense;
 import oss.fosslight.domain.OssMaster;
 import oss.fosslight.domain.OssNotice;
+import oss.fosslight.domain.PartnerMaster;
 import oss.fosslight.domain.Project;
 import oss.fosslight.domain.ProjectIdentification;
 import oss.fosslight.domain.T2File;
@@ -57,6 +58,12 @@ public interface ProjectMapper {
 	List<ProjectIdentification> getOssVersions(String ossName);
 	
 	ProjectIdentification getOssId(ProjectIdentification identification);
+
+	List<ProjectIdentification> getOssFindByNameAndVersion(ProjectIdentification identification);
+	
+	List<ProjectIdentification> getOssFindByVersionAndDownloadLocation(ProjectIdentification identification);
+
+	List<ProjectIdentification> getOssFindByDownloadLocation(ProjectIdentification identification);
 	
 	List<ProjectIdentification> getLicenses(ProjectIdentification identification);
 
@@ -314,6 +321,15 @@ public interface ProjectMapper {
 	
 	String getReviewerEmail(@Param("prjId") String prjId, @Param("loginUser") String loginUser);
 	
-	// 20210616_BOM COMPARE FUNC ADD
 	int selectProjectCount(Project project);
+
+	void insertStatisticsMostUsedOssInfo(Project project);
+
+	void insertStatisticsMostUsedLicenseInfo(Project project);
+
+	void deleteStatisticsMostUsedInfo(Project project);
+	
+	int selectAdminCheckCnt(ProjectIdentification projectIdentification);
+	
+	List<Project> selectPartnerRefPrjList(PartnerMaster partner);
 }

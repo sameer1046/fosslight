@@ -7,12 +7,13 @@ var projectStatus = '${project.status}';
 var distributionStatus = '${project.destributionStatus}';
 var isAndroidModel = '${project.androidFlag}' == "Y";
 var _popupCheckOssName = null;
+var _popupCheckOssLicense = null;
 
 //==========================================================================================
 //COMMON
 //==========================================================================================
 var com_evt = {
-	// 초기화
+	// init
 	init: function(){
 		com_fn.tabInit();
 
@@ -24,120 +25,114 @@ var com_evt = {
 		
 		$('.btnCommentHistory').on('click', function(e){
 			e.preventDefault();
-			openCommentHistory("prj", "${project.prjId}");
+			openCommentHistory('<c:url value="/comment/popup/prj/${project.prjId}"/>');
 		});
 
-		// bomConfirm 버튼 
+		// bomConfirm button
 		$('#bomConfirm').click(function(e){
-			e.preventDefault();
-			
-			if(com_fn.isAndroidOnly()) {
-				var data = {"prjId" : '${project.prjId}', "identificationStatus" : "CONF", "userComment" : CKEDITOR.instances['editor'].getData()};
+			if (com_fn.checkStatus()){
+				e.preventDefault();
 				
- 				if($("#ignoreBinaryDbFlag")) {
-					data = {"prjId" : '${project.prjId}', "identificationStatus" : "CONF", "userComment" : CKEDITOR.instances['editor'].getData(), "ignoreBinaryDbFlag" : $("#ignoreBinaryDbFlag").val()};
-				}
-				
-				// no opensource license를 선택한 경우 bom merge 쿼리에 포함하지 않기 때문에, 3rd, src, bin, binandroid 에 error message가 있는지 확인해야함
-				if(!com_fn.validBomChangeStatus(true)) {
-					return false;
-				}
-				
-				com_fn.checkSave(data, "CONF");	
-			} else {		 		
-				// 머지 체크
-				if("Y"!= $("#mergeYn").val()){
-					alertify.alert('<spring:message code="msg.project.required.merge" />');
-					com_fn.fnTabChange($(".tabMenu a:eq(4)"));	
-
-					return false;
-				}
-				
-				if(Bom_Save_Flg){
-					if($('#bomList').jqGrid('getDataIDs').length == 0 && "Y"!= $("#mergeYn").val()) {
-						alertify.alert('<spring:message code="msg.project.required.merge" />');
-
-						return false;
-					}
-
-					// no opensource license를 선택한 경우 bom merge 쿼리에 포함하지 않기 때문에, 3rd, src, bin, binandroid 에 error message가 있는지 확인해야함
-					if(!com_fn.validBomChangeStatus(false)) {
-						return false;
-					}
-
+				if(com_fn.isAndroidOnly()) {
 					var data = {"prjId" : '${project.prjId}', "identificationStatus" : "CONF", "userComment" : CKEDITOR.instances['editor'].getData()};
-
- 					if($("#ignoreBinaryDbFlag")) {
+					
+	 				if($("#ignoreBinaryDbFlag")) {
 						data = {"prjId" : '${project.prjId}', "identificationStatus" : "CONF", "userComment" : CKEDITOR.instances['editor'].getData(), "ignoreBinaryDbFlag" : $("#ignoreBinaryDbFlag").val()};
 					}
+					
+					// no opensource license를 선택한 경우 bom merge 쿼리에 포함하지 않기 때문에, 3rd, src, bin, binandroid 에 error message가 있는지 확인해야함
+					if(!com_fn.validBomChangeStatus(true)) {
+						return false;
+					}
+					
+					com_fn.checkSave(data, "CONF");	
+				} else {		 		
+					// 머지 체크
+					if("Y"!= $("#mergeYn").val()){
+						alertify.alert('<spring:message code="msg.project.required.merge" />', function(){});
+						com_fn.fnTabChange($(".tabMenu a:eq(4)"));	
 
- 					com_fn.checkSave(data, "CONF");	
-				} else {
-					alertify.alert('<spring:message code="msg.project.check.save" />');
-				}				
-			}
+						return false;
+					}
+					
+					if(Bom_Save_Flg){
+						if($('#bomList').jqGrid('getDataIDs').length == 0 && "Y"!= $("#mergeYn").val()) {
+							alertify.alert('<spring:message code="msg.project.required.merge" />', function(){});
+
+							return false;
+						}
+
+						// no opensource license를 선택한 경우 bom merge 쿼리에 포함하지 않기 때문에, 3rd, src, bin, binandroid 에 error message가 있는지 확인해야함
+						if(!com_fn.validBomChangeStatus(false)) {
+							return false;
+						}
+
+						var data = {"prjId" : '${project.prjId}', "identificationStatus" : "CONF", "userComment" : CKEDITOR.instances['editor'].getData()};
+
+	 					if($("#ignoreBinaryDbFlag")) {
+							data = {"prjId" : '${project.prjId}', "identificationStatus" : "CONF", "userComment" : CKEDITOR.instances['editor'].getData(), "ignoreBinaryDbFlag" : $("#ignoreBinaryDbFlag").val()};
+						}
+
+	 					com_fn.checkSave(data, "CONF");	
+					} else {
+						alertify.alert('<spring:message code="msg.project.check.save" />', function(){});
+					}				
+				}
+			}else {
+				alertify.alert('<spring:message code="msg.project.warn.project.status" />', function(){});
+			}	
 		});
 		
 		// bomReject 버튼 
 		$('#bomReject').click(function(e){
-			e.preventDefault();
+			if (com_fn.checkStatus()){
+				e.preventDefault();
 
-			if(distributionStatus == "PROC"){
-				var br = "<br>";
-				var comment = "Thank you so much for your patience." + br;
-				comment += "The distribution has already begun and has not yet completed." + br;
-				comment += "It takes a long time to deploy because of the large packaging file size.";
-				
-				alertify.error(comment, 0);
-
-				return false;
-			}
-			
-			var innerHtml = '<div class="grid-container" style="width:470px; height:350px;">Are you sure you want to reject?';
-			innerHtml    += '	<div class="grid-width-100" style="width:470px; height:310px; margin-top:10px;">';
-			innerHtml    += '		<div id="editor2" style="width:470px; height:300px;">' + CKEDITOR.instances['editor'].getData() + '</div>';
-			innerHtml    += '	</div>';
-			innerHtml    += '</div>';
-			
-			alertify.confirm(innerHtml, function () {
-				if(CKEDITOR.instances['editor2'].getData() == "") {
-					alertify.alert('<spring:message code="msg.project.required.comments" />');
+				if(distributionStatus == "PROC"){
+					var comment = '<spring:message code="msg.project.distribution.loading" />';
+					
+					alertify.error(comment, 0);
 
 					return false;
-				} else {
-					var data = {"prjId" : '${project.prjId}', "identificationStatus" : "PROG", "userComment" : CKEDITOR.instances['editor2'].getData()};
-
-					com_fn.checkSave(data, "PROG");
 				}
-			});
+				
+				var innerHtml = '<div class="grid-container" style="width:470px; height:350px;">Are you sure you want to reject?';
+				innerHtml    += '	<div class="grid-width-100" style="width:470px; height:310px; margin-top:10px;">';
+				innerHtml    += '		<div id="editor2" style="width:470px; height:300px;">' + CKEDITOR.instances['editor'].getData() + '</div>';
+				innerHtml    += '	</div>';
+				innerHtml    += '</div>';
+				
+				alertify.confirm(innerHtml, function () {
+					if(CKEDITOR.instances['editor2'].getData() == "") {
+						alertify.alert('<spring:message code="msg.project.required.comments" />', function(){});
 
-			var _editor = CKEDITOR.instances.editor2;
-			
-			if(_editor) {
-				_editor.destroy();
+						return false;
+					} else {
+						var data = {"prjId" : '${project.prjId}', "identificationStatus" : "PROG", "userComment" : CKEDITOR.instances['editor2'].getData()};
+
+						com_fn.checkSave(data, "PROG");
+					}
+				});
+
+				var _editor = CKEDITOR.instances.editor2;
+				
+				if(_editor) {
+					_editor.destroy();
+				}
+				
+				CKEDITOR.replace('editor2', {});
+			}else{
+				alertify.alert('<spring:message code="msg.project.warn.project.status" />', function(){});
 			}
-			
-			CKEDITOR.replace('editor2', {});
-			
 		});
 		
 		// bomRequest 버튼 
 		$('#bomRequest').click(function(e){
-			e.preventDefault();
-			
-			// 머지 체크
-			if("Y"!= $("#mergeYn").val()){
-				alertify.alert('<spring:message code="msg.project.required.merge" />', function(){
-					// Identification 내 모든 탭 우측 상단에 request review 버튼 표시
-					// tab전환 하도록 함수를 새로만듦. (기존 tabMenuA.click callbac fucntion -> fnTabChange 으로 변경)
-					com_fn.fnTabChange($(".tabMenu a:eq(4)"));
-				});
+			if (com_fn.checkStatus()){
+				e.preventDefault();
 				
-				return false;
-			}
-			
-			if(Bom_Save_Flg) {
-				if($('#bomList').jqGrid('getDataIDs').length == 0 && "Y"!= $("#mergeYn").val()) {
+				// 머지 체크
+				if("Y"!= $("#mergeYn").val()){
 					alertify.alert('<spring:message code="msg.project.required.merge" />', function(){
 						// Identification 내 모든 탭 우측 상단에 request review 버튼 표시
 						// tab전환 하도록 함수를 새로만듦. (기존 tabMenuA.click callbac fucntion -> fnTabChange 으로 변경)
@@ -147,42 +142,60 @@ var com_evt = {
 					return false;
 				}
 				
-				alertify.confirm('<spring:message code="msg.common.confirm.continue" />', function(e){
-					if(e) {
-						if(userRole != "ROLE_ADMIN"){
-							if(!com_fn.validBomChangeStatus(isAndroidModel)) {
-								return false;
-							}
-						}
+				if(Bom_Save_Flg) {
+					if($('#bomList').jqGrid('getDataIDs').length == 0 && "Y"!= $("#mergeYn").val()) {
+						alertify.alert('<spring:message code="msg.project.required.merge" />', function(){
+							// Identification 내 모든 탭 우측 상단에 request review 버튼 표시
+							// tab전환 하도록 함수를 새로만듦. (기존 tabMenuA.click callbac fucntion -> fnTabChange 으로 변경)
+							com_fn.fnTabChange($(".tabMenu a:eq(4)"));
+						});
 						
-						var data = {"prjId" : '${project.prjId}', "identificationStatus" : "REQ", "userComment" : CKEDITOR.instances['editor'].getData()};
-
-						com_fn.checkSave(data, "REQ");
+						return false;
 					}
-				});
-				
-			} else {
-				alertify.alert('<spring:message code="msg.project.check.save" />');
+					
+					alertify.confirm('<spring:message code="msg.common.confirm.continue" />', function(e){
+						if(e) {
+							if(userRole != "ROLE_ADMIN"){
+								if(!com_fn.validBomChangeStatus(isAndroidModel)) {
+									return false;
+								}
+							}
+							
+							var data = {"prjId" : '${project.prjId}', "identificationStatus" : "REQ", "userComment" : CKEDITOR.instances['editor'].getData()};
+
+							com_fn.checkSave(data, "REQ");
+						}
+					});
+					
+				} else {
+					alertify.alert('<spring:message code="msg.project.check.save" />', function(){});
+				}
+			}else {
+				alertify.alert('<spring:message code="msg.project.warn.project.status" />', function(){});
 			}
 		});
 		
 		// bomReviewStart 버튼 
 		$('#bomReviewStart').click(function(e) {
-			e.preventDefault();
-			
-			// 머지 체크
-			if("N"== $("#mergeYn").val()){
-				alertify.alert('<spring:message code="msg.project.required.merge2" />');
+			if (com_fn.checkStatus()){
+				e.preventDefault();
+				
+				// 머지 체크
+				if("N"== $("#mergeYn").val()){
+					alertify.alert('<spring:message code="msg.project.required.merge2" />', function(){});
 
-				return false;
-			}
-			
-			if(Bom_Save_Flg) {
-				var data = {"prjId" : '${project.prjId}', "identificationStatus" : "REV", "userComment" : CKEDITOR.instances['editor'].getData()};
+					return false;
+				}
+				
+				if(Bom_Save_Flg) {
+					var data = {"prjId" : '${project.prjId}', "identificationStatus" : "REV", "userComment" : CKEDITOR.instances['editor'].getData()};
 
-				com_fn.checkSave(data, "REV");
-			} else {
-				alertify.alert('<spring:message code="msg.project.check.save" />');
+					com_fn.checkSave(data, "REV");
+				} else {
+					alertify.alert('<spring:message code="msg.project.check.save" />', function(){});
+				}
+			}else {
+				alertify.alert('<spring:message code="msg.project.warn.project.status" />', function(){});
 			}
 		});
 
@@ -193,7 +206,7 @@ var com_evt = {
 			if(idx != "") {
 				changeTabInFrame(idx);
 			} else {
-				createTabInFrame(prjId+'_Project', '#/project/edit/'+prjId);
+				createTabInFrame(prjId+'_Project', '#<c:url value="/project/edit/'+prjId+'"/>');
 			}
 		});
 
@@ -204,7 +217,7 @@ var com_evt = {
 			if(idx != "") {
 				changeTabInFrame(idx);
 			} else {
-				createTabInFrame(prjId+'_Packaging', '#/project/verification/'+prjId);
+				createTabInFrame(prjId+'_Packaging', '#<c:url value="/project/verification/'+prjId+'"/>');
 			}
 		});
 		
@@ -215,7 +228,7 @@ var com_evt = {
 			if(idx != "") {
 				changeTabInFrame(idx);
 			} else {
-				createTabInFrame(prjId+'_Distribute', '#/project/distribution/'+prjId);
+				createTabInFrame(prjId+'_Distribute', '#<c:url value="/project/distribution/'+prjId+'"/>');
 			}
 		});
 
@@ -345,7 +358,7 @@ var com_fn = {
 		var btn_Save = $(".idenSave");
 		var btn_Analysis = $(".idenAnalysis");
 		var btn_Analysis_Result = $(".idenAnalysisResult");
-		var btn_checkossname = $(".checkOssName");
+		var btn_check = $(".btnCheck");
 		var btn_supplement_Notice = $(".supplementNotice");
 		
 		if(role == "ROLE_ADMIN"){ // 관리자 권한 일 경우
@@ -353,61 +366,63 @@ var com_fn = {
 				case "":
 					btn_div.hide();
 					btn_confirm.hide();btn_reject.hide();btn_review.show();btn_restart.hide();
-					btn_Reset.show();btn_Merge.show();btn_Save.show();
+					btn_Reset.show();btn_Merge.show();btn_Save.show();btn_check.show();
 
 					break;
 				case "PROG":
 					btn_confirm.hide();btn_reject.hide();btn_review.show();btn_restart.hide();
-					btn_Reset.show();btn_Merge.show();btn_Save.show();
+					btn_Reset.show();btn_Merge.show();btn_Save.show();btn_check.show();
 
 					break;
 				case "REQ":
 					btn_confirm.hide();btn_reject.hide();btn_review.hide();btn_restart.show();
-					btn_Reset.show();btn_Merge.show();btn_Save.show();
+					btn_Reset.show();btn_Merge.show();btn_Save.show();btn_check.show();
 
 					break;
 				case "REV":
 					btn_confirm.show();btn_reject.show();btn_review.hide();btn_restart.hide();
-					btn_Reset.show();btn_Merge.show();btn_Save.show();
+					btn_Reset.show();btn_Merge.show();btn_Save.show();btn_check.show();
 
 					break;
 				case "CONF":
 					btn_confirm.hide();btn_reject.show();btn_review.hide();btn_restart.hide();
 					btn_Reset.hide();btn_Merge.hide();btn_Save.hide();btn_Analysis.hide();
 					btn_Analysis_Result.hide(); btn_supplement_Notice.hide();
+					btn_check.hide();
 
 					break;
 			}
 		} else if('${project.viewOnlyFlag}' == 'Y'){
 			btn_confirm.hide();btn_reject.hide();btn_review.hide();btn_restart.hide();
-			btn_Reset.hide();btn_Merge.hide();btn_Save.hide();
+			btn_Reset.hide();btn_Merge.hide();btn_Save.hide();btn_check.hide();
 		} else { // 일반 사용자 일 경우
 			switch(status){
 				case "":
 					btn_div.hide();
 					btn_confirm.hide();btn_reject.hide();btn_review.show();btn_restart.hide();
-					btn_Reset.show();btn_Merge.show();btn_Save.show();
+					btn_Reset.show();btn_Merge.show();btn_Save.show();btn_check.show();
 
 					break;
 				case "PROG":
 					btn_confirm.hide();btn_reject.hide();btn_review.show();btn_restart.hide();
-					btn_Reset.show();btn_Merge.show();btn_Save.show();
+					btn_Reset.show();btn_Merge.show();btn_Save.show();btn_check.show();
 
 					break;
 				case "REQ":
 					btn_confirm.hide();btn_reject.show();btn_review.hide();btn_restart.hide();
-					btn_Reset.hide();btn_Merge.hide();btn_Save.hide();
+					btn_Reset.hide();btn_Merge.hide();btn_Save.hide();btn_check.hide();
 
 					break;
 				case "REV":
 					btn_confirm.hide();btn_reject.hide();btn_review.hide();btn_restart.hide();
-					btn_Reset.hide();btn_Merge.hide();btn_Save.hide();
+					btn_Reset.hide();btn_Merge.hide();btn_Save.hide();btn_check.hide();
 
 					break;
 				case "CONF":
 					btn_confirm.hide();btn_reject.show();btn_review.hide();btn_restart.hide();
 					btn_Reset.hide();btn_Merge.hide();btn_Save.hide(); btn_Analysis.hide();
 					btn_Analysis_Result.hide(); btn_supplement_Notice.hide();
+					btn_check.hide();
 
 					break;
 			}
@@ -524,7 +539,7 @@ var com_fn = {
 		var param = {referenceId : '${project.prjId}', referenceDiv :'11', contents : editorVal};
 
 		$.ajax({
-			url : '/project/saveComment',
+			url : '<c:url value="/project/saveComment"/>',
 			type : 'POST',
 			dataType : 'json',
 			cache : false,
@@ -547,7 +562,7 @@ var com_fn = {
 		var editorVal = CKEDITOR.instances.editor.getData(); //코멘트 저장
 
 		if(!editorVal || editorVal == "") {
-			alertify.alert("Please enter a comment");
+			alertify.alert("<spring:message code="msg.project.enter.comment" />", function(){});
 
 			return false;
 		}
@@ -555,7 +570,7 @@ var com_fn = {
 		var param = {referenceId : '${project.prjId}', referenceDiv :'10', contents : editorVal, mailSendType : type, expansion1 : activeTabText};
 		
 		$.ajax({
-			url : '/project/sendComment',
+			url : '<c:url value="/project/sendComment"/>',
 			type : 'POST',
 			dataType : 'json',
 			cache : false,
@@ -566,7 +581,7 @@ var com_fn = {
 				} else {
 					$('.ajs-close').trigger("click");
 
-					alertify.success('<spring:message code="msg.common.success" />');
+					alertify.success('<spring:message code="msg.project.sent.comments.success" />');
 					resetEditor(CKEDITOR.instances.editor);
 
 					$(".commentBtn open").trigger( "click" );
@@ -600,7 +615,7 @@ var com_fn = {
 		var editorVal = CKEDITOR.instances.editor.getData();
 		
 		if(!editorVal || editorVal == "") {
-			alertify.alert("Please enter a comment");
+			alertify.alert("<spring:message code="msg.project.enter.comment" />", function(){});
 
 			return false;
 		}
@@ -645,6 +660,10 @@ var com_fn = {
 		return '<input type="button" value="Delete" class="btnCLight" onclick="party_evt.removeList('+options.rowId+', '+rowObject.partnerId+')"/>';
 	},
 	deleteLicense : function(target){
+		$(target).parent().remove();
+	},
+	deleteLicenseRenewal : function(target){
+		$(target).parent().next().remove();
 		$(target).parent().remove();
 	},
 	getLicenseName : function(obj){
@@ -773,7 +792,7 @@ var com_fn = {
 			}
 			
 			$.ajax({
-				url : '/project/getCheckChangeData',
+				url : '<c:url value="/project/getCheckChangeData"/>',
 				type : 'POST',
 				data : JSON.stringify(finalData),
 				dataType : 'json',
@@ -783,7 +802,7 @@ var com_fn = {
 					loading.hide();
 					
 					if("false" == json.isValid) {
-						alertify.alert(json.validMsg == "" ? '<spring:message code="msg.project.required.merge2" />' : json.validMsg);
+						alertify.alert(json.validMsg == "" ? '<spring:message code="msg.project.required.merge2" />' : json.validMsg, function(){});
 
 						if(srcValidMsgData) {
 							gridValidMsgNew(srcValidMsgData, "srcList");
@@ -817,7 +836,7 @@ var com_fn = {
 
 						if(seqSuffix.length  > 1) {
 							rtnFlag = false;
-							alertify.alert(com_fn.setMessage("There is an error in BIN(${project.noticeTypeEtc})."));
+							alertify.alert(com_fn.setMessage("There is an error in BIN(${project.noticeTypeEtc})."), function(){});
 							return false;
 						}
 					}
@@ -853,7 +872,7 @@ var com_fn = {
 									$(".ajs-cancel").trigger("click");
 									
 									window.setTimeout(function(){
-										alertify.alert(com_fn.setMessage("There is an error in src."));
+										alertify.alert(com_fn.setMessage("There is an error in src."), function(){});
 										com_fn.fnTabChange($(".tabMenu a:eq(1)"));	
 									}, 100);
 									
@@ -883,7 +902,7 @@ var com_fn = {
 									$(".ajs-cancel").trigger("click");
 									
 									window.setTimeout(function(){
-										alertify.alert(com_fn.setMessage("There is an error in bin."));
+										alertify.alert(com_fn.setMessage("There is an error in bin."), function(){});
 										com_fn.fnTabChange($(".tabMenu a:eq(2)"));	
 									}, 100);
 									
@@ -906,7 +925,7 @@ var com_fn = {
 		loading.show();
 		
 		$.ajax({
-			url : '/project/updateProjectStatus',
+			url : '<c:url value="/project/updateProjectStatus"/>',
 			type : 'POST',
 			data : JSON.stringify(data),
 			dataType : 'json',
@@ -971,36 +990,36 @@ var com_fn = {
 				} else {
 					resetEditor(CKEDITOR.instances.editor);
 					var prjId = ${project.prjId};
-					reloadTabInframe('/project/list');
+					reloadTabInframe('<c:url value="/project/list"/>');
 					
 					if(data.validMsg == "goPackaging") {
 						alertify.alert('<spring:message code="msg.project.autoredirect.packaging" />', function() {
-							deleteTabInFrame('#/project/identification/'+prjId);
-							createTabInFrame(prjId+'_Packaging', '#/project/verification/'+prjId);
+							deleteTabInFrame('#<c:url value="/project/identification/'+prjId+'"/>');
+							createTabInFrame(prjId+'_Packaging', '#<c:url value="/project/verification/'+prjId+'"/>');
 						});
 					} else if(status == "PROG") { //reject한 경우는 새로고침 (save 버튼등이 문제)
 						alertify.alert('<spring:message code="msg.common.success" />', function() {
 							if(isAndroidModel) {
-								createTabInFrame(prjId+'_Identify', '#/project/identification/'+prjId+'/3');
+								createTabInFrame(prjId+'_Identify', '#<c:url value="/project/identification/'+prjId+'/3"/>');
 							} else {
-								createTabInFrame(prjId+'_Identify', '#/project/identification/'+prjId+'/4');
+								createTabInFrame(prjId+'_Identify', '#<c:url value="/project/identification/'+prjId+'/4"/>');
 							}
 						});
 					} else if(userRole != "ROLE_ADMIN" && status == "REQ") { // 일반인이 request review한 경우
 						alertify.alert('<spring:message code="msg.common.success" />', function() {
-							deleteTabInFrame('#/project/identification/'+prjId);	
+							deleteTabInFrame('#<c:url value="/project/identification/'+prjId+'"/>');	
 						});	
 					} else if(userRole == "ROLE_ADMIN" && status == "REQ") { // admin이 request review한 경우
 						alertify.alert('<spring:message code="msg.common.success" />', function() {
 							if(isAndroidModel) {
-								createTabInFrame(prjId+'_Identify', '#/project/identification/'+prjId+'/3');
+								createTabInFrame(prjId+'_Identify', '#<c:url value="/project/identification/'+prjId+'/3"/>');
 							} else {
-								createTabInFrame(prjId+'_Identify', '#/project/identification/'+prjId+'/4');
+								createTabInFrame(prjId+'_Identify', '#<c:url value="/project/identification/'+prjId+'/4"/>');
 							}
 						});
 					} else if(status == "CONF") { // Admin이 confirm한 경우
 						alertify.alert('<spring:message code="msg.common.success" />', function() {
-							deleteTabInFrame('#/project/identification/'+prjId);	
+							deleteTabInFrame('#<c:url value="/project/identification/'+prjId+'"/>');	
 						});
 					} else {
 						com_fn.btnCtl(userRole, status);
@@ -1069,7 +1088,7 @@ var com_fn = {
 						com_fn.saveFlagObject["BIN"] = false;
 					</c:if>
 						
-						alertify.alert('<spring:message code="msg.common.success" />');
+						alertify.alert('<spring:message code="msg.common.success" />', function(){});
 					}
 				}
 			},
@@ -1107,7 +1126,7 @@ var com_fn = {
 		var referenceDiv;
 				
 		if(!saveFlag){
-			alertify.alert('<spring:message code="msg.project.required.checkOssName" />');
+			alertify.alert('<spring:message code="msg.project.required.checkOssName" />', function(){});
 			
 			return false;
 		}
@@ -1122,11 +1141,237 @@ var com_fn = {
 			_popupCheckOssName.close();
 		}
 		
-		_popupCheckOssName = window.open("/oss/checkOssName?prjId=${project.prjId}&referenceDiv="+referenceDiv+"-${initDiv}&targetName=identification", "Check OSS Name", "width=1100, height=550, toolbar=no, location=no, left=100, top=100, resizable=yes, scrollbars=yes");
+		_popupCheckOssName = window.open('<c:url value="/oss/checkOssName?prjId=${project.prjId}&referenceDiv='+referenceDiv+'-${initDiv}&targetName=identification"/>', 'Check OSS Name', 'width=1100, height=550, toolbar=no, location=no, left=100, top=100, resizable=yes, scrollbars=yes');
 
 		if(!_popupCheckOssName || _popupCheckOssName.closed || typeof _popupCheckOssName.closed=='undefined') {
-			alertify.alert('<spring:message code="msg.common.window.allowpopup" />');
+			alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
 		}
-	}
+	},
+	CheckOssLicenseViewPage : function(target){
+		var saveFlag = com_fn.saveFlagObject[target.toUpperCase()];
+		var referenceDiv;
+				
+		if(!saveFlag){
+			alertify.alert('<spring:message code="msg.project.required.checkOssLicense" />', function(){});
+			
+			return false;
+		}
+
+		switch(target.toUpperCase()){
+			case "SRC":		referenceDiv = "11";	break;
+			case "ANDROID":	referenceDiv = "14";	break;
+			case "BIN":		referenceDiv = "15";	break;
+		}
+		
+		if(_popupCheckOssLicense != null){
+			_popupCheckOssLicense.close();
+		}
+		
+		_popupCheckOssLicense = window.open("/oss/checkOssLicense?prjId=${project.prjId}&referenceDiv="+referenceDiv+"-${initDiv}&targetName=identification", "Check License", "width=1150, height=550, toolbar=no, location=no, left=100, top=100, resizable=yes, scrollbars=yes");
+
+		if(!_popupCheckOssLicense || _popupCheckOssLicense.closed || typeof _popupCheckOssLicense.closed=='undefined') {
+			alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
+		}	
+	},
+    checkStatus : function(){
+		var returnFlag = false;
+		
+		$.ajax({
+			url : '<c:url value="/project/getProjectStatus"/>',
+			type : 'POST',
+			data : JSON.stringify({"prjId" : "${project.prjId}"}),
+			dataType : 'json',
+			cache : false,
+			async : false,
+			contentType : 'application/json',
+			success : function(data){
+				var status = data.identificationStatus||"";
+				returnFlag = (status == curIdenStatus);
+			},
+			error : function(){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				returnFlag = false;
+			}
+		});
+		
+		return returnFlag;
+	},
+	showLicenseInfo : function(obj){
+		var licenseName = $(obj).text();
+
+		$.ajax({
+			url : '<c:url value="/license/getLicenseId"/>',
+			type : 'POST',
+			data : {"licenseName" : licenseName},
+			dataType : 'json',
+			cache : false,
+			success : function(data){
+				var _frameId = data.licenseId + "_License";
+				var _frameTarget = "#<c:url value='/license/edit/" + data.licenseId + "'/>";
+				createTabInFrame(_frameId, _frameTarget);
+			},
+			error : function(){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+			}
+		});
+	},
+    bulkEdit : function(tab){
+        var gridList;
+        var targetGird = "";
+        
+        switch(tab){
+            case 'SRC' : 
+                gridList = $("#srcList"); targetGird = "srcList";
+                break;
+            case 'BIN' : 
+                gridList = $("#binList"); targetGird = "binList";
+                break;
+            case 'BINANDROID' : 
+                gridList = $("#binAndroidList"); targetGird = "binAndroidList";
+                break;
+        }
+
+        var selarrrow = gridList.jqGrid("getGridParam", "selarrrow");
+        var rowCheckedArr = [];
+        for(var i=0; i<selarrrow.length; i++){
+			if($("input:checkbox[id='jqg_" + targetGird + "_" + selarrrow[i] + "']").is(":checked")){
+				rowCheckedArr.push(selarrrow[i]);
+			}
+        }
+
+        if(rowCheckedArr.length > 0){
+            fn_grid_com.totalGridSaveMode(targetGird);
+
+            var url = '<c:url value="/oss/ossBulkEditPopup?rowId=' + rowCheckedArr + '&target=' + targetGird + '"/>';
+
+			var _popup = null;
+			
+            if(_popup == null || _popup.closed){
+                _popup = window.open(url, "bulkEditViewProjectPopup", "width=850, height=430, toolbar=no, location=no, left=100, top=100, resizable=yes");
+
+                if(!_popup || _popup.closed || typeof _popup.closed=='undefined') {
+                    alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
+                }
+            } else {
+                _popup.close();
+                _popup = window.open(url, "bulkEditViewProjectPopup", "width=850, height=430, toolbar=no, location=no, left=100, top=100, resizable=yes");
+            }
+        }else{
+            alertify.alert('<spring:message code="msg.oss.select.ossTable" />', function(){});
+            return false;
+        }
+    },
+    bulkEditOssInfo : function(obj){
+		var editFlag = false;
+	   	try{
+    		var ossArr = [];
+            var rowId = obj["rowId"];
+            var target = obj["target"];
+            var param = $('#'+target).jqGrid('getGridParam','data');
+            
+            if(rowId.indexOf(",") > -1){
+                ossArr = rowId.split(",");
+                for(var idx in ossArr){
+                    com_fn.bulkEditSetCell(target, ossArr[idx], obj);
+
+                    for (var i=0; i<param.length; i++){
+                        if(param[i]["gridId"] == ossArr[idx]){
+                            for(var key in obj){
+                                if(key != "rowId" && key != "target"){
+                                	param[i][key] = obj[key];
+                                }
+                            }
+                        }
+                    }
+                }
+            }else{
+                com_fn.bulkEditSetCell(target, rowId, obj);
+
+                for (var i=0; i<param.length; i++){
+                    if(param[i]["gridId"] == rowId){
+                        for(var key in obj){
+                            if(key != "rowId" && key != "target"){
+                            	param[i][key] = obj[key];
+                            }
+                        }
+                    }
+                }
+            }
+
+            $("#"+target).jqGrid('setGridParam', {data:param}).trigger('reloadGrid');
+    	}catch(e){
+    		alertify.error('<spring:message code="msg.common.valid2" />', 0);
+    		editFlag = true;
+    	}finally{
+        	if(!editFlag){
+        		alertify.success('<spring:message code="msg.common.success" />');
+            }
+       	}
+    },
+    bulkEditSetCell : function (target, rowId, obj){
+        for(var key in obj){
+            if(key != "rowId" && key != "target"){
+            	$('#'+target).jqGrid('setCell', rowId, key, obj[key]);
+            }
+        }
+    },
+    bulkEditDelRow : function (target, rowId, flag){
+		var delFlag = false;
+		try{
+        	var selrow = "";
+    		var param = $("#"+target).jqGrid('getGridParam', 'data');
+    		
+        	if(rowId.indexOf(",") > -1){
+        		selrow = rowId.split(",");
+        		for (var i=0; i<selrow.length; i++){
+        			$("#"+target).jqGrid('delRowData', selrow[i]);
+        			param = com_fn.bulkEditDeleteLocalDataAfterDelRow(param, selrow[i]);
+            	}
+            }else{
+            	$("#"+target).jqGrid('delRowData', rowId);
+            	param = com_fn.bulkEditDeleteLocalDataAfterDelRow(param, rowId);
+            }
+
+            if(flag == "main"){
+            	$("#"+target).jqGrid('GridUnload');
+
+            	if(target == "srcList"){
+                	srcMainData = param;
+                	src_grid.load();
+                	// total record 표시
+            		$("#srcList_toppager_right, #srcPager_right").html('<div dir="ltr" style="text-align:right" class="ui-paging-info">Total : '+srcMainData.length+'</div>');
+                } else if(target == "binList"){
+                	binMainData = param;
+    				bin_grid.load();
+    				// total record 표시
+    				$("#binList_toppager_right, #binPager_right").html('<div dir="ltr" style="text-align:right" class="ui-paging-info">Total : '+binMainData.length+'</div>');
+                } else if(target == "binAndroidList"){
+                	binAndroidMainData = param;
+    				binAndroid_grid.load();
+    				// total record 표시
+    				$("#binAndroidList_toppager_right, #binAndroidPager_right").html('<div dir="ltr" style="text-align:right" class="ui-paging-info">Total : '+binAndroidMainData.length+'</div>');
+                }
+            }
+        }catch(e){
+        	alertify.error('<spring:message code="msg.common.valid2" />', 0);
+        	delFlag = true;
+        }finally{
+            if(!delFlag){
+    			alertify.success('<spring:message code="msg.common.success" />');
+            }
+        }
+    },
+    bulkEditDeleteLocalDataAfterDelRow : function (dataArray, rowId){
+    	var reMakeArrObj=[];
+    	var newIdx = 0;
+
+    	for(var idx=0; idx < dataArray.length; idx++) {
+			if(dataArray[idx].gridId != rowId) {
+				reMakeArrObj[newIdx++] = dataArray[idx];
+			}
+		}
+
+		return reMakeArrObj;
+    }
 }
 </script>

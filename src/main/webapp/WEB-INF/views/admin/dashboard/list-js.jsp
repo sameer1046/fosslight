@@ -33,7 +33,7 @@
 						}
 					});
 				}else{
-					alertify.alert('<spring:message code="msg.dashboard.comments.confirm.nocount" />');
+					alertify.alert('<spring:message code="msg.dashboard.comments.confirm.nocount" />', function(){});
 					return false;
 				}
 			});
@@ -43,7 +43,7 @@
 	var list = {
 		getJobsList : function(){
 			$("#jobsList").jqGrid({
-				url:"/dashboard/jobsListAjax",
+				url:'<c:url value="/dashboard/jobsListAjax"/>',
 				datatype: 'json',
 				jsonReader:{
 					repeatitems: false,
@@ -86,19 +86,19 @@
 					
 					if(iCol==3 && rowData['prjDivision']=='PRJ') {
 						if(rowData['vStage']=="I"){
-							createTabInFrame(rowData['prjId']+'_Identify', '#/project/identification/'+rowData['prjId']+'/4');
+							createTabInFrame(rowData['prjId']+'_Identify', '#<c:url value="/project/identification/'+rowData['prjId']+'/4"/>');
 						}else if(rowData['vStage']=="P"){
-							createTabInFrame(rowData['prjId']+'_Packaging', '#/project/verification/'+rowData['prjId']);
+							createTabInFrame(rowData['prjId']+'_Packaging', '#<c:url value="/project/verification/'+rowData['prjId']+'"/>');
 						}else if(rowData['vStage']=="D"){
-							createTabInFrame(rowData['prjId']+'_Distribute', '#/project/distribution/'+rowData['prjId']);
+							createTabInFrame(rowData['prjId']+'_Distribute', '#<c:url value="/project/distribution/'+rowData['prjId']+'"/>');
 						}else if(rowData['vStage']=="B"){
-							createTabInFrame(rowData['prjId']+'_Project', '#/project/edit/'+rowData['prjId']);
+							createTabInFrame(rowData['prjId']+'_Project', '#<c:url value="/project/edit/'+rowData['prjId']+'"/>');
 						}
 					} else {
 						if(rowData['prjDivision']=='3RD'){
-							createTabInFrame(rowData['prjId']+'_3rdParty', '#/partner/edit/'+rowData['prjId']);
+							createTabInFrame(rowData['prjId']+'_3rdParty', '#<c:url value="/partner/edit/'+rowData['prjId']+'"/>');
 						}else{
-							createTabInFrame(rowData['prjId']+'_Project','#/project/edit/'+rowData['prjId']);
+							createTabInFrame(rowData['prjId']+'_Project', '#<c:url value="/project/edit/'+rowData['prjId']+'"/>');
 						}
 					}
 				}
@@ -136,7 +136,7 @@
 		
 		getCommentsList : function(){
             $("#commentsList").jqGrid({
-                url:"/dashboard/commentsListAjax",
+            	url:'<c:url value="/dashboard/commentsListAjax"/>',
                 datatype: 'json',
                 jsonReader:{
                     repeatitems: false,
@@ -176,16 +176,17 @@
 					if(iCol==0 || iCol==1) {
 						var rowData = $("#commentsList").jqGrid('getRowData',rowid);
 						if(rowData['referenceDiv']=='20'){
-							createTabInFrame(rowData['referenceId']+'_3rdParty', '#/partner/edit/'+rowData['referenceId']);
+							createTabInFrame(rowData['referenceId']+'_3rdParty', '#<c:url value="/partner/edit/'+rowData['referenceId']+'"/>');
 						}else{
-							createTabInFrame(rowData['referenceId']+'_Project','#/project/edit/'+rowData['referenceId']);
+							createTabInFrame(rowData['referenceId']+'_Project','#<c:url value="/project/edit/'+rowData['referenceId']+'"/>');
 						}
 					} else {
 						var rowData = $("#commentsList").jqGrid('getRowData',rowid);
+						
 						if(rowData['referenceDiv']=='20'){
-		    	            openCommentHistory("3rd", rowData['referenceId']);
+							openCommentHistory('<c:url value="/comment/popup/3rd/'+rowData['referenceId']+'"/>');
 						}else{
-		    	            openCommentHistory("prj", rowData['referenceId']);
+		    	            openCommentHistory('<c:url value="/comment/popup/prj/'+rowData['referenceId']+'"/>');
 						}
 					}
 				}
@@ -208,7 +209,7 @@
             
         getOssList : function(){
             $("#ossList").jqGrid({
-                url:"/dashboard/ossListAjax",
+            	url:'<c:url value="/dashboard/ossListAjax"/>',
                 datatype: 'json',
                 jsonReader:{
                     repeatitems: false,
@@ -244,7 +245,7 @@
                 ondblClickRow: function(rowid,iRow,iCol,e) {
 					var rowData = $("#ossList").jqGrid('getRowData',rowid);
 					
-					createTabInFrame(rowData['ossId']+'_Opensource', '#/oss/edit/'+rowData['ossId']);
+					createTabInFrame(rowData['ossId']+'_Opensource', '#<c:url value="/oss/edit/'+rowData['ossId']+'"/>');
                 }
             });
             
@@ -267,7 +268,7 @@
                 
         getLicenseList : function(){
             $("#licenseList").jqGrid({
-                url:"/dashboard/licenseListAjax",
+            	url:'<c:url value="/dashboard/licenseListAjax"/>',
                 datatype: 'json',
                 jsonReader:{
                     repeatitems: false,
@@ -307,7 +308,7 @@
                 ondblClickRow: function(rowid,iRow,iCol,e) {
                 	if(iCol!=4){
 						var rowData = $("#licenseList").jqGrid('getRowData',rowid);
-						createTabInFrame(rowData['licenseId']+'_License', '#/license/edit/'+rowData['licenseId']);
+						createTabInFrame(rowData['licenseId']+'_License', '#<c:url value="${suffixUrl}/license/edit/'+rowData['licenseId']+'"/>');
                 	}
                 }
             });
@@ -333,6 +334,7 @@
 				case "${ct:getCodeString(ct:getConstDef('CD_PROJECT_STATUS'), ct:getConstDef('CD_DTL_PROJECT_STATUS_PROGRESS'))}":
 					display = "<span class=\"iconSt draft\">"+ cellvalue +"</span>";
 					break;
+					
 				case "${ct:getCodeString(ct:getConstDef('CD_PROJECT_STATUS'), ct:getConstDef('CD_DTL_PROJECT_STATUS_REQUEST'))}":
 					display = "<span class=\"iconSt request\">Request</span>";
 					break;
@@ -344,7 +346,12 @@
 				case "${ct:getCodeString(ct:getConstDef('CD_PROJECT_STATUS'), ct:getConstDef('CD_DTL_PROJECT_STATUS_COMPLETE'))}":
 					display = "<span class=\"iconSt complete\">"+cellvalue+"</span>";
 					break;
+
+				case "${ct:getCodeString(ct:getConstDef('CD_PROJECT_STATUS'), ct:getConstDef('CD_DTL_PROJECT_STATUS_DROP'))}":
+					display = "<span class=\"iconSt drop\">"+cellvalue+"</span>";	
+					break;
 			}
+			
 			
 			return display;
 		},
@@ -389,20 +396,24 @@
 	var gridTooltip = {
 		typeCodes : [],
 		tooltipCont : "<div class=\"tooltipData\">"
-	                   +"<dl><dt><span class=\"iconSt draft\">Progress</span>Progress</dt></dl><br>"
-	                   +"<dl><dt><span class=\"iconSt request\">Request</span>Request</dt></dl><br>"
-	                   +"<dl><dt><span class=\"iconSt review\">Review</span>Review</dt></dl><br>"
-	                   +"<dl><dt><span class=\"iconSt complete\">Complete</span>Complete</dt></dl><br>"
-	                   +"<dl><dt><span class=\"iconSt delay\">Delay</span>Delay</dt></dl><br>"
-	                   +"</div>",
+			           +"<dl><dt><span class=\"iconSt draft\">Progress</span>Progress</dt></dl><br>"
+			           +"<dl><dt><span class=\"iconSt request\">Request</span>Request</dt></dl><br>"
+			           +"<dl><dt><span class=\"iconSt review\">Review</span>Review</dt></dl><br>"
+			           +"<dl><dt><span class=\"iconSt complete\">Complete</span>Complete</dt></dl><br>"
+			           +"<dl><dt><span class=\"iconSt drop\">Drop</span>Drop</dt></dl><br>"
+			           +"</div>",
 	    tooltipCont1 : "<div class=\"tooltipData\">"
 		               +"<dl><dt><span class=\"downSet btnReport\">FOSSLight Report</span>FOSSLight Report</dt></dl><br>"
 		               +"<dl><dt><span class=\"downSet btnNotice\">OSS Notice</span>OSS Notice</dt></dl><br>"
 		               +"<dl><dt><span class=\"downSet btnPackage\">Packaging File</span>Packaging File</dt></dl><br>"
 		               +"</div>",
 		tooltipCont2 : "<div class=\"tooltipData350\">"
-					   +"<dl><dt><span class=\"iconSet multi\">Multi License</span>Multi License</dt><dd>The OSS contains source codes under multiple licenses.</dd><dd>본 OSS는 여러 License 하의 Source Code를 포함하고 있습니다.</dd><dd>(e.g. \lib is LGPL-2.1 <span style=\"text-decoration : underline;\">and</span> \src is GPL-2.0)</dd></dl>"
-					   +"<dl><dt><span class=\"iconSet dual\">Dual License</span>Dual License</dt><dd>You can select one of registered licenses.</dd><dd>본 OSS는 등록된 License 중 하나를 선택할 수 있습니다.</dd><dd>(e.g. GPL-2.0 <span style=\"text-decoration : underline;\">or</span> MIT)</dd></dl>"
+					   +"<dl><dt><span class=\"iconSet multi\">Multi License</span>Multi License</dt>" +
+                            "<dd><spring:message code='msg.oss.include.license' /></dd>"+
+                            "<dd>(e.g. \lib is LGPL-2.1 <span style=\"text-decoration : underline;\">and</span> \src is GPL-2.0)</dd></dl>"
+					   +"<dl><dt><span class=\"iconSet dual\">Dual License</span>Dual License</dt>" +
+                            "<dd><spring:message code='msg.oss.select.license' /></dd>"+
+                            "<dd>(e.g. GPL-2.0 <span style=\"text-decoration : underline;\">or</span> MIT)</dd></dl>"
 					   +"<dl><dt><span class=\"iconSet vdif\">Version Different License</span>Version Different License</dt><dd>The OSS is distributed under <span style=\"text-decoration : underline;\">different licenses</span> according to its <span style=\"text-decoration : underline;\">versions</span>.</dd><dd>본 OSS는 Version에 따라 다른 License로 배포되고 있습니다.</dd><dd>(e.g. v1.0 is under GPL-2.0 and v2.0 is under BSD-3-Clause)</dd></dl>"
 					   +"</div>",
 		existTooltip : false,
@@ -414,7 +425,7 @@
 	
 	reLode = function(gridId){
 		$.ajax({
-			url : '/dashboard/' + gridId + 'Ajax',
+			url : '<c:url value="/dashboard/' + gridId + 'Ajax"/>',
 			dataType : 'json',
 			cache : false,
 			data : {page:1, rows:10},
@@ -456,7 +467,7 @@
 	//2018-08-17 choye 추가
 	function readSubmit(){
 	    $.ajax({
-			url : '/dashboard/readConfirmAll',
+	    	url : '<c:url value="/dashboard/readConfirmAll"/>',
 			type : 'POST',
 			dataType : 'json',
 			cache : false,

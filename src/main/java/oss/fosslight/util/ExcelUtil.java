@@ -42,6 +42,9 @@ import org.springframework.context.annotation.PropertySources;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
+import com.opencsv.CSVReader;
+
+import lombok.extern.slf4j.Slf4j;
 import oss.fosslight.CoTopComponent;
 import oss.fosslight.common.CoCodeManager;
 import oss.fosslight.common.CoConstDef;
@@ -60,9 +63,6 @@ import oss.fosslight.domain.UploadFile;
 import oss.fosslight.repository.CodeMapper;
 import oss.fosslight.repository.ProjectMapper;
 import oss.fosslight.service.FileService;
-import com.opencsv.CSVReader;
-
-import lombok.extern.slf4j.Slf4j;
 
 @PropertySources(value = {@PropertySource(value=AppConstBean.APP_CONFIG_PROPERTIES_PATH)})
 @Slf4j
@@ -73,7 +73,24 @@ public class ExcelUtil extends CoTopComponent {
 	// Mapper
 	private static ProjectMapper 	projectMapper 		= (ProjectMapper) 		getWebappContext().getBean(ProjectMapper.class);
 	private static CodeMapper 		codeMapper 			= (CodeMapper) 			getWebappContext().getBean(CodeMapper.class);
-	
+
+	// Sheet names that starts with specific word
+	public static List<String> getSheetNoStartsWith(String word, List<UploadFile> list, String excelLocalPath) throws InvalidFormatException, IOException {
+		List<Object> sheets = ExcelUtil.getSheetNames(list, excelLocalPath);
+
+		List<String> sheetNoList = new ArrayList<>();
+		for (Object sheet : sheets) {
+			HashMap<String, String> info = (HashMap<String, String>) sheet;
+			String sheetName = info.get("name");
+			String sheetNo = info.get("no");
+			if (sheetName.startsWith(word)) {
+				sheetNoList.add(sheetNo);
+			}
+		}
+
+		return sheetNoList;
+	}
+
 	public static List<Object> getSheetNames(List<UploadFile> list, String excelLocalPath) throws InvalidFormatException, FileNotFoundException, IOException {
 		List<Object> sheetNameList = new ArrayList<Object>();
 		//파일 만들기
@@ -84,7 +101,7 @@ public class ExcelUtil extends CoTopComponent {
 		int count = 0;
 		
 		for(int i = 0; i < codeExt.length; i++){
-			if(codeExt[i].equals(extType)){
+			if(codeExt[i].equalsIgnoreCase(extType)){
 				count++;
 			};
 		}
@@ -500,7 +517,7 @@ public class ExcelUtil extends CoTopComponent {
 			errMsgList.add("파일 정보를 찾을 수 없습니다.");
 			return false;
 		}
-		if(!Arrays.asList("XLS", "XLSX", "XLSM").contains(avoidNull(fileInfo.getExt()).toUpperCase())) {
+		if(!Arrays.asList("XLS", "XLSX", "XLSM", "CSV").contains(avoidNull(fileInfo.getExt()).toUpperCase())) {
 			log.error("허용하지 않는 파일 입니다. fileSeq : " + avoidNull(fileSeq));
 			errMsgList.add("허용하지 않는 파일 입니다.");
 			return false;
@@ -512,7 +529,6 @@ public class ExcelUtil extends CoTopComponent {
 			return false;
 		}
 		List<Map<String, String>> errList = new ArrayList<>(); // 전체 sheet에 대한 에러메시지 저장 리스트
-		//File file = new File("D:/yuns/test/ETD-929/ETD-929.xlsx");
 		// read excel file
 		Workbook wb = null;
 		try {
@@ -521,14 +537,41 @@ public class ExcelUtil extends CoTopComponent {
 			 	다만, 확장자를 변경시 정상동작을 하고 있어서 해당 code는 주석처리를 해둠.
 			    //ZipSecureFile.setMinInflateRatio(-1.0d);
 			 */
-			 wb = WorkbookFactory.create(file);
+			if(fileInfo.getExt().equals("csv")) {
+				wb = CsvUtil.csvFileToExcelWorkbook(file, readType);
+			} else {
+				wb = WorkbookFactory.create(file);
+			}
 			
 			// Son System의 Final List 시트가 선택되어 잇을 경우, 다른 sheet는 무시한다.
 			try {
 				Sheet sheet = wb.getSheetAt(Integer.parseInt(targetSheetNums[0]));
 			} catch (Exception e) {
-				int sheetIdx = wb.getSheetIndex(readType);
-				targetSheetNums[0] = Integer.toString(sheetIdx);
+				
+				String [] types = {"Self-Check", "SRC", "BIN"};
+
+				List<String> sheetNames = new ArrayList<String>();
+				for (int i=0; i<wb.getNumberOfSheets(); i++) {
+					sheetNames.add( wb.getSheetName(i) );
+				}
+
+				List<String> targetSheetNumsArrayList = new ArrayList<String>();
+
+				int idx = 0;
+				for(String sheetName : sheetNames){
+					for(String type : types){
+						if(sheetName.startsWith(type)){
+							targetSheetNumsArrayList.add(Integer.toString(idx));
+						}
+					}
+					idx++;
+				}
+				if(targetSheetNumsArrayList.isEmpty()){
+					targetSheetNums[0] = "-1";
+				}else{
+					targetSheetNums = targetSheetNumsArrayList.toArray(new String[0]);
+				}
+
 			}
 			
 			if(hasFileListSheet(targetSheetNums, wb)) {
@@ -573,22 +616,9 @@ public class ExcelUtil extends CoTopComponent {
 										// file 단위로 입력되어 있기 때문에, ref col 이 1개 이상일 경우 path단위로 그룹핑
 										// path 취득
 										String _path = allDataMap.get(refKey).getFilePath();
-/*										if(isEmpty(_path)) {
-											continue;
-										}
-										// 디렉토리 경로로 설정되어 있는지 확인
-										if(!_path.endsWith("/") && !_path.endsWith("/*") && _path.indexOf("/") > -1) {
-											_path = _path.substring(0, _path.lastIndexOf("/") + 1);
-										}
-										
-										if(_path.endsWith("/*")) {
-											_path = _path.substring(0, _path.length() -1);
-										}*/
 										
 										if(!_keyList.contains(_path)) {
 											if(!isEmpty(bean.getFilePath()) && !_keyList.contains(bean.getFilePath())) {
-												// TODO 기존에 등록된 path와 다른 경로가 참조되었을 경우 어떻게 할 것인가?
-												// row를 추가 한다.
 												addDiffRefList.add(bean);
 											} else {
 												bean.setFilePath(_path);
@@ -750,7 +780,12 @@ public class ExcelUtil extends CoTopComponent {
 		int noCol = -1;
 		// OSS Name => nickName check
 		int nickNameCol = -1;
-		
+		// SPDX Identifier
+		int spdxIdentifierCol = -1;
+		// Pacakge Identifier
+		int packageIdentifierCol = -1;
+
+
 		Map<String, String> errMsg = new HashMap<>();
 		
 		DefaultHeaderRowIndex = findHeaderRowIndex(sheet);
@@ -777,6 +812,7 @@ public class ExcelUtil extends CoTopComponent {
 					case "OSS NAME":
 					case "OSS NAME ( OPEN SOURCE SOFTWARE NAME )":
 					case "OSS COMPONENT":
+					case "PACKAGE NAME":
 						if(ossNameCol > -1) {
 							dupColList.add(value);
 						}
@@ -785,6 +821,7 @@ public class ExcelUtil extends CoTopComponent {
 						
 						break;
 					case "OSS VERSION":
+					case "PACKAGE VERSION":
 						if(ossVersionCol > -1) {
 							dupColList.add(value);
 						}
@@ -793,6 +830,7 @@ public class ExcelUtil extends CoTopComponent {
 						
 						break;
 					case "DOWNLOAD LOCATION":
+					case "PACKAGE DOWNLOAD LOCATION":
 						if(downloadLocationCol > -1) {
 							dupColList.add(value);
 						}
@@ -802,6 +840,7 @@ public class ExcelUtil extends CoTopComponent {
 						break;
 					case "HOMEPAGE":
 					case "OSS WEBSITE":
+					case "HOME PAGE":
 						if(homepageCol > -1) {
 							dupColList.add(value);
 						}
@@ -810,6 +849,7 @@ public class ExcelUtil extends CoTopComponent {
 						
 						break;
 					case "LICENSE":
+					case "LICENSE CONCLUDED":
 						if(licenseCol > -1) {
 							dupColList.add(value);
 						}
@@ -827,6 +867,8 @@ public class ExcelUtil extends CoTopComponent {
 						break;
 					case "COPYRIGHT TEXT":
 					case "COPYRIGHT & LICENSE":
+					case "PACKAGE COPYRIGHT TEXT":
+					case "FILE COPYRIGHT TEXT":
 						if(copyrightTextCol > -1) {
 							dupColList.add(value);
 						}
@@ -842,11 +884,25 @@ public class ExcelUtil extends CoTopComponent {
 					case "SOURCE CODE DIRECTORY (FILE)":
 					case "PATH OR BINARY" :
 					case "BINARY NAME OR (IF DELIVERY FORM IS SOURCE CODE) SOURCE PATH":
+					case "FILE NAME OR PATH":
 					case "SOURCE NAME OR PATH":
 						if(pathOrFileCol > -1) {
 							dupColList.add(value);
 						}
 						pathOrFileCol = colIdx;
+						break;
+					case "BINARY NAME OR SOURCE PATH":
+						if("BIN".equalsIgnoreCase(readType)) {
+							if(binaryNameCol > -1) {
+								dupColList.add(value);
+							}
+							binaryNameCol = colIdx;
+						} else {
+							if(pathOrFileCol > -1) {
+								dupColList.add(value);
+							}
+							pathOrFileCol = colIdx;
+						}
 						break;
 					case "LOADED ON PRODUCT":
 						if(loadOnProductCol > -1) {
@@ -892,6 +948,7 @@ public class ExcelUtil extends CoTopComponent {
 						
 						break;
 					case "COMMENT":
+					case "LICENSE COMMENTS":
 						if(commentCol > -1) {
 							dupColList.add(value);
 						}
@@ -907,6 +964,34 @@ public class ExcelUtil extends CoTopComponent {
 						nickNameCol = colIdx;
 						
 						break;
+					case "FILE NAME":
+						if(binaryNameCol > -1) {
+							dupColList.add(value);
+						}
+						
+						binaryNameCol = colIdx;
+						
+						if(pathOrFileCol > -1) {
+							dupColList.add(value);
+						}
+						
+						pathOrFileCol = colIdx;
+						
+						break;
+					case "PACKAGE IDENTIFIER":
+						if(packageIdentifierCol > -1) {
+							dupColList.add(value);
+						}
+						
+						packageIdentifierCol = colIdx;
+						
+						break;
+					case "SPDX IDENTIFIER":
+						if(spdxIdentifierCol > -1) {
+							dupColList.add(value);
+						}
+						
+						spdxIdentifierCol = colIdx;
 					default:
 						break;
 				}
@@ -924,19 +1009,19 @@ public class ExcelUtil extends CoTopComponent {
 			
 			// 필수 header 누락 시 Exception
 			List<String> colNames = new ArrayList<String>();
-			
-			if(ossNameCol < 0) {
-				colNames.add("OSS NAME");
-			}
-			
-			if(ossVersionCol < 0) {
-				colNames.add("OSS VERSION");
-			}
-			
 			if(licenseCol < 0) {
 				colNames.add("LICENSE");
 			}
-			
+			// Per file info sheet of SPDX Spreadsheet does not proceed
+			if(packageIdentifierCol < 0) {
+				if(ossNameCol < 0) {
+					colNames.add("OSS NAME");
+				}
+
+				if(ossVersionCol < 0) {
+					colNames.add("OSS VERSION");
+				}
+			}
 			if(!colNames.isEmpty()) {
 				String msg = colNames.toString();
 				msg = "No required fields were found. Sheet Name : [".concat(sheet.getSheetName()).concat("],  Filed Name : ").concat(msg);
@@ -971,17 +1056,60 @@ public class ExcelUtil extends CoTopComponent {
     				}
     				
     				OssComponents bean = new OssComponents();
-    				
-    				// 기본정보
-    				bean.setOssName(ossNameCol < 0 ? "" : avoidNull(getCellData(row.getCell(ossNameCol))).trim().replaceAll("\t", ""));
-    				bean.setOssVersion(ossVersionCol < 0 ? "" : avoidNull(getCellData(row.getCell(ossVersionCol))).trim().replaceAll("\t", ""));
-    				bean.setDownloadLocation(downloadLocationCol < 0 ? "" : avoidNull(getCellData(row.getCell(downloadLocationCol))).trim().replaceAll("\t", ""));
-    				bean.setHomepage(homepageCol < 0 ? "" : avoidNull(getCellData(row.getCell(homepageCol))).trim().replaceAll("\t", ""));
-    				bean.setFilePath(pathOrFileCol < 0 ? "" : avoidNull(getCellData(row.getCell(pathOrFileCol))).trim().replaceAll("\t", ""));
-    				bean.setBinaryName(binaryNameCol < 0 ? "" : avoidNull(getCellData(row.getCell(binaryNameCol))).trim().replaceAll("\t", ""));
-    				bean.setCopyrightText(copyrightTextCol < 0 ? "" : getCellData(row.getCell(copyrightTextCol)));
-    				bean.setComments(commentCol < 0 ? "" : getCellData(row.getCell(commentCol)));
-    				bean.setOssNickName(nickNameCol < 0 ? "" : getCellData(row.getCell(nickNameCol)));
+
+    				// The SPDX Spradsheet reads the same row as the Package Identifier of the Per File Info sheet and the Spdx Identifier of the Package Info sheet
+    				if(ossNameCol < 0) {
+    					bean.setBinaryName(binaryNameCol < 0 ? "" : avoidNull(getCellData(row.getCell(binaryNameCol))).trim().replaceAll("\t", ""));
+    					bean.setCopyrightText(copyrightTextCol < 0 ? "" : getCellData(row.getCell(copyrightTextCol)));
+    					bean.setComments(commentCol < 0 ? getCellData(row.getCell(licenseCol)) : getCellData(row.getCell(licenseCol)) + ", " + getCellData(row.getCell(commentCol)));
+    					bean.setFilePath(pathOrFileCol < 0 ? "" : avoidNull(getCellData(row.getCell(pathOrFileCol))).trim().replaceAll("\t", ""));
+    					if(bean.getCopyrightText() == ""){
+    						bean.setCopyrightText(" ");
+    					}
+    					String packageIdentifier = getCellData(row.getCell(packageIdentifierCol));
+    					boolean nullCheck = true;
+    					for(int beanIndex = 0; beanIndex < list.size(); beanIndex++) {
+    						OssComponents temp = list.get(beanIndex);
+    						if(packageIdentifier.equals(temp.getSpdxIdentifier())){
+    							nullCheck = false;
+    							bean.setOssName(temp.getOssName());
+    							bean.setOssVersion(temp.getOssVersion());
+    							bean.setDownloadLocation(temp.getDownloadLocation());
+    							bean.setHomepage(temp.getHomepage());
+    							break;
+    						}
+    					}
+    					if(nullCheck) {
+    						bean.setOssName("");
+    						bean.setOssVersion("");
+    						bean.setDownloadLocation("");
+    						bean.setHomepage("");
+    					}
+    				} else {
+    					// basic info
+    					bean.setOssName(ossNameCol < 0 ? "" : avoidNull(getCellData(row.getCell(ossNameCol))).trim().replaceAll("\t", ""));
+    					bean.setOssVersion(ossVersionCol < 0 ? "" : avoidNull(getCellData(row.getCell(ossVersionCol))).trim().replaceAll("\t", ""));
+    					
+    					String downloadLocation = avoidNull(getCellData(row.getCell(downloadLocationCol))).trim().replaceAll("\t", "");
+    					if(downloadLocation.equals("NONE") || downloadLocation.equals("NOASSERTION") || downloadLocationCol < 0) {
+    						bean.setDownloadLocation("");
+    					} else {
+    						bean.setDownloadLocation(downloadLocation);
+    					}
+    					
+    					bean.setHomepage(homepageCol < 0 ? "" : avoidNull(getCellData(row.getCell(homepageCol))).trim().replaceAll("\t", ""));
+    					bean.setFilePath(pathOrFileCol < 0 ? "" : avoidNull(getCellData(row.getCell(pathOrFileCol))).trim().replaceAll("\t", ""));
+    					bean.setBinaryName(binaryNameCol < 0 ? "" : avoidNull(getCellData(row.getCell(binaryNameCol))).trim().replaceAll("\t", ""));
+    
+    					String copyrightText = getCellData(row.getCell(copyrightTextCol));
+    					if(copyrightText.equals("NONE") || copyrightText.equals("NOASSERTION") || copyrightTextCol < 0) {
+    						bean.setCopyrightText("");
+    					} else {
+    						bean.setCopyrightText(copyrightText);
+    					}
+    					bean.setOssNickName(nickNameCol < 0 ? "" : getCellData(row.getCell(nickNameCol)));
+    					bean.setSpdxIdentifier(spdxIdentifierCol < 0 ? "" : getCellData(row.getCell(spdxIdentifierCol)));
+    				}
     				
     				duplicateCheckList.add(avoidNull(bean.getOssName()) + "-" + avoidNull(bean.getOssVersion()) + "-" + avoidNull(bean.getLicenseName()));
     				
@@ -993,10 +1121,38 @@ public class ExcelUtil extends CoTopComponent {
     				if(readNoCol) {
     					bean.setReportKey(getCellData(row.getCell(noCol)));
     				}
-    				
+
+    				String licenseConcluded = getCellData(row.getCell(licenseCol));
+    				if(isSPDXSpreadsheet(sheet) && (licenseConcluded.contains("AND") || licenseConcluded.contains("OR"))) {
+    					String licenseComment = getCellData(row.getCell(commentCol));
+    					String comment = "";
+
+    					if(!licenseConcluded.isEmpty()) {
+    						comment += licenseConcluded;
+    					}
+
+    					if(!licenseComment.isEmpty()) {
+    						if(licenseConcluded.isEmpty()) {
+    							comment += licenseComment;
+    						} else {
+    							comment += " / " + licenseComment;
+    						}
+    					}
+
+    					bean.setComments(commentCol < 0 ? "" : comment);
+    				} else {
+    					bean.setComments(commentCol < 0 ? "" : getCellData(row.getCell(commentCol)));
+    				}
+    
     				// oss Name을 입력하지 않거나, 이전 row와 oss name, oss version이 동일한 경우, 멀티라이선스로 판단
     				OssComponentsLicense subBean = new OssComponentsLicense();
-    				subBean.setLicenseName(licenseCol < 0 ? "" : getCellData(row.getCell(licenseCol)));
+    				String licenseName = getCellData(row.getCell(licenseCol));
+    				if(isSPDXSpreadsheet(sheet)){
+    					licenseName = StringUtil.join(Arrays.asList(licenseName.split("\\(|\\)| ")).stream().filter(l -> !isEmpty(l) && !l.equals("AND") && !l.equals("OR")).collect(Collectors.toList()), ",");
+    				} else if (licenseName.contains(",")) {
+    					licenseName = StringUtil.join(Arrays.asList(licenseName.split(",")).stream().filter(l -> !isEmpty(l)).collect(Collectors.toList()), ",");
+    				}
+    				subBean.setLicenseName(licenseCol < 0 ? "" : licenseName);
     				subBean.setLicenseText(licenseTextCol < 0 ? "" : getCellData(row.getCell(licenseTextCol)));
     				
     				if("false".equals(subBean.getLicenseText()) || "-".equals(subBean.getLicenseText())) {
@@ -1084,6 +1240,10 @@ public class ExcelUtil extends CoTopComponent {
 		}
 		
 		return errMsg;
+	}
+
+	private static boolean isSPDXSpreadsheet(Sheet sheet) {
+		return sheet.getSheetName().equals("Package Info") || sheet.getSheetName().equals("Per File Info");
 	}
 
 	private static boolean hasSameLicense(OssComponents ossComponents, OssComponentsLicense subBean) {
@@ -1357,7 +1517,12 @@ public class ExcelUtil extends CoTopComponent {
     			// oss Name을 입력하지 않거나, 이전 row와 oss name, oss version이 동일한 경우, 멀티라이선스로 판단
     			// license 정보
     			OssComponentsLicense subBean = new OssComponentsLicense();
-    			subBean.setLicenseName(licenseCol < 0 ? "" : getCellData(row.getCell(licenseCol)));
+    			String licenseName = getCellData(row.getCell(licenseCol));
+    			if(licenseName.contains(",")) {
+					licenseName = StringUtil.join(Arrays.asList(licenseName.split(",")).stream().filter(l -> !isEmpty(l)).collect(Collectors.toList()), ",");
+				}
+				
+				subBean.setLicenseName(licenseCol < 0 ? "" : licenseName);
     			subBean.setLicenseText(licenseTextCol < 0 ? "" : getCellData(row.getCell(licenseTextCol)));
     			
     			if("false".equals(subBean.getLicenseText()) || "-".equals(subBean.getLicenseText())) {
@@ -1472,7 +1637,7 @@ public class ExcelUtil extends CoTopComponent {
 			for (Cell cell : row) {
 				String id = avoidNull(getCellData(cell)).trim().toUpperCase();
 				
-				if("NO".equalsIgnoreCase(id) || "ID".equalsIgnoreCase(id)) {
+				if("NO".equalsIgnoreCase(id) || "ID".equalsIgnoreCase(id) || "PACKAGE NAME".equalsIgnoreCase(id) || "FILE NAME".equalsIgnoreCase(id)) {
 					return row.getRowNum();
 				}
 				
@@ -2203,10 +2368,11 @@ public class ExcelUtil extends CoTopComponent {
 				}
 			}
 		}
-		
-		try {
+
+		try(
 			FileReader csvFile = new FileReader(file); // CSV File만 가능함.
 			CSVReader csvReader = new CSVReader(csvFile, '|');
+		) {
 			List<String[]> allData = csvReader.readAll();
 			
 			readData = readAnalysisList(allData, (List<OssAnalysis>) map.get("rows"));
@@ -2224,7 +2390,7 @@ public class ExcelUtil extends CoTopComponent {
 			}
 		} catch(Exception e) {
 			log.error(e.getMessage());
-		} 
+		}
 		
 		return readData;
 	}

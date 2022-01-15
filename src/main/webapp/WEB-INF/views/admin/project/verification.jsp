@@ -19,7 +19,7 @@
 				</li>
 				<li><span>Created</span><strong>${project.prjUserName }&nbsp;${project.prjDivisionName } (${ct:formatDateSimple(project.createdDate)})</strong></li>
 			</ul>
-			<a class="right" id="helpLink" style="position:relative; cursor: pointer; top:-37px; right:-75px; display: none;"><img alt="" src="<c:url value="/images/user-guide.png"/>" /></a>
+			<a class="right" id="helpLink" style="position:relative; cursor: pointer; top:-37px; right:-75px; display: none;"><img alt="" src="<c:url value="${ctxPath}/images/user-guide.png"/>" /></a>
 		</div>
 		<!---->
 		<div class="projdecTab">
@@ -43,7 +43,7 @@
 					<c:when test="${project.completeYn ne 'Y' and project.dropYn ne 'Y' and project.verificationStatus ne 'NA' and project.distributeDeployYn ne 'Y'}">
 						<a class="btnSet confirm"><span id="verConfirm">Confirm</span></a>
 						<a class="btnSet reject"><span id="verReject">Reject</span></a>
-						<a class="btnSet review"><span id="verRequest">Request Review</span></a> 
+						<a class="btnSet review"><span id="verRequest">Request</span></a>
 						<a class="btnSet restart"><span id="verReviewStart">Review Start</span></a>
 					</c:when>
 					<c:otherwise>
@@ -58,7 +58,7 @@
 	</div>
 	<div class="commentEditor" style="display:none;">
 		<div class="cBtn">
-		<input type="button" value="Save & Send comment" class="btnCLight saveEditor" onclick="fn.editorDialog();"/>
+		<input type="button" value="Save & Send comment" class="btnCLight saveEditor" onclick="fn.sendEditor('WR');"/>
 		<input type="button" value="Save draft" class="btnCLight" onclick="fn.saveEditor();"/>
 		</div>
 		<div class="grid-container">
@@ -287,6 +287,8 @@
 								<input type="hidden" id="allowDownloadSPDXSheetYn" name="allowDownloadSPDXSheetYn" value="${project.allowDownloadSPDXSheetYn}" />
 								<input type="hidden" id="allowDownloadSPDXRdfYn" name="allowDownloadSPDXRdfYn" value="${project.allowDownloadSPDXRdfYn}" />
 								<input type="hidden" id="allowDownloadSPDXTagYn" name="allowDownloadSPDXTagYn" value="${project.allowDownloadSPDXTagYn}" />
+								<input type="hidden" id="allowDownloadSPDXJsonYn" name="allowDownloadSPDXJsonYn" value="${project.allowDownloadSPDXJsonYn}" />
+								<input type="hidden" id="allowDownloadSPDXYamlYn" name="allowDownloadSPDXYamlYn" value="${project.allowDownloadSPDXYamlYn}" />
 								<input type="hidden" id="isSimpleNotice" name="isSimpleNotice">
 								<input type="hidden" name="previewOnly" id="previewOnly" value="N"/>
 
@@ -382,30 +384,42 @@
 														<label for="chkAllowDownloadSimpleText">Simple Text</label>
 													</span>
 												</c:if>
-												<c:if test="${ct:getCodeExpString(ct:getConstDef('CD_NOTICE_INFO'), ct:getConstDef('CD_DTL_NOTICE_SPDX')) eq 'Y'}">
-													<span class="checkSet">
-														<input type="checkbox" id="chkAllowDownloadSPDXSheet" name="chkAllowDownloadSPDXSheet" 
-															data-targetid="allowDownloadSPDXSheetYn" <c:if test="${project.allowDownloadSPDXSheetYn eq 'Y'}">checked</c:if> <c:if test="${ossNotice.editNoticeYn eq 'N' or project.verificationStatus eq 'CONF'}"> disabled</c:if> >
-														<label for="chkAllowDownloadSPDXSheet">SPDX(SpreadSheet)</label>
-													</span>
-									 				<span class="checkSet">
-														<input type="checkbox" id="chkAllowDownloadSPDXRdf" name="chkAllowDownloadSPDXRdf" 
-															data-targetid="allowDownloadSPDXRdfYn" <c:if test="${project.allowDownloadSPDXRdfYn eq 'Y'}">checked</c:if> <c:if test="${ossNotice.editNoticeYn eq 'N' or project.verificationStatus eq 'CONF'}"> disabled</c:if> >
-														<label for="chkAllowDownloadSPDXRdf">SPDX(RDF)</label>
-													</span>
-													<span class="checkSet">
-														<input type="checkbox" id="chkAllowDownloadSPDXTag" name="chkAllowDownloadSPDXTag" 
-															data-targetid="allowDownloadSPDXTagYn" <c:if test="${project.allowDownloadSPDXTagYn eq 'Y'}">checked</c:if> <c:if test="${ossNotice.editNoticeYn eq 'N' or project.verificationStatus eq 'CONF'}"> disabled</c:if> >
-														<label for="chkAllowDownloadSPDXTag">SPDX(TAG)</label>
-													</span>
-												</c:if>
+												<div class="mt10">
+													<c:if test="${ct:getCodeExpString(ct:getConstDef('CD_NOTICE_INFO'), ct:getConstDef('CD_DTL_NOTICE_SPDX')) eq 'Y'}">
+														<span class="checkSet">
+															<input type="checkbox" id="chkAllowDownloadSPDXSheet" name="chkAllowDownloadSPDXSheet"
+																data-targetid="allowDownloadSPDXSheetYn" <c:if test="${project.allowDownloadSPDXSheetYn eq 'Y'}">checked</c:if> <c:if test="${ossNotice.editNoticeYn eq 'N' or project.verificationStatus eq 'CONF'}"> disabled</c:if> >
+															<label for="chkAllowDownloadSPDXSheet">SPDX(SpreadSheet)</label>
+														</span>
+														<span class="checkSet">
+															<input type="checkbox" id="chkAllowDownloadSPDXRdf" name="chkAllowDownloadSPDXRdf"
+																data-targetid="allowDownloadSPDXRdfYn" <c:if test="${project.allowDownloadSPDXRdfYn eq 'Y'}">checked</c:if> <c:if test="${ossNotice.editNoticeYn eq 'N' or project.verificationStatus eq 'CONF'}"> disabled</c:if> >
+															<label for="chkAllowDownloadSPDXRdf">SPDX(RDF)</label>
+														</span>
+														<span class="checkSet">
+															<input type="checkbox" id="chkAllowDownloadSPDXTag" name="chkAllowDownloadSPDXTag"
+																data-targetid="allowDownloadSPDXTagYn" <c:if test="${project.allowDownloadSPDXTagYn eq 'Y'}">checked</c:if> <c:if test="${ossNotice.editNoticeYn eq 'N' or project.verificationStatus eq 'CONF'}"> disabled</c:if> >
+															<label for="chkAllowDownloadSPDXTag">SPDX(TAG)</label>
+														</span>
+														<span class="checkSet">
+															<input type="checkbox" id="chkAllowDownloadSPDXJson" name="chkAllowDownloadSPDXJson"
+																   data-targetid="allowDownloadSPDXJsonYn" <c:if test="${project.allowDownloadSPDXJsonYn eq 'Y'}">checked</c:if> <c:if test="${ossNotice.editNoticeYn eq 'N' or project.verificationStatus eq 'CONF'}"> disabled</c:if> >
+															<label for="chkAllowDownloadSPDXJson">SPDX(JSON)</label>
+														</span>
+														<span class="checkSet">
+															<input type="checkbox" id="chkAllowDownloadSPDXYaml" name="chkAllowDownloadSPDXYaml"
+																   data-targetid="allowDownloadSPDXYamlYn" <c:if test="${project.allowDownloadSPDXYamlYn eq 'Y'}">checked</c:if> <c:if test="${ossNotice.editNoticeYn eq 'N' or project.verificationStatus eq 'CONF'}"> disabled</c:if> >
+															<label for="chkAllowDownloadSPDXYaml">SPDX(YAML)</label>
+														</span>
+													</c:if>
+												</div>
 											</div>
 										</div>
 									</dd>
 									<dd class="mt10">
 										<div class="basicCase">
 											<span class="right">
-												<c:if test="${project.verificationStatus ne 'CONF' and project.dropYn ne 'Y'}">
+												<c:if test="${project.verificationStatus ne 'CONF' and project.dropYn ne 'Y' and (ct:isAdmin() or project.viewOnlyFlag eq 'N')}">
 													<input type="button" id="save" value="Save" class="btnColor red"/>
 												</c:if>
 											</span>
@@ -423,19 +437,21 @@
 						<strong for="docType" title="selected value"></strong>
 						<select id="docType" name="docType">
 							<!-- <option value="noticePreview">Notice Preview</option> -->
-						    <option value="noticeDownload">Default (html)</option>
+							<option value="noticeDownload">Default (html)</option>
 							<c:if test="${ct:getCodeExpString(ct:getConstDef('CD_NOTICE_INFO'), ct:getConstDef('CD_DTL_NOTICE_TEXT')) eq 'Y'}">
-						    	<option value="noticeTextDownload">Default (text)</option>
-					    	</c:if>
-						    <option value="noticeSimpleDownload">Simple (html)</option>
-						    <c:if test="${ct:getCodeExpString(ct:getConstDef('CD_NOTICE_INFO'), ct:getConstDef('CD_DTL_NOTICE_TEXT')) eq 'Y'}">
-						    	<option value="noticeTextSimpleDownload">Simple (text)</option>
-						    </c:if>
-						    <c:if test="${ct:getCodeExpString(ct:getConstDef('CD_NOTICE_INFO'), ct:getConstDef('CD_DTL_NOTICE_SPDX')) eq 'Y'}">
-							    <option value="spdxSpreadSheet">SPDX (spreadsheet)</option>
-			  			    	<option value="spdxRdf">SPDX (RDF)</option>
-						    	<option value="spdxTag">SPDX (TAG)</option>
-					    	</c:if>
+								<option value="noticeTextDownload">Default (text)</option>
+							</c:if>
+							<option value="noticeSimpleDownload">Simple (html)</option>
+							<c:if test="${ct:getCodeExpString(ct:getConstDef('CD_NOTICE_INFO'), ct:getConstDef('CD_DTL_NOTICE_TEXT')) eq 'Y'}">
+								<option value="noticeTextSimpleDownload">Simple (text)</option>
+							</c:if>
+							<c:if test="${ct:getCodeExpString(ct:getConstDef('CD_NOTICE_INFO'), ct:getConstDef('CD_DTL_NOTICE_SPDX')) eq 'Y'}">
+								<option value="spdxSpreadSheet">SPDX (spreadsheet)</option>
+								<option value="spdxRdf">SPDX (RDF)</option>
+								<option value="spdxTag">SPDX (TAG)</option>
+								<option value="spdxJson">SPDX (JSON)</option>
+								<option value="spdxYaml">SPDX (YAML)</option>
+							</c:if>
 						</select>
 					</span>
 					<input type="button" id="packageDocDownload" value="download" class="btnColor" style="width: 100px;"/>
@@ -483,6 +499,16 @@
 						<c:if test="${project.allowDownloadSPDXTagYn eq 'Y'}">
 						<span>
 							<a href="javascript:fn.downloadSpdxTag();" style="color: rgb(0, 112, 192);text-decoration: underline !important;margin-left: 5px;">SPDX(TAG)</a>
+						</span>
+						</c:if>
+						<c:if test="${project.allowDownloadSPDXJsonYn eq 'Y'}">
+						<span>
+							<a href="javascript:fn.downloadSpdxJson();" style="color: rgb(0, 112, 192);text-decoration: underline !important;margin-left: 5px;">SPDX(JSON)</a>
+						</span>
+						</c:if>
+						<c:if test="${project.allowDownloadSPDXYamlYn eq 'Y'}">
+						<span>
+							<a href="javascript:fn.downloadSpdxYaml();" style="color: rgb(0, 112, 192);text-decoration: underline !important;margin-left: 5px;">SPDX(YAML)</a>
 						</span>
 						</c:if>
 					</span>

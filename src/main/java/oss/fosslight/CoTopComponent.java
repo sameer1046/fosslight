@@ -12,6 +12,7 @@ import java.net.URLEncoder;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -19,6 +20,8 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.PropertySource;
@@ -44,6 +47,8 @@ import com.google.gson.Gson;
 import oss.fosslight.common.CommonFunction;
 import oss.fosslight.config.AppConstBean;
 import oss.fosslight.domain.ComBean;
+import oss.fosslight.domain.T2Authorities;
+import oss.fosslight.domain.T2Users;
 import oss.fosslight.util.StringUtil;
 import oss.fosslight.validation.T2CoValidationResult;
 import oss.fosslight.validation.custom.T2CoAdminValidator;
@@ -53,6 +58,11 @@ import oss.fosslight.validation.custom.T2CoAdminValidator;
 public class CoTopComponent {
 	
 	protected static WebApplicationContext applicationContext;
+	
+	/* Separation by log type_20210802 */
+	protected static final Logger scheduler_log = LoggerFactory.getLogger("SCHEDULER_LOG");
+	protected static final Logger oss_history_log = LoggerFactory.getLogger("OSS_HISTORY_LOG");
+	protected static final Logger oss_auto_analysis_log = LoggerFactory.getLogger("OSS_AUTO_ANALYSIS_LOG");
 	
 	@SuppressWarnings("static-access")
 	@Autowired
@@ -131,6 +141,18 @@ public class CoTopComponent {
     	
     	return result;
 	}
+    
+    protected static String userRole(T2Users userInfo) {
+    	String result = "anonymousUser";
+    	if(!isEmpty(userInfo.getAuthority())) {
+    		return userInfo.getAuthority();
+    	}
+    	List<T2Authorities> authList = userInfo.getAuthoritiesList();
+    	if(authList != null && !authList.isEmpty()) {
+    		result = authList.get(0).getAuthority();
+    	}
+    	return result;
+    }
     
     protected static boolean isLogin() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -292,7 +314,7 @@ public class CoTopComponent {
 	public static ResponseEntity<FileSystemResource> excelToResponseEntity(String excelPath ,String downFileName) throws IOException{
 		
 		String fullLogiPath = excelPath;
-		String encordedFilename = URLEncoder.encode(downFileName,"UTF-8").replace("+", "%20");
+		String encodedFilename = URLEncoder.encode(downFileName,"UTF-8").replace("+", "%20");
 		String contentType = CommonFunction.getMsApplicationContentType(downFileName);
 		
 		ResponseEntity<FileSystemResource> responseEntity = null;
@@ -306,7 +328,7 @@ public class CoTopComponent {
 	    	responseHeaders.add(HttpHeaders.CONTENT_TYPE, contentType);
 	    }
 	    
-	    responseHeaders.set(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename=" + encordedFilename + ";filename*= UTF-8''" + encordedFilename);
+	    responseHeaders.set(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename=" + encodedFilename + ";filename*= UTF-8''" + encodedFilename);
 	    responseHeaders.add(HttpHeaders.CONTENT_LENGTH, Long.toString(fileSystemResource.contentLength()));
 	    
 	    responseEntity = new ResponseEntity<FileSystemResource>(fileSystemResource, responseHeaders, HttpStatus.OK);
@@ -317,7 +339,7 @@ public class CoTopComponent {
 	public static ResponseEntity<FileSystemResource> noticeToResponseEntity(String filePath ,String downFileName) throws IOException{
 	
 		String fullLogiPath = filePath;
-		String encordedFilename = URLEncoder.encode(downFileName,"UTF-8").replace("+", "%20");
+		String encodedFilename = URLEncoder.encode(downFileName,"UTF-8").replace("+", "%20");
 	    
 		ResponseEntity<FileSystemResource> responseEntity = null;
 		java.io.File file = new java.io.File(fullLogiPath);
@@ -325,7 +347,7 @@ public class CoTopComponent {
 	    
 	    HttpHeaders responseHeaders = new HttpHeaders();
     	responseHeaders.add(HttpHeaders.CONTENT_TYPE, "application/octet-stream");
-	    responseHeaders.set(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename=" + encordedFilename + ";filename*= UTF-8''" + encordedFilename);
+	    responseHeaders.set(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename=" + encodedFilename + ";filename*= UTF-8''" + encodedFilename);
 	    responseHeaders.add(HttpHeaders.CONTENT_LENGTH, Long.toString(fileSystemResource.contentLength()));
 	    
 	    responseEntity = new ResponseEntity<FileSystemResource>(fileSystemResource, responseHeaders, HttpStatus.OK);

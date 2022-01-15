@@ -31,13 +31,15 @@
 	var distributeNameChangeFlag = false;
 	var swModelChangeFlag = false;
 	var modelOnlyChangeFlag = false;
+	var releaseDateArr = [];
 	
 	$(document).ready(function () {
 		if(distributionStatus == "PROC"){
 			loading.show();
 			
-			alertify.alert('Thank you so much for your patience.<br>The distribution has already begun and has not yet completed.<br>It takes a long time to deploy because of the large packaging file size.', function(){
-				deleteTabInFrame('#/project/edit/'+'${project.prjId}');
+			alertify.alert('<spring:message code="msg.project.distribution.loading" />', function(){
+				var _url = '#<c:url value="/project/edit/${project.prjId}"/>';
+				deleteTabInFrame(_url);
 			});
 		}
 		
@@ -49,7 +51,7 @@
 		$('.btnCommentHistory').on('click', function(e){
 			e.preventDefault();
 			
-			openCommentHistory("prj", "${project.prjId}");
+			openCommentHistory('<c:url value="/comment/popup/prj/${project.prjId}"/>');
 		});
 	});
 	
@@ -89,8 +91,7 @@
 			// 저장
 			$("#save").click(function(){
 				if(needVerifyFlag){
-					alertify.alert('Please verify the new package file');
-					
+					alertify.alert('<spring:message code="msg.project.need.verify" />', function(){});
 					return false;
 				}
 				
@@ -99,6 +100,7 @@
 				
 				ids.forEach(function(id){
 					jQuery('#_modelList').jqGrid('saveRow',id,false);
+					releaseDateArr.push(jQuery('#_modelList').jqGrid('getCell',ids[element],'releaseDate'));
 				});
 				
 				saveSubmit();
@@ -118,7 +120,7 @@
 			
 			// 삭제
 			$("#delete").click(function(){
-				var doDelete = confirm('삭제된 정보는 복구 할 수 없습니다. 본 정보를 삭제 하시겠습니까?');
+				var doDelete = confirm('<spring:message code="msg.project.warn.delete" />');
 
 				if(doDelete){
 					deleteSubmit();
@@ -165,7 +167,7 @@
 					}
 					
 					alertify.distributionDeleteConfirm('<spring:message code="msg.distribute.confirm.reset" />',function(){
-						// FOSSLight System만 삭제
+						// FOSSLight Hub만 삭제
 						fn.rejectDistribution();
 					}).set('labels', {ok:'Delete FOSSLight Only'}); 
 				} else {
@@ -181,7 +183,7 @@
 			</c:forEach>
 			
 			$('#modelFile').uploadFile({
-				url : '/project/modelFile',
+				url : '<c:url value="/project/modelFile"/>',
 				multiple:false,
 				dragDrop:true,
 				fileName:'myfile',
@@ -215,7 +217,7 @@
 				if(idx != "") {
 					changeTabInFrame(idx);
 				} else {
-					createTabInFrame(prjId+'_Identify', '#/project/identification/'+prjId+'/4');
+					createTabInFrame(prjId+'_Identify', '#<c:url value="/project/identification/'+prjId+'/4"/>');
 				}
 			});
 			$("#packagingTab").click(function(){
@@ -225,7 +227,7 @@
 				if(idx != "") {
 					changeTabInFrame(idx);
 				} else {
-					createTabInFrame(prjId+'_Packaging', '#/project/verification/'+prjId);
+					createTabInFrame(prjId+'_Packaging', '#<c:url value="/project/verification/'+prjId+'"/>');
 				}
 			});
 			$("#distributionTab").click(function(){
@@ -235,7 +237,7 @@
 				if(idx != "") {
 					changeTabInFrame(idx);
 				} else {
-					createTabInFrame(prjId+'_Distribute', '#/project/distribution/'+prjId);
+					createTabInFrame(prjId+'_Distribute', '#<c:url value="/project/distribution/'+prjId+'"/>');
 				}
 			});
 			$("#editTab").click(function(){
@@ -245,7 +247,7 @@
 				if(idx != "") {
 					changeTabInFrame(idx);
 				} else {
-					createTabInFrame(prjId+'_Project', '#/project/edit/'+prjId);
+					createTabInFrame(prjId+'_Project', '#<c:url value="/project/edit/'+prjId+'"/>');
 				}
 			});
 
@@ -414,7 +416,7 @@
 				
 				$.ajax({
 					type: "POST",
-					url: '/exceldownload/getExcelPost',
+					url: '<c:url value="/exceldownload/getExcelPost"/>',
 					data: JSON.stringify({"type":"model", "parameter":JSON.stringify(data), "extParam" : $('input[name=distributeTarget]:checked').val()}),
 					dataType : 'json',
 					cache : false,
@@ -435,7 +437,7 @@
 					$("#userComment").val(CKEDITOR.instances.editor.getData());
 					
 					$("#distributionForm").ajaxForm({
- 						url : '/project/distribution/distribute/reset',
+						url : '<c:url value="/project/distribution/distribute/reset"/>',
  						type : 'POST',
  						dataType: "json",
  						cache : false,
@@ -447,7 +449,7 @@
 				$("#userComment").val(CKEDITOR.instances.editor.getData());
 				
 				$("#distributionForm").ajaxForm({
-						url : '/project/distribution/distribute/resetWithOSDD',
+					url : '<c:url value="/project/distribution/distribute/resetWithOSDD"/>',
 						type : 'POST',
 						dataType: "json",
 						cache : false,
@@ -466,7 +468,7 @@
 				
 				// model only의 경우 batch job으로 수행하지 않고 실시간 연동한다.
 				$("#distributionForm").ajaxForm({
-					url : '/project/distribution/distribute/immediatelyOnly',
+					url : '<c:url value="/project/distribution/distribute/immediatelyOnly"/>',
 					type : 'POST',
 					dataType: "json",
 					cache : false,
@@ -484,7 +486,7 @@
 				}
 				
 				if(!isDistribute){
-					alertify.error("no authorization.", 0);
+					alertify.error('<spring:message code="msg.project.required.authorization" />', 0);
 					
 					return;
 				}
@@ -522,7 +524,7 @@
 				
 				//batch 취소
 				$("#distributionForm").ajaxForm({
-					url : '/project/distribution/distribute/cancel',
+					url : '<c:url value="/project/distribution/distribute/cancel"/>',
 					type : 'POST',
 					dataType: "json",
 					cache : false,
@@ -534,7 +536,7 @@
 				//코멘트 저장
 				var editorVal = CKEDITOR.instances.editor.getData();
 				if(!editorVal || editorVal == "") {
-					alertify.alert("Please enter a comment");
+					alertify.alert("<spring:message code="msg.project.enter.comment" />", function(){});
 					
 					return false;
 				}
@@ -542,7 +544,7 @@
 				var param = {referenceId : '${project.prjId}', referenceDiv :'14', contents : editorVal, mailSendType : type};
 				
 				$.ajax({
-					url : '/project/sendComment',
+					url : '<c:url value="/project/sendComment"/>',
 					type : 'POST',
 					dataType : 'json',
 					cache : false,
@@ -552,7 +554,7 @@
 							alertify.error('<spring:message code="msg.common.valid2" />', 0);
 						} else {
 							$('.ajs-close').trigger("click");
-							alertify.success('<spring:message code="msg.common.success" />');
+							alertify.success('<spring:message code="msg.project.sent.comments.success" />');
 							resetEditor(CKEDITOR.instances.editor);
 							
 							$(".commentBtn open").trigger( "click" );
@@ -570,7 +572,7 @@
 				var param = {referenceId : '${project.prjId}', referenceDiv :'15', contents : editorVal};
 				
 				$.ajax({
-					url : '/project/saveComment',
+					url : '<c:url value="/project/saveComment"/>',
 					type : 'POST',
 					dataType : 'json',
 					cache : false,
@@ -593,7 +595,7 @@
 				var editorVal = CKEDITOR.instances.editor.getData();
 				
 				if(!editorVal || editorVal == "") {
-					alertify.alert("Please enter a comment");
+					alertify.alert("<spring:message code="msg.project.enter.comment" />", function(){});
 					
 					return false;
 				}
@@ -630,6 +632,17 @@
 				}
 				
 				alertify.myAlert(btnHtm);
+			},
+			// release date check function add
+			releaseDateCheck : function() {
+				var releaseDateCheckMessage = "'<spring:message code="msg.project.confirm.release" />'";
+				
+				alertify.confirm(releaseDateCheckMessage).set('onok', function(closeEvent){
+						availableCheck('save');
+					}
+				);
+
+				$(".ajs-button").css("font-size", "12").css("cursor", "pointer");
 			}
 
 	}
@@ -662,7 +675,7 @@
 			
 			if(fn_data.distribution.noticeFileInfo != undefined) {
 				var noticeFile = fn_data.distribution.noticeFileInfo;
-				var _encUrl = "/download/"+noticeFile.fileSeq+"/"+noticeFile.logiNm;
+				var _encUrl = '<c:url value="/download/'+noticeFile.fileSeq+'/'+noticeFile.logiNm+'"/>';
 				
 				$('.licenseFile').append($('<a href="'+_encUrl+'" class="urlLink">'+noticeFile.origNm+'</a>'));
 				$('input[name=licenseFileName]').val(noticeFile.origNm);
@@ -675,7 +688,8 @@
 			
 			if(fn_data.distribution.packageFileInfo) {
 				var packageFile = fn_data.distribution.packageFileInfo;
-								packageInfo += '<a href="/download/'+packageFile.fileSeq+'/'+packageFile.logiNm+'" class="urlLink left">'+packageFile.origNm+'</a>';
+				var _url = '<c:url value="/download/'+packageFile.fileSeq+'/'+packageFile.logiNm+'"/>';
+				packageInfo += '<a href="'+_url+'" class="urlLink left">'+packageFile.origNm+'</a>';
 
 							if(isStatusDone){
 								packageInfo += '&nbsp;<input type="button" value="Delete" class="smallDelete" onclick="package_fn.uploadPackagingFile(1)">';
@@ -694,8 +708,9 @@
 							packageInfo += '<span>';
 							
 			if(fn_data.distribution.packageFileInfo2) {
-				var packageFile = fn_data.distribution.packageFileInfo2;				
-								packageInfo += '<a href="/download/'+packageFile.fileSeq+'/'+packageFile.logiNm+'" class="urlLink left">'+packageFile.origNm+'</a>';
+				var packageFile = fn_data.distribution.packageFileInfo2;
+				var _url = '<c:url value="/download/'+packageFile.fileSeq+'/'+packageFile.logiNm+'"/>';
+				packageInfo += '<a href="'+_url+'" class="urlLink left">'+packageFile.origNm+'</a>';
 							
 							if(isStatusDone){
 								packageInfo += '&nbsp;<input type="button" value="Delete" class="smallDelete" onclick="package_fn.uploadPackagingFile(2)">';
@@ -717,7 +732,8 @@
 			
 			if(fn_data.distribution.packageFileInfo3) {
 				var packageFile = fn_data.distribution.packageFileInfo3;
-								packageInfo += '<a href="/download/'+packageFile.fileSeq+'/'+packageFile.logiNm+'" class="urlLink left">'+packageFile.origNm+'</a>';
+				var _url = '<c:url value="/download/'+packageFile.fileSeq+'/'+packageFile.logiNm+'"/>';
+				packageInfo += '<a href="'+_url+'" class="urlLink left">'+packageFile.origNm+'</a>';
 							
 							if(isStatusDone){
 								packageInfo += '&nbsp;<input type="button" value="Delete" class="smallDelete" onclick="package_fn.uploadPackagingFile(3)">';
@@ -744,7 +760,7 @@
 		},
 		getModelGridData : function(param){
 			$.ajax({
-				url:"/project/modellistAjax",
+				url:'<c:url value="/project/modellistAjax"/>',
 				dataType : 'json',
 				cache : false,
 				data : (param) ? param : {prjId : $('input[name=prjId]').val()},
@@ -980,7 +996,7 @@
 			type: 'GET',
 			data: {code:cd},
 			async:false,
-			url: "/project/getCategoryCode",
+			url: '<c:url value="/project/getCategoryCode"/>',
 			success : function(json){
 				if(json != null){
 					$("#category").append(json);
@@ -1009,7 +1025,7 @@
 			data: {code:cd},
 			async:false,
 			dataType:'json',
-			url: "/project/getCategoryCodeToJson",
+			url: '<c:url value="/project/getCategoryCodeToJson"/>',
 			success : function(json){
 				if(json != null){
 					var str = '';
@@ -1042,7 +1058,7 @@
 		$('input[name=prjDeleteModelJson]').val(JSON.stringify(delRows));
 		
 		$("#distributionForm").ajaxForm({
-			url : '/project/distribution/saveAjax',
+			url : '<c:url value="/project/distribution/saveAjax"/>',
 			type : 'POST',
 			dataType: "json",
 			cache : false,
@@ -1060,7 +1076,18 @@
 			
 			gridValidMsgNew(json, "_modelList");
 		} else if(json.isValid == 'true') {
-			availableCheck('save');
+			var chk = 0;
+			releaseDateArr.forEach(function(item){
+				if (item == ""){
+					chk++;
+				}
+			});
+
+			if (chk > 0){
+				fn.releaseDateCheck();
+			} else{
+				availableCheck('save');
+			}
 		}
 	};
 	
@@ -1096,7 +1123,7 @@
 		}
 		
 		$("#distributionForm").ajaxForm({
-			url : '/project/distribution/availableCheck',
+			url : '<c:url value="/project/distribution/availableCheck"/>',
 			type : 'POST',
 			dataType: "json",
 			cache : false,
@@ -1127,9 +1154,9 @@
 						modelData = json.externalData2;
 					}
 					
-					alertify.alert(_msgStr);
+					alertify.alert(_msgStr, function(){});
 				} else {
-					alertify.alert(json.validMsg);
+					alertify.alert(json.validMsg, function(){});
 				}
 			} else {
 				alertify.error('<spring:message code="msg.common.valid2" />', 0);
@@ -1144,7 +1171,7 @@
 		//var data = json.resultData; // TODO - 왜 JSON.parse를 지웠는지 파악이 필요함.
 		
 		if(data.errorMsg) {
-			alertify.alert(data.errorMsg);
+			alertify.alert(data.errorMsg, function(){});
 
 			return false;
 		}
@@ -1411,8 +1438,8 @@
 			alertify.alert(json.resMsg, function() {
 				this.close();
 
-				reloadTabInframe('/project/list');
-				reloadTabInframe('/project/distribution/'+'${project.prjId}');
+				reloadTabInframe('<c:url value="/project/list"/>');
+				reloadTabInframe('<c:url value="/project/distribution/${project.prjId}"/>');
 
 				return false;
 			});
@@ -1427,7 +1454,7 @@
 			return true;
 		}
 		
-		alertify.alert('<spring:message code="msg.distribute.model.required" />');
+		alertify.alert('<spring:message code="msg.distribute.model.required" />', function(){});
 		
 		return false;
 	}
@@ -1437,9 +1464,9 @@
 		var prjId = $('input[name=prjId]').val();
 			alertify.alert('<spring:message code="msg.common.success" />', function(){
 				if(prjId) {
-					deleteTabInFrame('#/project/edit/'+prjId);			
+					deleteTabInFrame('#<c:url value="/project/edit/'+prjId+'"/>');			
 				} else {
-					deleteTabInFrame('#/project/edit');			
+					deleteTabInFrame('#<c:url value="/project/edit"/>');			
 				}
 				
 				reloadTabInframe();
@@ -1475,7 +1502,7 @@
 	function distribute() {
 		//즉시 Batch 실행
 		$("#distributionForm").ajaxForm({
-			url : '/project/distribution/distribute/immediately',
+			url : '<c:url value="/project/distribution/distribute/immediately"/>',
 			type : 'POST',
 			dataType: "json",
 			cache : false,
@@ -1568,8 +1595,8 @@
 				
 				needVerifyFlag = false;
 				
-				alertify.alert('Successfully completed.');
-				alertify.success('Successfully verified the new package file');
+				alertify.alert('<spring:message code="msg.common.success" />', function(){});
+				alertify.success('<spring:message code="msg.project.verification.success" />');
 				
 				$("#verifyYn").val("Y");
 
@@ -1577,7 +1604,7 @@
 			}
 			
 			$.ajax({
-				url : '/project/distribution/verify',
+				url : '<c:url value="/project/distribution/verify"/>',
 				type : 'POST',					
 				dataType : 'json',
 				contentType : 'application/json',
@@ -1591,8 +1618,8 @@
 						if(json.noCountOssCnt == 0){ // verify 성공
 							$("#btnVerify").val("Completed").attr("disabled", true).removeClass("red");
 							needVerifyFlag = false;
-							alertify.alert(json.resMsg);
-							alertify.success('Successfully verified the new package file');
+							alertify.alert(json.resMsg, function(){});
+							alertify.success('<spring:message code="msg.project.verification.success" />');
 							
 							$("#verifyYn").val("Y");
 						} else { // verify의 실패
@@ -1653,7 +1680,7 @@
 			var packagingFileName = $("[name='openSourceFileName"+ (seq == 1 ? "" : seq) + "']").val();
 			
 			$('#uploadFile'+seq).uploadFile({
-				url : '/project/distribution/registFile?prjId=${project.prjId}&fileIdx='+seq+'&packagingFileName='+packagingFileName,
+				url : '<c:url value="/project/distribution/registFile?prjId=${project.prjId}&fileIdx='+seq+'&packagingFileName='+packagingFileName+'"/>',
 				multiple:false,
 				dragDrop:true,
 				fileName:'myfile',
@@ -1661,9 +1688,10 @@
 					var result = jQuery.parseJSON(data);
 					
 					result.forEach(function(item){
+						var _url = '<c:url value="/download/'+item[0].registSeq+'/'+item[0].fileName+'"/>';
 						var appendHtml  = '<li>';
 								appendHtml += '<span>';
-									appendHtml += '<a href="/download/'+item[0].registSeq+'/'+item[0].fileName+'" class="urlLink left">'+item[0].originalFilename+'</a>';
+								appendHtml += '<a href="'+_url+'" class="urlLink left">'+item[0].originalFilename+'</a>';
 									appendHtml += '&nbsp;<input type="button" value="Delete" class="smallDelete" onclick="package_fn.uploadPackagingFile('+seq+')">&nbsp;Updated';
 								appendHtml += '</span>';
 							appendHtml += '</li>';

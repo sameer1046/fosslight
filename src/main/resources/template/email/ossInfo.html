@@ -5,7 +5,7 @@
 		<style>
 			.marker{background-color: Yellow;}
 		</style>
-		<title>FOSSLight System</title>
+		<title>FOSSLight Hub</title>
 	</head>
 	<body>
 		<table cellspacing="0" cellpadding="0" border="0" style="font-family:'arial,sans-serif'">
@@ -18,7 +18,7 @@
 					<table cellspacing="0" cellpadding="0" border="0">
 						<tr>
 							<td colspan="3" height="25" style="background:#c00c3f">
-								<h1 style="margin:0;padding-left:5px;font-size:14px;color:white">FOSSLight System Notification</h1>
+								<h1 style="margin:0;padding-left:5px;font-size:14px;color:white">FOSSLight Hub Notification</h1>
 							</td>
 						</tr>
 						<tr>
@@ -46,16 +46,16 @@
 										<td style="padding:5px;">$!oss_basic_info.ossName</td>
 									</tr>
 									<tr>
-										<th align="left" style="padding:5px;background:#f0f0f0;">Nick Name</th>
+										<th align="left" style="padding:5px;background:#f0f0f0;">Nickname</th>
 										<td style="padding:5px;">$!oss_basic_info.ossNickname</td>
 									</tr>
 									<tr>
 										<th align="left" style="padding:5px;background:#f0f0f0;">OSS Version</th>
-										#if($!oss_basic_info.ossType.contains("V"))
-										<td style="padding:5px;">$!oss_basic_info.ossVersion / <span class="iconSet vdif">v-Diff</span></td>
-										#else
-										<td style="padding:5px;">$!oss_basic_info.ossVersion</td>
-										#end
+										<td style="padding:5px;">$!oss_basic_info.ossVersion #if($!oss_basic_info.ossVersion != '') / #end 
+										#if($oss_basic_info.ossType.contains("M")) <span class="iconSet multi">Multi</span> #end
+										#if($oss_basic_info.ossType.contains("D")) <span class="iconSet dual">Dual</span> #end
+										#if($oss_basic_info.ossType.contains("V")) <span class="iconSet vdif">v-Diff</span> #end
+										</td>
 									</tr>
 									<tr>
 										<th align="left" style="padding:5px;background:#f0f0f0;">Declared License Name / Type</th>
@@ -63,7 +63,11 @@
 									</tr>
 									<tr>
 										<th align="left" style="padding:5px;background:#f0f0f0;">Detected License Name</th>
-										<td style="padding:5px;">#foreach( $detectedLicense in $!oss_basic_info.detectedLicenses )$!detectedLicense #end</td>
+										<td style="padding:5px;">
+										#foreach( $detectedLicense in $!oss_basic_info.detectedLicenses )
+											$!detectedLicense#if( $foreach.hasNext ), #end
+										#end
+										</td>
 									</tr>
 									<tr>
 										<th align="left" style="padding:5px;background:#f0f0f0;">Obligation</th>
@@ -73,7 +77,7 @@
 										<th align="left" style="padding:5px;background:#f0f0f0;">Copyright</th>
 										<td style="padding:5px;">$!oss_basic_info.copyright</td>
 									</tr>
-									#if($oss_basic_info.multiLicenseFlag == "M")
+									#if($oss_basic_info.ossType.contains("M") || $oss_basic_info.ossType.contains("D"))
 									<tr>
 										<th align="left" style="padding:5px;background:#f0f0f0;">License Copyright</th>
 										<td>

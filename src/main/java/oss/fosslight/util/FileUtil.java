@@ -189,24 +189,25 @@ public class FileUtil {
 
 	public static void zip(String inputFolder, String filePath, String zipName, String zipRootEntryName) throws Exception {
 		// 압축파일을 저장할 파일을 선언한다.
-		FileOutputStream fileOutputStream = null;
 		File file = new File(filePath + File.separator + zipName);
-		fileOutputStream = new FileOutputStream(file);
-		// ZipOutputStream 선언
-		ZipOutputStream zipOutputStream = new ZipOutputStream(fileOutputStream);
-		// 압축할 대상이 있는 폴더를 파일로 선언한다.
-		File inputFile = new File(inputFolder);
-		
-		// 압축을 할 대상이 file이면 zipFile 메소드를,
-		// 폴더이면 zipFolder 메소드를 호출한다.
-		if (inputFile.isFile()) {
-			zipFile(zipOutputStream, inputFile, "");
-		} else if (inputFile.isDirectory()) {
-			zipFolder(zipOutputStream, inputFile, "", zipRootEntryName);
+		try(			
+			FileOutputStream fileOutputStream = new FileOutputStream(file);
+			// ZipOutputStream 선언
+			ZipOutputStream zipOutputStream = new ZipOutputStream(fileOutputStream);
+		) {
+			// 압축할 대상이 있는 폴더를 파일로 선언한다.
+			File inputFile = new File(inputFolder);
+			
+			// 압축을 할 대상이 file이면 zipFile 메소드를,
+			// 폴더이면 zipFolder 메소드를 호출한다.
+			if (inputFile.isFile()) {
+				zipFile(zipOutputStream, inputFile, "");
+			} else if (inputFile.isDirectory()) {
+				zipFolder(zipOutputStream, inputFile, "", zipRootEntryName);
+			}
+		} catch (Exception e) {
+			throw e;
 		}
-		
-		zipOutputStream.close();
-		fileOutputStream.close();
 	}
 
 	public static void zipFolder(ZipOutputStream zipOutputStream, File inputFile, String parentName, String zipEntryName) throws Exception {
@@ -224,33 +225,36 @@ public class FileUtil {
 		
 		// inputFolder의 구성파일이 파일이면 zipFile 메소드를 호출하고,
 		// 폴더일 경우 현재 zipFolder 메소드를 재귀호출
-		for (File file : contents) {
-			if (file.isFile()) {
-				zipFile(zipOutputStream, file, myName);
-			} else if (file.isDirectory()) {
-				zipFolder(zipOutputStream, file, myName, "");
+		if(contents != null) {
+			for (File file : contents) {
+				if (file.isFile()) {
+					zipFile(zipOutputStream, file, myName);
+				} else if (file.isDirectory()) {
+					zipFolder(zipOutputStream, file, myName, "");
+				}
+				
+				zipOutputStream.closeEntry();
 			}
-			
-			zipOutputStream.closeEntry();
 		}
 	}
 
 	public static void zipFile(ZipOutputStream zipOutputStream, File inputFile, String parentName) throws Exception {
-		// ZipEntry생성 후 zip 메소드에서 인자값으로 전달받은 파일의 구성 정보를 생성한다.
 		ZipEntry zipEntry = new ZipEntry(parentName + inputFile.getName());
-		zipOutputStream.putNextEntry(zipEntry);
-		FileInputStream fileInputStream = new FileInputStream(inputFile);
-		byte[] buf = new byte[4096];
-		int byteRead;
-		
-		// 압축대상 파일을 설정된 사이즈만큼 읽어들인다.
-		// buf의 size는 원하는대로 설정가능하다.
-		while ((byteRead = fileInputStream.read(buf)) > 0) {
-			zipOutputStream.write(buf, 0, byteRead);
+		try(
+			FileInputStream fileInputStream = new FileInputStream(inputFile);
+		){
+			// ZipEntry생성 후 zip 메소드에서 인자값으로 전달받은 파일의 구성 정보를 생성한다.
+			zipOutputStream.putNextEntry(zipEntry);
+			byte[] buf = new byte[4096];
+			int byteRead;
+			// 압축대상 파일을 설정된 사이즈만큼 읽어들인다.
+			// buf의 size는 원하는대로 설정가능하다.
+			while ((byteRead = fileInputStream.read(buf)) > 0) {
+				zipOutputStream.write(buf, 0, byteRead);
+			}
+		} catch (Exception e) {
+			throw e;
 		}
-		
-		zipOutputStream.closeEntry();
-		fileInputStream.close();
 	}
 	
 	public static boolean copyFile(String srcFilePath, String copyFilePath, String copyFileName) {
@@ -288,59 +292,70 @@ public class FileUtil {
      */
     public static void downloadFile(String fileURL, String saveDir)
             throws Exception {
+    	HttpURLConnection httpConn = null;
+    	FileOutputStream outputStream = null;
+    	InputStream inputStream = null;
         URL url = new URL(fileURL);
-        HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
-        int responseCode = httpConn.getResponseCode();
- 
-        // always check HTTP response code first
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-            String fileName = "";
-            String disposition = httpConn.getHeaderField("Content-Disposition");
-            String contentType = httpConn.getContentType();
-            int contentLength = httpConn.getContentLength();
- 
-            if (disposition != null) {
-                // extracts file name from header field
-                int index = disposition.indexOf("filename=");
-                
-                if (index > 0) {
-                    fileName = disposition.substring(index + 10,
-                            disposition.length() - 1);
+        try {
+             httpConn = (HttpURLConnection) url.openConnection();
+            int responseCode = httpConn.getResponseCode();
+     
+            // always check HTTP response code first
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                String fileName = "";
+                String disposition = httpConn.getHeaderField("Content-Disposition");
+     
+                if (disposition != null) {
+                    // extracts file name from header field
+                    int index = disposition.indexOf("filename=");
+                    
+                    if (index > 0) {
+                        fileName = disposition.substring(index + 10,
+                                disposition.length() - 1);
+                    }
+                } else {
+                    // extracts file name from URL
+                    fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
+                }
+     
+                // opens input stream from the HTTP connection
+                inputStream = httpConn.getInputStream();
+                String saveFilePath = saveDir + File.separator + fileName;
+
+                if(!Files.exists(Paths.get(saveDir))) {
+                    Files.createDirectories(Paths.get(saveDir));
+                }
+
+                // opens an output stream to save into file
+                outputStream = new FileOutputStream(saveFilePath);
+     
+                int bytesRead = -1;
+                byte[] buffer = new byte[4096];
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
                 }
             } else {
-                // extracts file name from URL
-                fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1, fileURL.length());
-            }
- 
-            log.debug("Content-Type = " + contentType);
-            log.debug("Content-Disposition = " + disposition);
-            log.debug("Content-Length = " + contentLength);
-            log.debug("fileName = " + fileName);
- 
-            // opens input stream from the HTTP connection
-            InputStream inputStream = httpConn.getInputStream();
-            String saveFilePath = saveDir + File.separator + fileName;
-             
-            // opens an output stream to save into file
-            FileOutputStream outputStream = new FileOutputStream(saveFilePath);
- 
-            int bytesRead = -1;
-            byte[] buffer = new byte[4096];
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
- 
-            outputStream.close();
-            inputStream.close();
-            
-            log.debug("File downloaded");
-            
-            httpConn.disconnect();
-        } else {
-        	httpConn.disconnect();
-        	
-        	throw new Exception("No file to download. Server replied HTTP code: " + responseCode);
-        }
+            	throw new Exception("No file to download. Server replied HTTP code: " + responseCode);
+            }			
+		} finally {
+			if(httpConn != null) {
+				try {
+					httpConn.disconnect();
+				} catch (Exception e) {}
+			}
+
+			if(outputStream != null) {
+				try {
+					outputStream.close();
+				} catch (Exception e) {}
+			}
+			if(inputStream != null) {
+				try {
+					inputStream.close();
+				} catch (Exception e) {}
+			}
+		}
+
     }
     
     
@@ -416,7 +431,7 @@ public class FileUtil {
 			Path movePath = Paths.get(destPath);
 			
 			if(!Files.exists(movePath)) {
-				Files.createDirectory(movePath);
+				Files.createDirectories(movePath);
 			}
 			
 			if(Files.exists(zipPath)) {

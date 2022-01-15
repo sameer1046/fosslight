@@ -40,20 +40,24 @@ var bin_evt = {
 		});
 		// 그리드 저장 버튼
 		$("#binSave, #binSaveUp").click(function(e){
-			e.preventDefault();
-			
-			com_fn.exitCell(_mainLastsel, "binList");
-			
-			alertify.confirm('<spring:message code="msg.common.confirm.save" />', function (e) {
-				if (e) {
-					// 메인, 서브 그리드 세이브 모드
-					fn_grid_com.totalGridSaveMode('binList');
-					// 닉네임 체크
-					bin_fn.saveMakeData();
-				} else {
-					return false;
-				}
-			});
+			if (com_fn.checkStatus()){
+				e.preventDefault();
+				
+				com_fn.exitCell(_mainLastsel, "binList");
+				
+				alertify.confirm('<spring:message code="msg.common.confirm.save" />', function (e) {
+					if (e) {
+						// 메인, 서브 그리드 세이브 모드
+						fn_grid_com.totalGridSaveMode('binList');
+						// 닉네임 체크
+						bin_fn.saveMakeData();
+					} else {
+						return false;
+					}
+				});
+			}else {
+				alertify.alert('<spring:message code="msg.project.warn.project.status" />', function(){});
+			}
 		});
 		// 프로젝트 조회 버튼
 		$('#binProjectSearchBtn').click(function(e){
@@ -75,7 +79,7 @@ var bin_evt = {
 		
 		//파일업로드
 		$('#binCsvFile').uploadFile({
-			url:'/project/binCsvFile',
+			url:'<c:url value="/project/binCsvFile"/>',
 			multiple:false,
 			dragDrop:true,
 			fileName:'myfile',
@@ -99,7 +103,15 @@ var bin_evt = {
 							$('.ajax-file-upload-statusbar').fadeOut('slow');
 							$('.ajax-file-upload-statusbar').remove();
 						});
-					} else {
+					} else if(result[2] == "CSV_FILE") {
+						bin_fn.getCsvData(result[0][0].registSeq);
+
+						$('#binCsvFileId').val(result[0][0].registFileId);
+						$('.ajax-file-upload-statusbar').fadeOut('slow');
+						$('.ajax-file-upload-statusbar').remove();
+
+						bin_fn.makeFileTag(result[0][0]);
+					} else if(result[2] == "EXCEL_FILE") {
 						if(result[1].length != 0) {
 							$('.sheetSelectPop').show();
 							$('.sheetSelectPop .sheetNameArea').children().remove();
@@ -124,6 +136,18 @@ var bin_evt = {
 						$('.ajax-file-upload-statusbar').remove();
 						
 						bin_fn.makeFileTag(result[0][0]);	
+					} else if(result[2] == "SPDX_SPREADSHEET_FILE"){
+						bin_fn.getSpdxSpreadsheetData(result[0][0].registSeq);
+
+						$('#binCsvFileId').val(result[0][0].registFileId);
+						$('.ajax-file-upload-statusbar').fadeOut('slow');
+						$('.ajax-file-upload-statusbar').remove();
+
+						bin_fn.makeFileTag(result[0][0]);
+					} else {
+						alertify.error('<spring:message code="msg.common.valid" />', 0);
+						$('.ajax-file-upload-statusbar').fadeOut('slow');
+						$('.ajax-file-upload-statusbar').remove();
 					}
 				}
 			}
@@ -144,7 +168,7 @@ var bin_evt = {
 		</c:forEach>
 		
 		$('#binBinaryFile').uploadFile({
-			url:'/project/binCsvFile?fileType=text',
+			url:'<c:url value="/project/binCsvFile?fileType=text"/>',
 			multiple:false,
 			dragDrop:true,
 			allowedTypes:accept4,
@@ -238,9 +262,11 @@ var binInfoMsgData;
 var bin_fn = {
 	// src 그리드 데이터
 	getBinGridData : function(param, type){
-		var url = "append".indexOf(type) > -1  ? '/project/identificationMergedGrid/${project.prjId}/15' : '/project/identificationGrid/${project.prjId}/15'
-		  , type = "append".indexOf(type) > -1  ? 'POST' : 'GET'
-		  , data = param || { referenceId : '${project.prjId}', typeFlag : 'N' };
+		var url = "append".indexOf(type) > -1  
+					? '<c:url value="${suffixUrl}/project/identificationMergedGrid/${project.prjId}/15"/>' 
+					: '<c:url value="${suffixUrl}/project/identificationGrid/${project.prjId}/15"/>'
+			, type = "append".indexOf(type) > -1  ? 'POST' : 'GET'
+			, data = param || { referenceId : '${project.prjId}', typeFlag : 'N' };
 		
 		$.ajax({
 			url : url,
@@ -313,7 +339,7 @@ var bin_fn = {
 	// 저장
 	exeSave : function(finalData){
 		$.ajax({
-			url : '/project/saveBin',
+			url : '<c:url value="${suffixUrl}/project/saveBin"/>',
 			type : 'POST',
 			data : JSON.stringify(finalData),
 			dataType : 'json',
@@ -339,15 +365,16 @@ var bin_fn = {
 						alertify.success('<spring:message code="msg.common.success" />');
 						
 						if(data.changeBySystemNotice && data.changeBySystemNotice && data.changeBySystemNotice != "") {
-							alertify.alert(data.changeBySystemNotice);
+							alertify.alert(data.changeBySystemNotice, function(){});
+						}
+
+						curIdenStatus = data.resultData||"";
+						if(curIdenStatus == "PROG"){
+							com_fn.btnCtl(userRole, curIdenStatus);
 						}
 					} else {
 						alertify.error('<spring:message code="msg.common.valid2" />');
 					}
-				}
-				if(curIdenStatus == ""){
-					curIdenStatus = "PROG";
-					com_fn.btnCtl(userRole, curIdenStatus);
 				}
 			},
 			error: function(data){
@@ -376,7 +403,7 @@ var bin_fn = {
 	// 프로젝트 검색
 	setParamProject1 : function(){
 		return {
-			url: '/project/identificationProject/15',
+			url: '<c:url value="/project/identificationProject/15"/>',
 			datatype: 'json',
 			jsonReader:{
 				repeatitems: false,
@@ -460,7 +487,7 @@ var bin_fn = {
 	},			
 	setParamProject3 : function(){
 		return {
- 			url: '/project/getAddList',
+			url: '<c:url value="/project/getAddList"/>',
 			datatype: 'json',
 			postData : {prjId : '${project.prjId}', referenceDiv : '15'},
 			jsonReader:{
@@ -512,7 +539,7 @@ var bin_fn = {
 		var postData = {"mainData" : JSON.stringify(mainData), "subData" : JSON.stringify(subData), "prjId" : prjId};
 		
 		$.ajax({
-			url : '/project/nickNameValid/15',
+			url : '<c:url value="/project/nickNameValid/15"/>',
 			type : 'POST',
 			data : JSON.stringify(postData),
 			dataType : 'json',
@@ -565,7 +592,7 @@ var bin_fn = {
 				  , duplicateFlag = addListData.filter(function(a){ return a.referenceId == listData.prjId }).length > 0;
 				
 				if(duplicateFlag){
-			    	alertify.alert('<spring:message code="msg.id.duplicate" />');
+			    	alertify.alert('<spring:message code="msg.id.duplicate" />', function(){});
 
 			    	return;
 			    }
@@ -602,7 +629,7 @@ var bin_fn = {
 	downloadExcel : function(){
 		$.ajax({
 			type: "POST",
-			url: '/exceldownload/getExcelPost',
+			url: '<c:url value="/exceldownload/getExcelPost"/>',
 			data: JSON.stringify({"type":"bin", "parameter":'${project.prjId}'}),
 			dataType : 'json',
 			cache : false,
@@ -634,7 +661,7 @@ var bin_fn = {
 		});
 		
 		if(sheetNum.length == 0){
-			alert('please select sheet');
+			alert('<spring:message code="msg.common.check.sheet" />');
 			
 			return;
 		}else{
@@ -648,6 +675,31 @@ var bin_fn = {
 
 			bin_fn.exeLoadReportData(finalData);
 		}
+	},
+	getCsvData : function(seq){
+		loading.show();
+		fn_grid_com.totalGridSaveMode('binList');
+		cleanErrMsg("binList");
+
+		var target = $("#binList");
+		var mainData = target.jqGrid('getGridParam','data');
+		var sheetNum = ["0"];
+		var finalData = {"readType":"bin","prjId" : '${project.prjId}', "sheetNums" : sheetNum , "fileSeq" : ""+seq, "mainData" : JSON.stringify(mainData)};
+
+		bin_fn.exeLoadReportData(finalData);
+	},
+	getSpdxSpreadsheetData : function(seq){
+		var sheetNum = ["1", "4"];
+
+		loading.show();
+		fn_grid_com.totalGridSaveMode('binList');
+		cleanErrMsg("binList");
+
+		var target = $("#binList");
+		var mainData = target.jqGrid('getGridParam','data');
+		var finalData = {"readType":"bin","prjId" : '${project.prjId}', "sheetNums" : sheetNum , "fileSeq" : ""+seq, "mainData" : JSON.stringify(mainData)};
+
+		bin_fn.exeLoadReportData(finalData);
 	},
 	getBinData : function(){
 		var sheetNum = [];
@@ -690,7 +742,7 @@ var bin_fn = {
 	// load report data
 	exeLoadReportData : function(finalData){
 		$.ajax({
-			url : '/project/getSheetData',
+			url : '<c:url value="${suffixUrl}/project/getSheetData"/>',
 			type : 'POST',
 			data : JSON.stringify(finalData),
 			dataType : 'json',
@@ -701,7 +753,7 @@ var bin_fn = {
 
 				if("false" == data.isValid) {
 					if(data.validMsg) {
-						alertify.alert(data.validMsg);
+						alertify.alert(data.validMsg, function(){});
 					} else {
 						alertify.error('<spring:message code="msg.common.valid" />', 0);
 					}
@@ -724,9 +776,9 @@ var bin_fn = {
 					bin_fn.makeOssList(data.resultData);
 					
 					if(data.validMsg) {
-						alertify.alert(data.validMsg);
+						alertify.alert(data.validMsg, function(){});
 					} else if(data.resultData.systemChangeHisStr && data.resultData.systemChangeHisStr != "") {
-						alertify.alert(data.resultData.systemChangeHisStr);
+						alertify.alert(data.resultData.systemChangeHisStr, function(){});
 					}
 				}
 			},
@@ -759,7 +811,7 @@ var bin_fn = {
 		postData.referenceId = id;
 		
         $.ajax({
-            url : '/project/identificationProjectSearch/15',
+        	url : '<c:url value="/project/identificationProjectSearch/15"/>',
             type : 'GET',
             dataType : 'json',
             data : postData,
@@ -877,6 +929,18 @@ var bin_grid = {
  				{name: 'licenseName', index: 'licenseName', width: 150, align: 'left', editable:false, edittype:'text', template: searchStringOptions, 
  					editoptions: {
  						dataInit: function (e) {
+ 								var licenseNameId = $(e).attr("id").split('_')[0];
+								var licenseNameTd = $(e).parent();
+
+								var displayLicenseNameCell = '<div style="width:100%; display:table; table-layout:fixed;">';
+								displayLicenseNameCell += '<div id="'+licenseNameId+'_licenseNameDiv" style="width:60px; display:table-cell; vertical-align:middle;"></div>';
+								displayLicenseNameCell += '<div id="'+licenseNameId+'_licenseNameBtn" style="display:table-cell; vertical-align:middle;"></div>';
+								displayLicenseNameCell += '</div>';
+					
+								$(licenseNameTd).empty();
+								$(licenseNameTd).html(displayLicenseNameCell);
+								$('#'+licenseNameId+'_licenseNameDiv').append(e);
+
 								// licenseName auto complete
 								$(e).autocomplete({
 									source: licenseNames
@@ -893,22 +957,27 @@ var bin_grid = {
 								$(e).on( "autocompletechange", function() {
 									var rowid = (e.id).split('_')[0];
 									var mult = null;
+									var multText = null;
 									
 									for(var i in licenseNames){
 										if("" != e.value && e.value == licenseNames[i].value){
 											var licenseIds = $('#'+rowid+'_licenseId').val();
 
-											mult = "<span class=\"btnMulti\">" + licenseNames[i].value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-
+											mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + licenseNames[i].value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+											multText = licenseNames[i].value;
 											break;
 										}
 									}
 									
 									if(mult == null){
-										mult = "<span class=\"btnMulti\">" + e.value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+										mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + e.value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+										multText = e.value;
 									}
 									
-									$('#'+rowid+'_licenseName').parent().append(mult);
+									var licenseNameBtnText = $('#'+rowid+'_licenseNameBtn').text();
+									if (multText != null && licenseNameBtnText.indexOf(multText) < 0){
+										$('#'+rowid+'_licenseNameBtn').append(mult);
+									}
 									$('#'+rowid+'_licenseName').val("");
 									
 									fn_grid_com.saveCellData("binList",rowid,e.name,e.value,binValidMsgData,binDiffMsgData, binInfoMsgData);
@@ -916,22 +985,27 @@ var bin_grid = {
 									if(evt.keyCode == 13){
 										var rowid = (e.id).split('_')[0];
 										var mult = null;
+										var multText = null;
 										
 										for(var i in licenseNames){
 											if("" != e.value && e.value == licenseNames[i].value){
 												var licenseIds = $('#'+rowid+'_licenseId').val();
 
-												mult = "<span class=\"btnMulti\">" + licenseNames[i].value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-
+												mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + licenseNames[i].value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+												multText = licenseNames[i].value;
 												break;
 											}
 										}
 										
 										if(mult == null && "" != e.value){
-											mult = "<span class=\"btnMulti\">" + e.value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+											mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + e.value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+											multText = e.value;
 										}
 										
-										$('#'+rowid+'_licenseName').parent().append(mult);
+										var licenseNameBtnText = $('#'+rowid+'_licenseNameBtn').text();
+										if (multText != null && licenseNameBtnText.indexOf(multText) < 0){
+											$('#'+rowid+'_licenseNameBtn').append(mult);
+										}
 										$('#'+rowid+'_licenseName').val("");
 
 										fn_grid_com.saveCellData("srcList",rowid,e.name,e.value,srcValidMsgData,srcDiffMsgData);
@@ -1042,6 +1116,7 @@ var bin_grid = {
 			toppager:true,
 			loadonce:true,
 			ignoreCase: true,
+			multiselect: true,
 		    onSortCol: function (index, columnIndex, sortOrder) {
 		    	isSort = true;
 		    },
@@ -1075,6 +1150,9 @@ var bin_grid = {
 						} else if(className.indexOf('ui-subgrid') !== -1){
 							rowIdx++;
 						}
+
+						// checkbox click event
+						$("#"+row.id).find("input[type=checkbox]").removeClass("cbox");
 					}
 					
 					// 한번에 처리
@@ -1089,18 +1167,31 @@ var bin_grid = {
 				}
 			},
 			beforeSelectRow: function(rowid, e) {
-				// 경고 클래스 설정
-				fn_grid_com.setWarningClass(binList,rowid,["ossName","licenseName"]);
-				return true;
+				var $self = $(this), iCol, cm,
+			    $td = $(e.target).closest("tr.jqgrow>td"),
+			    $tr = $td.closest("tr.jqgrow"),
+			    p = $self.jqGrid("getGridParam");
+
+			    if ($(e.target).is("input[type=checkbox]") && $td.length > 0) {
+			       iCol = $.jgrid.getCellIndex($td[0]);
+			       cm = p.colModel[iCol];
+			       if (cm != null && cm.name === "cb") {
+			           // multiselect checkbox is clicked
+			           $self.jqGrid("setSelection", $tr.attr("id"), true ,e);
+			       }
+			    }
+			 	// 경고 클래스 설정
+			    fn_grid_com.setWarningClass(binList,rowid,["ossName","licenseName"]);		    
+//				return true;
 			},
 			onCellSelect: function(rowid,iCol,cellcontent,e) {
-				if(iCol == "2") {
+				if(iCol == "3") {
 					fn_grid_com.showOssViewPage(binList, rowid, true, binValidMsgData, binDiffMsgData, binInfoMsgData, com_fn.getLicenseName);
 				}
 				
 			},
 			ondblClickRow: function(rowid,iRow,iCol,e) {
-				if(iCol == "3"){ 
+				if(iCol == "4"){ 
 					com_fn.exitCell(_mainLastsel, "binList");
 					
 					fn_grid_com.showBinaryViewPage(binList, rowid, true, binValidMsgData, binDiffMsgData, binInfoMsgData);
@@ -1113,14 +1204,14 @@ var bin_grid = {
 				ondblClickRowBln = false;
 
  	 			$('#'+rowid+'_licenseName').addClass('autoCom');
- 	 			$('#'+rowid+'_licenseName').css({'width' : '60px'});
+ 	 			$('#'+rowid+'_licenseName').css({'width' : '100%'});
 				var result = $('#'+rowid+'_licenseName').val().split(",");
 
 				result.forEach(function(cur,idx){
 					if(cur != ""){
-						var mult = "<span class=\"btnMulti\">" + cur + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+						var mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + cur + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
 
-						$('#'+rowid+'_licenseName').parent().append(mult);
+						$('#'+rowid+'_licenseNameBtn').append(mult);
 					}
 				});
 				
@@ -1151,9 +1242,9 @@ var bin_grid = {
 		binList.jqGrid('navGrid',"#binPager",{add:true,edit:false,del:true,search:false,refresh:false
 												  , addfunc: function () {
 													  com_fn.saveFlagObject["BIN"] = false;
-													  fn_grid_com.rowAdd('binList',binList,"main", null, com_fn.getLicenseName);
+													  fn_grid_com.rowAddNew('binList',binList,"main", null, com_fn.getLicenseName);
 												  }
-												  , delfunc: function () { fn_grid_com.rowDel(binList,"main");}
+												  , delfunc: function () { fn_grid_com.rowDelNew(binList,"main");}
 												  , cloneToTop:true
 		});
 		

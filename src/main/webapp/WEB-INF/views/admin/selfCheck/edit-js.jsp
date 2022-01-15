@@ -13,6 +13,7 @@
 	var licenseNames = [];
 	var isSort = false;
 	var _popupCheckOssName = null;
+	var _popupCheckOssLicense = null;
 	var saveFlag = false;
 	var etcDomain = "${ct:getConstDef('CD_DTL_ECT_DOMAIN')}";
 	var divisionUseFlag = "${not empty ct:getCodeValues(ct:getConstDef('CD_USER_DIVISION'))}";
@@ -36,13 +37,16 @@
 		if($("#listKind > option").length == 1){
 			$(".listKindArea").hide();
 		}
+
+
+
 	});
 	
 	var fn_self ={
 			modeChange : function(prjId, type) {
 				if("v" == type) {
 					$.ajax({
-						url : '/selfCheck/selfCheckViewAjax',
+						url : '<c:url value="/selfCheck/selfCheckViewAjax"/>',
 						dataType : 'html',
 						cache : false,
 						data : {prjId : prjId},
@@ -68,50 +72,6 @@
 	// 이벤트
 	var evt = {
 		init : function(){
-				// 왓쳐 추가
-				$("#addWatcher").click(function(){
-					/* division 정보 */
-					var $divSel	= $("#prjDivision"),
-						divVal	= $divSel.val(),
-						divTxt	= $divSel.find("option[value='"+divVal+"']").text();
-					
-					// 선택한 item이 없을 경우.
-					if(divisionUseFlag == "true" && divVal == "") {
-						return alertify.error('<spring:message code="msg.project.required.selectDivision" />', 0);
-					}
-					
-					/* division 정보 */
-					var $userSel	= $("#prjUserId"),
-						userVal		= $userSel.val(),
-						userTxt		= $userSel.find("option[value='"+userVal+"']").text();
-					
-					/* tag 정보 */
-					var isNew = true;
-					$(".watcherTags").each(function(i, tag){
-						var tagDiv = $(tag).val().split("/")[0]
-							tagUid = $(tag).val().split("/")[1];
-						
-						if(divVal == tagDiv) {
-							if(tagUid == 'all') { // 선택된 태그 중에 all이 있을 경우 등록 안함
-								isNew = false;
-								return false;
-							}
-							
-							if(userVal == 'all') { // all을 선택했을 경우 기존 부서의 userId를 가진 tag를 삭제
-								$(tag).closest('span').remove();
-							} else if(tagUid == userVal) {
-								isNew = false;	// 이미 등록된 watcher가 있을경우
-							}
-						}
-					});
-					
-					if(isNew) {
-						var watcherStr = divisionUseFlag == "true" ? (divTxt + "/" + userVal) : userVal;
-						fn.addWatcher(divVal, userVal, '');
-						fn.addHtml($("#multiDiv"), watcherStr, divVal, userVal);
-					}
-				});
-				
 				// 저장
 				$("#save").click(function(){
 					alertify.confirm('<spring:message code="msg.common.confirm.save" />', function (e) {
@@ -135,7 +95,7 @@
 				});
 				
 				$(".selfCheckDelete").click(function(){
-					alertify.confirm("Are you sure you want to remove this project?\nThis will permanently delete all datas.", function (e) {
+					alertify.confirm('<spring:message code="msg.selfcheck.confirm.remove.project" />', function (e) {
 						if (e) {
 							fn.deleteSubmit();
 						} else {
@@ -156,101 +116,16 @@
 						}
 					});
 				});
-								
-				// email 왓쳐 추가
-				$("#addEmail").click(function(){
-					/* AD ID 정보 */
-					var adId = $("#adId").val();
-					var domain = $("#emailTemp").val();
-
-					if(adId == "") {
-						$("#adId").focus();
-						
-						return alertify.error('Please enter watcher AD ID', 0);
-					}
-					
-					var _email = adId + "@" + domain;
-					var regEmail = /([\w-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([\w-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\]?)$/;
-
-					if (!regEmail.test(_email)) {
-						$("#adId").focus();
-						
-						return alertify.error('Invalid email address.', 0);
-					}
-					
-					$.ajax({
-						type: "POST",
-						url: '/system/user/checkEmail', 
-						type : 'GET',
-						dataType : 'json',
-						cache : false,
-						data : {'email' : _email},
-						success: function (data) {
-							var watcherUseYn = data.useYn || "Y";
-						
-							if("true" == data.isValid) {
-								var watcherStr = divisionUseFlag == "true" ? (data.divisionName + "/" + data.userId) : data.userId;
-								fn.addWatcher(data.division, data.userId, '');
-								fn.addHtml($("#multiDiv"), watcherStr, data.division, data.userId);
-							} else {
-								fn.addWatcher('', '', _email);
-								fn.addHtml($("#multiDiv"), _email, _email, "Email");
-							}
-						},
-						error: function(data){
-							alertify.error('<spring:message code="msg.common.valid2" />', 0);
-						}
-					});
-					
-					$("#adId").val('');
-					$("#domain").val("${ct:getConstDef('CD_DTL_DEFAULT_DOMAIN')}").trigger('change');
-				});
-
+				
 				commonAjax.getCreatorDivisionTags().success(function(data, status, headers, config){
 					data.forEach(function(obj,index){
 						arr[index] = obj.userId+":"+obj.userName;
 					});
 				});
-				
-				$('#addList').on('click', function(){
-					var listKind = $("#listKind").val()
-					  , listId = $("#listId").val();
-						
-					if(fn.chkListValidation(listKind, listId)){
-						var obj = {};
-						obj["listKind"] = listKind;
-						obj["listId"] = listId;
-						
-						fn.copyWatcher(obj);
-					}
-				});
-
-				$("#domain").on("change", function(e){
-					var value = $(this).find("option:selected").val();
-					var domain = $(this).find("option:selected").text();
-					
-					if(etcDomain == value){
-						$("#emailTemp").val("").show();
-					} else {
-						$("#emailTemp").val(domain).hide();
-					}
-				});
 			}
-		}
+		};
 	
 	var fn = {
-			// 왓쳐 엘리먼트 그리기
-			addHtml : function(target, str, division, userId){
-				var rlt = division+((userId!="") ? "/"+userId : "");
-				var html  = '<span><input class="watcherTags" type="text" name="watchers" value="'+rlt+'" style="display: none;"/>';
-				html += '<strong>'+str+'</strong>';
-				html +='<input type="button" value="Delete" class="smallDelete" onclick="fn.removeWatcher(\''+division+'\',\''+userId+'\');" /></span>';
-				target.append(html);
-				
-				$('div.multiTxtSet2 .smallDelete').on('click', function(){
-					$(this).parent().remove();
-				});
-			},			
 			// 그리드 삭제 버튼
 			setDelBtn : function(cellvalue, options, rowObject){
 				return "<input type=\"button\" value=\"delete\" class=\"btnCLight darkgray\" onclick=\"fn.exeDelete('"+options.rowId+"')\" />";
@@ -265,7 +140,7 @@
 				$('input[name=comment]').val(editorVal);
 				
 				$("#projectForm").ajaxForm({
-					url : '/selfCheck/saveAjax',
+					url : '<c:url value="/selfCheck/saveAjax"/>',
 					type : 'POST',
 					dataType: "json",
 					cache : false,
@@ -276,7 +151,7 @@
 			// 삭제
 			deleteSubmit : function(){
 				$("#projectForm").ajaxForm({
-					url :'/selfCheck/delAjax',
+					url :'<c:url value="/selfCheck/delAjax"/>',
 					type : 'POST',
 					dataType:"json",
 					cache : false,
@@ -291,10 +166,10 @@
 				} else {
 					var prjId = $('input[name=prjId]').val();
 					alertify.alert('<spring:message code="msg.common.success" />', function(){
-						reloadTabInframe('/selfCheck/list');
+						reloadTabInframe('<c:url value="/selfCheck/list"/>');
 
 						if(prjId == '') {
-							deleteTabInFrame('#/selfCheck/edit');
+							deleteTabInFrame('#<c:url value="/selfCheck/edit"/>');
 						} else {
 							fn_self.modeChange(prjId, 'v');
 						}
@@ -306,13 +181,13 @@
 				var prjId = $('input[name=prjId]').val();
 				
 				if(json.resCd=='10'){
-					reloadTabInframe('/selfCheck/list');
+					reloadTabInframe('<c:url value="/selfCheck/list"/>');
 
 					alertify.alert('<spring:message code="msg.common.success" />', function(){
 						if(prjId) {
-							deleteTabInFrame('#/selfCheck/edit/'+prjId);
+							deleteTabInFrame('#<c:url value="/selfCheck/edit/'+prjId+'"/>');
 						} else {
-							deleteTabInFrame('#/selfCheck/edit');
+							deleteTabInFrame('#<c:url value="/selfCheck/edit"/>');
 						}
 					});
 				} else {
@@ -323,196 +198,61 @@
 			onError : function(data, status){
 				alertify.error('<spring:message code="msg.common.valid2" />', 0);
 			},
-			selectDivision : function(){
-				var division = $('#prjDivision').val();
-				$.ajax({
-					url : '/partner/getUserList',
-					type : 'GET',
-					dataType : 'json',
-					cache : false,
-					data : {'division' : division},
-					success : function(data){
-						$('#prjUserId').children().remove();
-						
-						data.forEach(function(obj){
-							$('#prjUserId').append('<option value='+obj.userId+'>'+obj.userName+'('+obj.userId+')</option>');
-						});
-						
-						$('#prjUserId').change();
-					},
-					error : function(){
-						alertify.error('<spring:message code="msg.common.valid2" />', 0);
+
+			bulkEdit : function(){
+		    	var gridList = $("#srcList");
+		        var targetGird = "srcList";
+
+		        var selarrrow = gridList.jqGrid("getGridParam", "selarrrow");
+		        var rowCheckedArr = [];
+		        for(var i=0; i<selarrrow.length; i++){
+					if($("input:checkbox[id='jqg_" + targetGird + "_" + selarrrow[i] + "']").is(":checked")){
+						rowCheckedArr.push(selarrrow[i]);
 					}
-				});
-			},
-			addWatcher : function(uDiv, uId, uEmail) {
-				var prjId = $('input[name=prjId]').val();
-				
-				if(prjId == "") {
-					return true;
-				}
-				
-				var data = {"prjId" : prjId , "prjDivision" : uDiv, "prjUserId":uId, "prjEmail":uEmail};
-				
-				$.ajax({
-					url : '/selfCheck/addWatcher',
-					type : 'POST',
-					data : JSON.stringify(data),
-					dataType : 'json',
-					cache : false,
-					contentType : 'application/json',
-					success: function(resultData){
-						if(resultData.isValid == "true") {
-							alertify.success('<spring:message code="msg.common.success" />');
-						}
-					},
-					error : fn.onError
-				});
-			},
-			removeWatcher : function(uDiv, uId) {
-				var uEmail = "";
-				
-				if("Email" == uId) {
-					uEmail = uDiv;
-					uId = "";
-					uDiv = "";
-				}
-				
-				var prjId = $('input[name=prjId]').val();
-				
-				if(prjId== "") {
-					return true;
-				}
-				
-				var data = {"prjId" : prjId , "prjDivision" : uDiv, "prjUserId":uId, "prjEmail":uEmail};
-				$.ajax({
-					url : '/selfCheck/removeWatcher',
-					type : 'POST',
-					data : JSON.stringify(data),
-					dataType : 'json',
-					cache : false,
-					contentType : 'application/json',
-					success: function(resultData){
-						if(resultData.isValid == "true") {
-							alertify.success('<spring:message code="msg.common.success" />');
-						}
-					},
-					error : fn.onError
-				});
-			},
-			copyWatcher : function(obj) {
-				var prjId = "${project.prjId}";
-				
-				obj["prjId"] = prjId;
-				
-				$.ajax({
-					url : '/selfCheck/copyWatcher',
-					type : 'POST',
-					data : JSON.stringify(obj),
-					dataType : 'json',
-					cache : false,
-					contentType : 'application/json',
-					success: function(resultData){
-						var copyWatcher = resultData.copyWatcher;
-						
-						if(copyWatcher.length){
-							for(var i = 0, len = copyWatcher.length ; i < len ; i++){
-								var isNew = true
-								  , division = copyWatcher[i].prjDivision || ""
-								  , divisionName = copyWatcher[i].prjDivisionName || ""
-								  , userId = copyWatcher[i].prjUserId || ""
-								  , userName = copyWatcher[i].prjUserName || ""
-								  , email = copyWatcher[i].prjEmail || ""
-								  , deptUseYn = copyWatcher[i].deptUseYn || "Y"
-								  , userUseYn = copyWatcher[i].userUseYn || "Y";
-								
-								$(".watcherTags").each(function(idx, tag){
-									var tagDiv = $(tag).val().split("/")[0]
-									  , tagUid = $(tag).val().split("/")[1];
-									
-									if(division == tagDiv) {
-										if(tagUid == 'all') { // 선택된 태그 중에 all이 있을 경우 등록 안함
-											isNew = false;
-											
-											return false;
-										} else if(tagUid == userId)
-											isNew = false;	// 이미 등록된 watcher가 있을경우
-									}
-									
-									if(tagUid == "Email") {
-										if(email == tagDiv) {
-											isNew = false;
-										}
-									}
-								});
-								
-								if(isNew){
-									if(email != ""){
-										fn.addHtml($("#multiDiv"), email, email, "Email");
-									} else {
-										var str = "";
-										
-										if(userName == ""){
-											str = divisionName;
-										}else{
-											str = '<b';
+		        }
 
-											if(divisionUseFlag == "true") {
-												if(deptUseYn == "N"){
-													str += ' class="deleteUser"';
-												}
-												
-												str += '>'+divisionName+'</b>/<b';
-											}
-										
-											if(userUseYn == "N"){
-												str += ' class="deleteUser"';
-											}
-											
-											str += '>'+userName+'</b>';
-										}
-										
-										fn.addHtml($("#multiDiv"), str, division, userId);
-									}
-								}
-							}
-							
-							if(prjId) {
-								alertify.success('<spring:message code="msg.common.success" />');
-							}
-						}
-						
-						if(!copyWatcher.length)
-							alertify.warning("The ID you entered does not exist.");
-					},
-					error : fn.onError
-				});
-			},
-			chkListValidation : function(listKind, listId){
-				
-				if(listKind == ""){
-					// TODO : 추후 문구 수정예정
-					alertify.error('<spring:message code="msg.project.watcher.selectlist" />', 0);
-					
-					return false;
-				}
-				
-				if(listId == ""){
-					// TODO : 추후 문구 수정예정
-					alertify.error('<spring:message code="msg.project.watcher.required.copyid" />', 0);
-					
-					return false;
-				}
-				
-				return true;
-			},
-			CheckChar : function(){
-				if(event.keyCode == 64){//@ 특수문자 체크
-            		alertify.alert("\'@\' Special characters are not allowed!");
+		        if(rowCheckedArr.length > 0){
+		            fn_grid_com.totalGridSaveMode(targetGird);
+		            
+		            var bulkEditArr = gridList.jqGrid("getGridParam", "selarrrow");
+		            var url = '<c:url value="/oss/ossBulkEditPopup?rowId=' + rowCheckedArr + '&target=selfCheck"/>';
+		            
+		            var _popup = null;
+		            
+		            if(_popup == null || _popup.closed){
+		                _popup = window.open(url, "bulkEditViewSelfPopup", "width=850, height=350, toolbar=no, location=no, left=100, top=100, resizable=yes");
 
-            		event.returnValue = false;
-            	}
-			}
+		                if(!_popup || _popup.closed || typeof _popup.closed=='undefined') {
+		                    alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
+		                }
+		            } else {
+		                _popup.close();
+		                _popup = window.open(url, "bulkEditViewSelfPopup", "width=850, height=350, toolbar=no, location=no, left=100, top=100, resizable=yes");
+		            }
+		        }else{
+		            alertify.alert('<spring:message code="msg.oss.select.ossTable" />', function(){});
+		            return false;
+		        }
+			},
+
+            changeSelectOption : function(target){
+                var name = $(target).attr("name");
+                var value = $("[name='"+name+"']:checked").val()
+                var key = name.split("_")[1];
+
+                switch(value){
+                    case "1":
+                        $('#uploadGroup').show();
+                        $('#wgetUrl_' + key).hide();
+                        break;
+                    case "2":
+                        $('#uploadGroup').hide();
+                        $('#wgetUrl_' + key).show();
+                        break;
+                    default:
+                        break;
+                }
+            }
 		}
 	
 	// 데이타
@@ -525,79 +265,7 @@
 				$('input[name=prjId]').val(data.detail.prjId);
 				$('input[name=prjName]').val(data.detail.prjName);
 				$('input[name=prjVersion]').val(data.detail.prjVersion);
-				$('select[name=osType]').val(data.detail.osType).trigger('change');
-				
-				if(data.detail.osType=='999'){
-					$('#osTypeEtc').attr("disabled",false);
-					$('#osTypeEtc').val(data.detail.osTypeEtc);
-				}
-				
-				$('select[name=distributionType]').val(data.detail.distributionType).trigger('change');
-				$('select[name=category]').val(data.detail.category).trigger('change');
-				$('select[name=prjDivision]').val(data.detail.prjDivision).trigger('change');
-				$('select[name=prjUserId]').val(data.detail.prjUserId).trigger('change');
-				data.detail.watcherList.forEach(function(watcher, index, obj){
-					var userUseYn = watcher.userUseYn || "Y";
-					var deptUseYn = watcher.deptUseYn || "Y";
-					
-					if(watcher!=""){
-						if(watcher.prjEmail){
-							fn.addHtml($("#multiDiv"), watcher.prjEmail, watcher.prjEmail, "Email");
-						} else {
-							var str = "";
-							
-							if(watcher.prjUserName == undefined) {
-								str = watcher.prjDivisionName;
-							} else {
-								str = '<b';
-
-								if(divisionUseFlag == "true") {
-									if(deptUseYn == "N") {
-										str += ' class="deleteUser"';
-									}
-									
-									str += '>'+watcher.prjDivisionName+'</b>/<b';
-								}
-								
-								if(userUseYn == "N") {
-									str += ' class="deleteUser"';
-								}
-								
-								str += '>'+watcher.prjUserName+'</b>';
-							}
-							
-							fn.addHtml($("#multiDiv"), str, watcher.prjDivision, watcher.prjUserId);
-						}
-						
-					}
-				});
-
-				$('input[name=distributeTarget]').each(function(){
-					var value = $(this).val();
-					
-					if(value == data.detail.distributeTarget){
-						$(this).trigger('click');
-					}
-				});
 			}
-			
-			var _distributeTargetSelectedVal = "";
-			$('input[name=distributeTarget]').mouseup(function(){
-				_distributeTargetSelectedVal = $('input[name=distributeTarget]:checked').val();
-			});
-			$('input[name=distributeTarget]').on('change',function(e){
-				if($("#_modelList").jqGrid('getGridParam', 'records') > 0){
-					alertify.confirm('<spring:message code="msg.project.confirm.modelinfo.init" />', 
-						function(){
-							modelList.changeTarget();
-						}, 
-						function(){
-							$('input[name=distributeTarget]:input[value=' + _distributeTargetSelectedVal + ']').attr("checked", true);
-						});
-				} else {
-					modelList.changeTarget();
-				}
-			});
 		}
 	}
 	
@@ -616,7 +284,7 @@
 			
 			if(!regExp.test(date)){
 				$this.val("");
-				alert("날짜 입력 형식이 틀립니다. 예:2016.01.01");
+				alert('<spring:message code="msg.project.confirm.wrong.input.date" />');
 			}
 		}
 	}
@@ -642,6 +310,7 @@
 					}
 				});
 			});
+			
 			// 그리드 저장 버튼
 			$("#srcSave, #srcSaveUp").click(function(e){
 				e.preventDefault();
@@ -658,7 +327,7 @@
 			
 			//파일업로드
 			$('#srcCsvFile').uploadFile({
-				url:'/project/csvFile',
+				url:'<c:url value="/project/csvFile"/>',
 				multiple:false,
 				dragDrop:true,
 				fileName:'myfile',
@@ -683,7 +352,15 @@
 								$('.ajax-file-upload-statusbar').fadeOut('slow');
 								$('.ajax-file-upload-statusbar').remove();
 							});
-						} else {
+						} else if(result[2] == "CSV_FILE") {
+							src_fn.getCsvData(result[0][0].registSeq);
+
+							$('#binCsvFileId').val(result[0][0].registFileId);
+							$('.ajax-file-upload-statusbar').fadeOut('slow');
+							$('.ajax-file-upload-statusbar').remove();
+
+							src_fn.makeFileTag(result[0][0]);
+						} else if(result[2] == "EXCEL_FILE") {
 							if(result[1].length != 0){
 								$('.sheetSelectPop').show();
 								$('.sheetSelectPop .sheetNameArea').children().remove();
@@ -703,6 +380,18 @@
 							$('.ajax-file-upload-statusbar').remove();
 							
 							src_fn.makeFileTag(result[0][0]);	
+						} else if(result[2] == "SPDX_SPREADSHEET_FILE"){
+							src_fn.getSpdxSpreadsheetData(result[0][0].registSeq);
+
+							$('#srcCsvFileId').val(result[0][0].registFileId);
+							$('.ajax-file-upload-statusbar').fadeOut('slow');
+							$('.ajax-file-upload-statusbar').remove();
+
+							src_fn.makeFileTag(result[0][0]);
+						} else {
+							alertify.error('<spring:message code="msg.common.valid" />', 0);
+							$('.ajax-file-upload-statusbar').fadeOut('slow');
+							$('.ajax-file-upload-statusbar').remove();
 						}
 					}
 				}
@@ -738,7 +427,8 @@
 				}
 			});
 		}
-	}	
+	};
+	
 	// src 그리드 데이터 전역 변수
 	var srcMainData;
 	var srcSubData;
@@ -750,7 +440,7 @@
 		// src 그리드 데이터
 		getSrcGridData : function(param){
 			$.ajax({
-				url : '/selfCheck/ossGrid/${project.prjId}/10',
+				url : '<c:url value="${suffixUrl}/selfCheck/ossGrid/${project.prjId}/10"/>',
 				dataType : 'json',
 				cache : false,
 				data : (param) ? param : {referenceId : '${project.prjId}'},
@@ -806,7 +496,7 @@
 		// 저장
 		exeSave : function(finalData){
 			$.ajax({
-				url : '/selfCheck/saveSrc',
+				url : '<c:url value="/selfCheck/saveSrc"/>',
 				type : 'POST',
 				data : JSON.stringify(finalData),
 				dataType : 'json',
@@ -824,7 +514,7 @@
 							src_fn.getSrcGridData();
 							src_evt.csvDelFileSeq = [];
 							src_evt.csvFileSeq = [];
-							reloadTabInframe('/selfCheck/list');
+							reloadTabInframe('<c:url value="/selfCheck/list"/>');
 							
 							saveFlag = true;
 							
@@ -839,7 +529,6 @@
 				}
 			});
 		},
-		
 		// 닉네임 팝업 띄우기
 		makeNickNamePopup : function(obj, finalData) {
 			if(obj.validMsg && obj.validMsg.length != 0) {
@@ -856,7 +545,7 @@
 			var postData = {"mainData" : JSON.stringify(mainData), "prjId" : prjId};
 			
 			$.ajax({
-				url : '/project/nickNameValid/10',
+				url : '<c:url value="/project/nickNameValid/10"/>',
 				type : 'POST',
 				data : JSON.stringify(postData),
 				dataType : 'json',
@@ -872,9 +561,9 @@
 		},
 		makeFileTag : function(obj){
 			var appendHtml = '<br>'+obj.createdDate;
-			$('.csvFileArea').append('<li><span><strong><a href="/download/'+obj.registSeq+'/'+obj.fileName+'">'+obj.originalFilename+'</a>'+appendHtml+'<input type="hidden" value="'+obj.registSeq+'"/><input type="button" value="Delete" class="smallDelete" onclick="src_fn.deleteCsv(this, \'1\')"/></strong></span></li>');
+			var _url = '<c:url value="/download/'+obj.registSeq+'/'+obj.fileName+'"/>';
+			$('.csvFileArea').append('<li><span><strong><a href="'+_url+'">'+obj.originalFilename+'</a>'+appendHtml+'<input type="hidden" value="'+obj.registSeq+'"/><input type="button" value="Delete" class="smallDelete" onclick="src_fn.deleteCsv(this, \'1\')"/></strong></span></li>');
 		},
-		
 		deleteCsv : function(obj, type){
 			var Seq = $(obj).prev().val();
 			var object = {fileSeq : Seq};
@@ -887,7 +576,7 @@
 		downloadExcel : function(){
 			$.ajax({
 				type: "POST",
-				url: '/exceldownload/getExcelPost',
+				url: '<c:url value="/exceldownload/getExcelPost"/>',
 				data: JSON.stringify({"type":"selfReport", "parameter":'${project.prjId}'}),
 				dataType : 'json',
 				cache : false,
@@ -908,7 +597,7 @@
 		downloadExcelVuln : function(){
 			$.ajax({
 				type: "POST",
-				url: '/exceldownload/getExcelPost',
+				url: '<c:url value="/exceldownload/getExcelPost"/>',
 				data: JSON.stringify({"type":"selfReportVuln", "parameter":'${project.prjId}'}),
 				dataType : 'json',
 				cache : false,
@@ -943,7 +632,7 @@
 			});
 			
 			if(sheetNum.length == 0) {
-				alert('please select sheet');
+				alert('<spring:message code="msg.common.check.sheet" />');
 				
 				return;
 			} else {
@@ -961,10 +650,40 @@
 				src_fn.exeLoadReportData(finalData);
 			}
 		},
+		getCsvData : function(seq){
+			loading.show();
+			fn_grid_com.totalGridSaveMode('srcList');
+			cleanErrMsg("srcList");
+			var target = $("#srcList");
+
+			// 메인 그리드
+			var mainData = target.jqGrid('getGridParam','data');
+			var sheetNum = ["0"];
+			var finalData = {"readType":"self","prjId" : '${project.prjId}', "sheetNums" : sheetNum , "fileSeq" : ""+seq, "mainData" : JSON.stringify(mainData)};
+			var object = {fileSeq : seq};
+
+			src_evt.csvFileSeq.push(object);
+			src_fn.exeLoadReportData(finalData);
+		},
+		getSpdxSpreadsheetData : function(seq){
+			var sheetNum = ["1", "4"];
+
+			loading.show();
+			fn_grid_com.totalGridSaveMode('srcList');
+			cleanErrMsg("srcList");
+
+			var target = $("#srcList");
+			var mainData = target.jqGrid('getGridParam','data');
+			var finalData = {"readType":"self","prjId" : '${project.prjId}', "sheetNums" : sheetNum , "fileSeq" : ""+seq, "mainData" : JSON.stringify(mainData)};
+			var object = {fileSeq : seq};
+
+			src_evt.csvFileSeq.push(object);
+			src_fn.exeLoadReportData(finalData);
+        },
 		// load report data
 		exeLoadReportData : function(finalData){
 			$.ajax({
-				url : '/project/getSheetData',
+				url : '<c:url value="${suffixUrl}/project/getSheetData"/>',
 				type : 'POST',
 				data : JSON.stringify(finalData),
 				dataType : 'json',
@@ -977,7 +696,7 @@
 						alertify.error('<spring:message code="msg.common.valid2" />', 0);
 						
 						if(data.validMsg) {
-							alertify.alert(data.validMsg);
+							alertify.alert(data.validMsg, function(){});
 						}
 					} else {
 						$('.sheetSelectPop').hide();
@@ -995,9 +714,9 @@
 						src_fn.makeOssList(data.resultData);
 						
 						if(data.validMsg) {
-							alertify.alert(data.validMsg);
+							alertify.alert(data.validMsg, function(){});
 						} else if(data.resultData.systemChangeHisStr && data.resultData.systemChangeHisStr != "") {
-							alertify.alert(data.resultData.systemChangeHisStr);
+							alertify.alert(data.resultData.systemChangeHisStr, function(){});
 						}
 					}
 				},
@@ -1041,7 +760,6 @@
 			// totla record 표시
 			$("#srcList_toppager_right, #srcPager_right").html('<div dir="ltr" style="text-align:right" class="ui-paging-info">Total : '+srcMainData.length+'</div>');
 		},
-		
 		// upload Cancel시 DB삭제
 		cancelFileDel : function(){
 			var FileSeq = [];
@@ -1064,7 +782,7 @@
 			var Data = {"csvDelFileIds" : JSON.stringify(FileSeq)};
 
 			$.ajax({
-				url : '/project/calcelFileDelSrc',
+				url : '<c:url value="/project/calcelFileDelSrc"/>',
 				type : 'POST',
 				data : JSON.stringify(Data),
 				dataType : 'json',
@@ -1086,7 +804,6 @@
 				}
 			});
 		},
-		
 		displayNotify : function(cellvalue, options, rowObject){
 			var display = "";
 			var obligationType = rowObject["obligationType"];
@@ -1098,12 +815,13 @@
 				if(!_obligationMsg || _obligationMsg == "") {
 					_obligationMsg = "unknown obligation";
 				}
-				
-				display = "<div class=\"tcenter\"><a class='iconSet help'>"+_obligationMsg+"</a></div>";
+
+				display= "<span class=\"iconSet help\">Obligation is unclear</span>";
+
 			} else if(obligationType == 10){
 				display="<span class=\"iconSet ops\">Notice</span>";
 			} else if(obligationType == 11) {
-				display="<span class=\"iconSet ops\"></span><span class=\"iconSet man\">Notice & SoruceCode</span>";
+				display="<span class=\"iconSet ops\"></span><span class=\"iconSet man\">Notice & SourceCode</span>";
 			}
 			
 			return display;
@@ -1135,13 +853,13 @@
 	 			_ossVersion = "-";
 		 	}
 		 	
-	 		var _url = "/vulnerability/vulnpopup?ossName="+_ossName+"&ossVersion="+_ossVersion; //+"&isPopup=Y"; // 사용하지 않는 parameter
+	 		var _url = '<c:url value="/vulnerability/vulnpopup?ossName='+_ossName+'&ossVersion='+_ossVersion+'"/>'; //+"&isPopup=Y"; // 사용하지 않는 parameter
 	 		
 			if(_popupVuln == null || _popupVuln.closed){
 				_popupVuln = window.open(_url, "vulnViewPopup_"+_ossName, "width=950, height=600, toolbar=no, location=no, left=100, top=100");
 
 				if(!_popupVuln || _popupVuln.closed || typeof _popupVuln.closed=='undefined') {
-					alertify.alert('<spring:message code="msg.common.window.allowpopup" />');
+					alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
 				}
 			} else {
 				_popupVuln.close();
@@ -1159,15 +877,15 @@
 			var licenseName = target.jqGrid('getCell',rowid,'licenseName');
 			
 			if(_popupLicense == null || _popupLicense.closed){
-				_popupLicense = window.open("/selfCheck/licensepopup?licenseName="+licenseName, "licenseViewPopup_"+licenseName, "width=900, height=700, toolbar=no, location=no, left=100, top=100");
+				_popupLicense = window.open('<c:url value="/selfCheck/licensepopup?licenseName='+licenseName+'"/>', 'licenseViewPopup_'+licenseName, 'width=900, height=700, toolbar=no, location=no, left=100, top=100');
 
 				if(!_popupLicense || _popupLicense.closed || typeof _popupLicense.closed=='undefined') {
-					alertify.alert('<spring:message code="msg.common.window.allowpopup" />');
+					alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
 				}
 			} else {
 				_popupLicense.close();
 				
-				_popupLicense = window.open("/selfCheck/licensepopup?licenseName="+licenseName, "licenseViewPopup_"+licenseName, "width=900, height=700, toolbar=no, location=no, left=100, top=100");
+				_popupLicense = window.open('<c:url value="/selfCheck/licensepopup?licenseName='+licenseName+'"/>', 'licenseViewPopup_'+licenseName, 'width=900, height=700, toolbar=no, location=no, left=100, top=100');
 			}
 		},
 		// 메인 그리드 OSS 등록/상세 페이지 이동
@@ -1186,7 +904,7 @@
 			
 			if(ossName != ""){
 				$.ajax({
-					url : '/oss/checkExistsOssByname',
+					url : '<c:url value="/oss/checkExistsOssByname"/>',
 					type : 'GET',
 					dataType : 'json',
 					cache : false,
@@ -1195,17 +913,17 @@
 					success : function(data){
 						if(data.isValid == 'true') {
 							if(_popup == null || _popup.closed) {
-								_popup = window.open("/oss/osspopup?ossName="+ossName+"&ossVersion="+ossVersion, "ossViewPopup_"+ossName, "width=900, height=700, toolbar=no, location=no, left=100, top=100");
+								_popup = window.open('<c:url value="/oss/osspopup?ossName='+ossName+'&ossVersion='+ossVersion+'"/>', 'ossViewPopup_'+ossName, 'width=900, height=700, toolbar=no, location=no, left=100, top=100');
 
 								if(!_popup || _popup.closed || typeof _popup.closed=='undefined') {
-									alertify.alert('<spring:message code="msg.common.window.allowpopup" />');
+									alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
 								}
 							} else {
 								_popup.close();
-								_popup = window.open("/oss/osspopup?ossName="+ossName+"&ossVersion="+ossVersion, "ossViewPopup_"+ossName, "width=900, height=700, toolbar=no, location=no, left=100, top=100");
+								_popup = window.open('<c:url value="/oss/osspopup?ossName='+ossName+'&ossVersion='+ossVersion+'"/>', 'ossViewPopup_'+ossName, 'width=900, height=700, toolbar=no, location=no, left=100, top=100');
 							}
 						} else {
-							alertify.alert("Unconfirmed open source");
+							alertify.alert('<spring:message code="msg.selfcheck.info.unconfirmed.oss" />', function(){});
 						}
 					},
 					error : function(){
@@ -1227,15 +945,13 @@
 			
 			return display;
 		},
-		
 		popGuide : function(row_id){
 			var _guide = $("#srcList").jqGrid('getCell', row_id, 'licenseUserGuideStr');
 
 			if(_guide) {
-				alertify.alert(_guide);
+				alertify.alert(_guide, function(){});
 			}
 		},
-		
 		displayOssDetail : function(cellvalue, options, rowObject){
 			var display = "";
 			var ossName = rowObject["ossName"];
@@ -1252,7 +968,6 @@
 			
 			return display;
 		},
-		
 		displayLicenseDetail : function(cellvalue, options, rowObject){
 			var display = "";
 			var licenseName = rowObject["licenseName"];
@@ -1305,18 +1020,35 @@
 					_popupCheckOssName.close();
 				}
 				
-				_popupCheckOssName = window.open("/oss/checkOssName?prjId=${project.prjId}&referenceDiv=10&targetName=self", "Check OSS Name", "width=1100, height=550, toolbar=no, location=no, left=100, top=100, resizable=yes, scrollbars=yes");
+				_popupCheckOssName = window.open('<c:url value="/oss/checkOssName?prjId=${project.prjId}&referenceDiv=10&targetName=self"/>', 'Check OSS Name', 'width=1100, height=550, toolbar=no, location=no, left=100, top=100, resizable=yes, scrollbars=yes');
 
 				if(!_popupCheckOssName || _popupCheckOssName.closed || typeof _popupCheckOssName.closed=='undefined') {
-					alertify.alert('<spring:message code="msg.common.window.allowpopup" />');
+					alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
 				}
 			} else {
-				alertify.alert('<spring:message code="msg.project.required.checkOssName" />');
+				alertify.alert('<spring:message code="msg.project.required.checkOssName" />', function(){});
 
 				return false;
 			}
 			
 			
+		},
+		CheckOssLicenseViewPage : function(){
+			if(saveFlag) {
+				if(_popupCheckOssLicense != null){
+					_popupCheckOssLicense.close();
+				}
+				
+				_popupCheckOssName = window.open('<c:url value="/oss/checkOssLicense?prjId=${project.prjId}&referenceDiv=10&targetName=self"/>', 'Check License', 'width=1100, height=550, toolbar=no, location=no, left=100, top=100, resizable=yes, scrollbars=yes');
+
+				if(!_popupCheckOssLicense || _popupCheckOssLicense.closed || typeof _popupCheckOssLicense.closed=='undefined') {
+					alertify.alert('<spring:message code="msg.common.window.allowpopup" />', function(){});
+				}
+			} else {
+				alertify.alert('<spring:message code="msg.project.required.checkOssLicense" />', function(){});
+
+				return false;
+			}
 		},
 		saveAjax : function(){
 			com_fn.exitCell(_mainLastsel, "srcList");
@@ -1331,8 +1063,34 @@
 					return false;
 				}
 			});
-		}
-	}
+		},
+		createNoticeTab : function () {
+            if(saveFlag) {
+                createTabInFrame('Notice', '#<c:url value="/selfCheck/verification/${project.prjId}"/>');
+            } else {
+                alertify.error('<spring:message code="msg.project.required.checkOssName" />', 0);
+                return false;
+            }
+        },
+        uploadOSSByUrl : function() {
+
+            var wgetUrl = $("#sendWgetUrl").val();
+            var flScannerUrl = '${ct:getCodeValues(ct:getConstDef('CD_EXTERNAL_ANALYSIS_SETTING'))[0][3]}';
+            var adminToken = '${ct:getCodeValues(ct:getConstDef('CD_EXTERNAL_ANALYSIS_SETTING'))[1][3]}';
+
+            fetch(flScannerUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'pid='+'${project.prjId}'+'&link='+wgetUrl+'&email='+'${project.prjEmail}'+'&admin='+adminToken,
+            })
+            .finally(() => {
+                alertify.success('<spring:message code="msg.common.success" />');
+            });
+
+        },
+	};
 
 	//SRC 그리드
 	var src_grid = {
@@ -1345,8 +1103,8 @@
 			srcList.jqGrid({
 				datatype: 'local',
 				data : srcMainData,
-				colNames: ['gridId', 'ID', 'ReferenceId', 'ReferenceDiv', 'ComponentIdx', 'OssId', 'OSS Name','OSS Version','License', 'OSS Name Exists', 'License Exists'
-				           ,'LicenseId','Download Location','OSS Detail','License Detail','User<br/>Guide','CVE ID'//,'CVSS_SCORE'
+				colNames: ['gridId', 'ID', 'ReferenceId', 'ReferenceDiv', 'ComponentIdx', 'Binary Name or Source Path', 'OssId', 'OSS Name','OSS Version','License', 'OSS Name Exists', 'License Exists'
+				           ,'LicenseId','Download Location','Copyright Text','OSS Detail','License Detail','User<br/>Guide','CVE ID'//,'CVSS_SCORE'
 				           ,'Vulnera<br/>bility','Obligation','Notify','Source','Restriction','<input type="checkbox" onclick="fn_grid_com.onCboxClickAll(this,\'srcList\');">Exclude','LicenseDiv', 'licenseUserGuideYn', 'licenseUserGuideStr','obligationGrayFlag', 'obligationMsg'],
 				colModel: [
 					{name: 'gridId', index: 'gridId', editable:false, hidden:true, key:true},
@@ -1354,6 +1112,17 @@
 					{name: 'referenceId', index: 'referenceId', width: 29, align: 'center', hidden:true},
 					{name: 'referenceDiv', index: 'referenceDiv', width: 29, align: 'center', hidden:true},
 					{name: 'componentId', index: 'componentId', hidden:true},
+					{name: 'filePath', index: 'filePath', width: 170, align: 'left', editable:false, template: searchStringOptions,
+						editoptions: {
+							dataInit:
+								function (e) { 
+									$(e).on("change", function() {
+										var rowid = (e.id).split('_')[0];
+										fn_grid_com.saveCellData("srcList",rowid,e.name,e.value,srcValidMsgData,srcDiffMsgData);
+									});
+								}
+						}
+					},
 					{name: 'ossId', index: 'ossId', width: 29, align: 'center', editable:true, hidden:true},
 					{name: 'ossName', index: 'ossName', width: 150, align: 'left', editable:false, edittype:'text', template: searchStringOptions, 
 							editoptions: {
@@ -1412,6 +1181,18 @@
 	 				{name: 'licenseName', index: 'licenseName', width: 150, align: 'left', editable:false, edittype:'text', template: searchStringOptions, 
 	 					editoptions: {
 	 						dataInit: function (e) {
+	 								var licenseNameId = $(e).attr("id").split('_')[0];
+									var licenseNameTd = $(e).parent();
+
+									var displayLicenseNameCell = '<div style="width:100%; display:table; table-layout:fixed;">';
+									displayLicenseNameCell += '<div id="'+licenseNameId+'_licenseNameDiv" style="width:60px; display:table-cell; vertical-align:middle;"></div>';
+									displayLicenseNameCell += '<div id="'+licenseNameId+'_licenseNameBtn" style="display:table-cell; vertical-align:middle;"></div>';
+									displayLicenseNameCell += '</div>';
+						
+									$(licenseNameTd).empty();
+									$(licenseNameTd).html(displayLicenseNameCell);
+									$('#'+licenseNameId+'_licenseNameDiv').append(e);
+								
 									// licenseName auto complete
 									$(e).autocomplete({
 										source: licenseNames
@@ -1428,46 +1209,55 @@
 									$(e).on( "autocompletechange", function() {
 										var rowid = (e.id).split('_')[0];
 										var mult = null;
+										var multText = null;
 										
 										for(var i in licenseNames){
 											if("" != e.value && e.value == licenseNames[i].value){
 												var licenseIds = $('#'+rowid+'_licenseId').val();
 
-												mult = "<span class=\"btnMulti\">" + licenseNames[i].value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-
+												mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + licenseNames[i].value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+												multText = licenseNames[i].value;
 												break;
 											}
 										}
 										
 										if(mult == null){
-											mult = "<span class=\"btnMulti\">" + e.value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+											mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + e.value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+											multText = e.value;
 										}
 										
-										$('#'+rowid+'_licenseName').parent().append(mult);
+										var licenseNameBtnText = $('#'+rowid+'_licenseNameBtn').text();
+										if (multText != null && licenseNameBtnText.indexOf(multText) < 0){
+											$('#'+rowid+'_licenseNameBtn').append(mult);
+										}
 										$('#'+rowid+'_licenseName').val("");
-										
 										
 										fn_grid_com.saveCellData("srcList",rowid,e.name,e.value,srcValidMsgData, srcDiffMsgData);
 									}).on("keypress", function(evt){
 										if(evt.keyCode == 13){
 											var rowid = (e.id).split('_')[0];
 											var mult = null;
+											var multText = null;
 											
 											for(var i in licenseNames){
 												if("" != e.value && e.value == licenseNames[i].value){
 													var licenseIds = $('#'+rowid+'_licenseId').val();
 													
-													mult = "<span class=\"btnMulti\">" + licenseNames[i].value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-
+													mult = "<span class=\"btnMulti\"><span ondblclick='com_fn.showLicenseInfo(this)'>" + licenseNames[i].value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span>";
+													multText = licenseNames[i].value;
 													break;
 												}
 											}
 											
 											if(mult == null && "" != e.value){
-												mult = "<span class=\"btnMulti\">" + e.value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+												mult = "<span class=\"btnMulti\"><span ondblclick='com_fn.showLicenseInfo(this)'>" + e.value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span>";
+												multText = e.value;
 											}
 											
-											$('#'+rowid+'_licenseName').parent().append(mult);
+											var licenseNameBtnText = $('#'+rowid+'_licenseNameBtn').text();
+											if (multText != null && licenseNameBtnText.indexOf(multText) < 0){
+												$('#'+rowid+'_licenseNameBtn').append(mult);
+											}
 											$('#'+rowid+'_licenseName').val("");
 											
 											fn_grid_com.saveCellData("srcList",rowid,e.name,e.value,srcValidMsgData,srcDiffMsgData);
@@ -1480,6 +1270,17 @@
 					{name: 'licenseNameExistsYn', index: 'licenseNameExistsYn', hidden:true},
 					{name: 'licenseId', index: 'licenseId', width: 50, align: 'center', editable:true, edittype:'text', hidden:true},
 					{name: 'downloadLocation', index: 'downloadLocation', width: 100, align: 'left', edittype:'text'},
+					{name: 'copyrightText', index: 'copyrightText', width: 150, align: 'left', editable:false, template: searchStringOptions, edittype:"textarea", editoptions:{rows:"5",cols:"24", 
+						dataInit:
+							function (e) { 
+								$(e).on("change", function() {
+									var rowid = (e.id).split('_')[0];
+
+									fn_grid_com.saveCellData("srcList",rowid,e.name,e.value,srcValidMsgData,srcDiffMsgData);
+								});
+							}
+						}
+					},
 					{name: 'ossDetail', index: 'ossDetail', width: 50, align: 'center', formatter:src_fn.displayOssDetail, search : false, //template: searchStringOptions,
 						sorttype: function (cell, rowData) {
 							var rtnVal = rowData.ossNameExistsYn;
@@ -1537,8 +1338,8 @@
 				            return rtnVal;
                         }
 					},
-					{name: 'notify', index: 'notify', width: 40, align: 'center', /* formatter: src_fn.displayNotify, unformat: src_fn.unDisplayNotify *//* , cellattr: function(rowId, tv, rawObject, cm, rdata) {  return ' colspan=2'} */ hidden:true},
-					{name: 'source', index: 'source', width: 40, align: 'center', /* formatter: src_fn.displaySource, unformat: src_fn.unDisplaySource, */ /* cellattr: function(rowId, tv, rawObject, cm, rdata) {  return ' style="display:none;"' } */ hidden:true},
+					{name: 'notify', index: 'notify', width: 40, align: 'center', hidden:true},
+					{name: 'source', index: 'source', width: 40, align: 'center', hidden:true},
 					{name: 'restriction', index: 'restriction', width: 50, align: 'center', formatter: fn_grid_com.displayLicenseRestriction, unformat: fn_grid_com.unformatter, sortable : false, search : false},
 					{name: 'excludeYn', index: 'excludeYn', width: 50, align: 'center', formatter: fn_grid_com.cboxFormatter, unformat: fn_grid_com.cboxUnFormatter, search: false,
 	 					editoptions: {
@@ -1572,6 +1373,7 @@
 				cellEdit : false,
 				cellsubmit : 'clientArray',
 				ignoreCase: true,
+				multiselect: true,
 			    onSortCol: function (index, columnIndex, sortOrder) {
 			    	isSort = true;
 			    },
@@ -1605,6 +1407,9 @@
 							} else if(className.indexOf('ui-subgrid') !== -1){
 								rowIdx++;
 							}
+
+							// checkbox click event
+							$("#"+row.id).find("input[type=checkbox]").removeClass("cbox");
 						}
 						
 						// 한번에 처리
@@ -1630,33 +1435,51 @@
 					}
 				},
 				beforeSelectRow: function(rowid, e) {
+					var $self = $(this), iCol, cm,
+				    $td = $(e.target).closest("tr.jqgrow>td"),
+				    $tr = $td.closest("tr.jqgrow"),
+				    p = $self.jqGrid("getGridParam");
+
+				    if ($(e.target).is("input[type=checkbox]") && $td.length > 0) {
+				       iCol = $.jgrid.getCellIndex($td[0]);
+				       cm = p.colModel[iCol];
+				       if (cm != null && cm.name === "cb") {
+				           // multiselect checkbox is clicked
+				           $self.jqGrid("setSelection", $tr.attr("id"), true ,e);
+				       }
+				    }
+				    
 					// 경고 클래스 설정
 					fn_grid_com.setWarningClass(srcList,rowid,["ossName","licenseName"]);
 					return true;
 				},
-				onCellSelect: function(rowid,iCol,cellcontent,e) {},
+				onCellSelect: function(rowid,iCol,cellcontent,e) {
+					if(iCol=="2") {
+						fn_grid_com.showOssViewPage(srcList, rowid, true, srcValidMsgData, srcDiffMsgData, null, com_fn.getLicenseName);
+					}
+				},
 				ondblClickRow: function(rowid,iRow,iCol,e) {
 					// 체크 박스 영역 제외
-					if(iCol!="22") {
+					if(iCol!="25") {
 						cleanErrMsg("srcList", rowid);
 						fn_grid_com.setCellEdit(srcList, rowid, srcValidMsgData, srcDiffMsgData, null, com_fn.getLicenseName);
+
+						// 서브 그리드 제외
+						ondblClickRowBln = false;
+
+						$('#'+rowid+'_licenseName').addClass('autoCom');
+		 	 			$('#'+rowid+'_licenseName').css({'width' : '100%'});
+						var result = $('#'+rowid+'_licenseName').val().split(",");
+
+						result.forEach(function(cur,idx){
+							if(cur != ""){
+								var mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + cur + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+								$('#'+rowid+'_licenseNameBtn').append(mult);
+							}
+						});
+						
+						$('#'+rowid+'_licenseName').val("");
 					}
-					
-					// 서브 그리드 제외
-					ondblClickRowBln = false;
-
-					$('#'+rowid+'_licenseName').addClass('autoCom');
-	 	 			$('#'+rowid+'_licenseName').css({'width' : '60px'});
-					var result = $('#'+rowid+'_licenseName').val().split(",");
-
-					result.forEach(function(cur,idx){
-						if(cur != ""){
-							var mult = "<span class=\"btnMulti\">" + cur + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-							$('#'+rowid+'_licenseName').parent().append(mult);
-						}
-					});
-					
-					$('#'+rowid+'_licenseName').val("");
 				},
 				onPaging: function(action) {
 					cleanErrMsg("srcList");
@@ -1675,51 +1498,176 @@
 					}
 				}
 			});
+			
 			srcList.jqGrid('filterToolbar',{stringResult: true, searchOnEnter: true, searchOperators: true, defaultSearch: "cn"});
 			srcList.jqGrid('navGrid',"#srcPager",{add:true,edit:false,del:true,search:false,refresh:false
-													  , addfunc: function () { saveFlag = false; fn_grid_com.rowAdd('srcList',srcList,"main", null, com_fn.getLicenseName);}
-													  , delfunc: function () { fn_grid_com.rowDel(srcList,"main");}
+													  , addfunc: function () { saveFlag = false; fn_grid_com.rowAddNew('srcList',srcList,"main", null, com_fn.getLicenseName);}
+													  , delfunc: function () { fn_grid_com.rowDelNew(srcList,"main");}
 													  , cloneToTop:true
 			});
 			
 			$('#srcList').closest(".ui-jqgrid-bdiv").css({"height":"500px", "overflow-y" : "scroll"});
 		}
-	}
+	};
 	
 	var gridTooltip = {
 			typeCodes : [],
 			tooltipCont : "<div class=\"tooltipData500\"><span style=\"color:red;\">Obligation is unclear. Obliagtion이 불명확한 경우입니다.</span>"
-		                   +"<dl><dt><span>non-included license : License is different from registered in FOSSLight System.</span></dt></dl><br>"
-		                   +"<dl><dt><span>unconfirmed oss : It is a new OSS not registered in FOSSLight System.</span></dt></dl><br>"
-		                   +"<dl><dt><span>unconfirmed version : It is the new OSS version that is not registered with FOSSLight System.</span></dt></dl><br>"
-		                   +"<dl><dt><span>unconfirmed license : It is a new license not registered in FOSSLight System.</span></dt></dl>"
+		                   +"<dl><dt><span>non-included license : License is different from registered in FOSSLight Hub.</span></dt></dl><br>"
+		                   +"<dl><dt><span>unconfirmed oss : It is a new OSS not registered in FOSSLight Hub.</span></dt></dl><br>"
+		                   +"<dl><dt><span>unconfirmed version : It is the new OSS version that is not registered with FOSSLight Hub.</span></dt></dl><br>"
+		                   +"<dl><dt><span>unconfirmed license : It is a new license not registered in FOSSLight Hub.</span></dt></dl>"
 		                   +"</div>",
 			existTooltip : false
 	};
 
 	var com_fn = {
-			deleteLicense : function(target){
-				$(target).parent().remove();
-			},
-			getLicenseName : function(obj){
-				return obj.licenseName.replace(/(<([^>]+)>)/ig, ",").split(",").reduce(function(arr, cur){
-				    if(cur.toUpperCase() != "X" && cur != ""){
-				        arr.push(cur);
-				    }
-	
-				    return arr;
-				}, []).join(",");
-			},
-			exitCell : function(_mainLastsel, target){
-				if(_mainLastsel != -1){
-					var grid = $("#" + target);
-					var licenseName = com_fn.getLicenseName(grid.getRowData(_mainLastsel));
+		deleteLicense : function(target){
+			$(target).parent().remove();
+		},
+		deleteLicenseRenewal : function(target){
+			$(target).parent().next().remove();
+			$(target).parent().remove();
+		},
+		getLicenseName : function(obj){
+			return obj.licenseName.replace(/(<([^>]+)>)/ig, ",").split(",").reduce(function(arr, cur){
+			    if(cur.toUpperCase() != "X" && cur != ""){
+			        arr.push(cur);
+			    }
 
-					grid.jqGrid("setCell", _mainLastsel, "licenseName", licenseName);
-					fn_grid_com.saveCellData(grid.attr("id"), _mainLastsel, "licenseName", licenseName, null, null);
-					grid.jqGrid('saveRow',_mainLastsel);
+			    return arr;
+			}, []).join(",");
+		},
+		exitCell : function(_mainLastsel, target){
+			if(_mainLastsel != -1){
+				var grid = $("#" + target);
+				var licenseName = com_fn.getLicenseName(grid.getRowData(_mainLastsel));
+
+				grid.jqGrid("setCell", _mainLastsel, "licenseName", licenseName);
+				fn_grid_com.saveCellData(grid.attr("id"), _mainLastsel, "licenseName", licenseName, null, null);
+				grid.jqGrid('saveRow',_mainLastsel);
+			}
+		},
+		showLicenseInfo : function(obj){
+			var licenseName = $(obj).text();
+
+			$.ajax({
+				url : '<c:url value="/license/getLicenseId"/>',
+				type : 'POST',
+				data : {"licenseName" : licenseName},
+				dataType : 'json',
+				cache : false,
+				success : function(data){
+					var _frameId = data.licenseId + "_License";
+					var _frameTarget = "#<c:url value='/license/edit/" + data.licenseId + "'/>";
+					createTabInFrame(_frameId, _frameTarget);
+				},
+				error : function(){
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				}
+			});
+		},
+		bulkEditOssInfo : function(obj){
+			var editFlag = false;
+			try{
+				var ossArr = [];
+		        var rowId = obj["rowId"];
+		        var target = obj["target"];
+		        var param = $('#'+target).jqGrid('getGridParam','data');
+		        
+		        if(rowId.indexOf(",") > -1){
+		            ossArr = rowId.split(",");
+		            for(var idx in ossArr){
+		                com_fn.bulkEditSetCell(target, ossArr[idx], obj);
+
+		                for (var i=0; i<param.length; i++){
+		                    if(param[i]["gridId"] == ossArr[idx]){
+		                        for(var key in obj){
+		                            if(key != "rowId" && key != "target"){
+		                            	param[i][key] = obj[key];
+		                            }
+		                        }
+		                    }
+		                }
+		            }
+		        }else{
+		            com_fn.bulkEditSetCell(target, rowId, obj);
+
+		            for (var i=0; i<param.length; i++){
+		                if(param[i]["gridId"] == rowId){
+		                    for(var key in obj){
+		                        if(key != "rowId" && key != "target"){
+		                        	param[i][key] = obj[key];
+		                        }
+		                    }
+		                }
+		            }
+		        }
+
+		        $("#"+target).jqGrid('setGridParam', {data:param}).trigger('reloadGrid');
+			}catch(e){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+	    		editFlag = true;
+	    	}finally{
+	    		if(!editFlag){
+		    		alertify.success('<spring:message code="msg.common.success" />');
+	    		}
+	       	}
+	    },
+	    bulkEditSetCell : function (target, rowId, obj){
+	        for(var key in obj){
+	            if(key != "rowId" && key != "target"){
+	            	$('#'+target).jqGrid('setCell', rowId, key, obj[key]);
+	            }
+	        }
+	    },
+	    bulkEditDelRow : function (target, rowId, flag){
+	    	var delFlag = false;
+			try{
+				var selrow = "";
+				var param = $("#"+target).jqGrid('getGridParam', 'data');
+				
+		    	if(rowId.indexOf(",") > -1){
+		    		selrow = rowId.split(",");
+		    		for (var i=0; i<selrow.length; i++){
+		    			$("#"+target).jqGrid('delRowData', selrow[i]);
+		    			param = com_fn.bulkEditDeleteLocalDataAfterDelRow(param, selrow[i]);
+		        	}
+		        }else{
+		        	$("#"+target).jqGrid('delRowData', rowId);
+		        	param = com_fn.bulkEditDeleteLocalDataAfterDelRow(param, rowId);
+		        }
+
+		        if(flag == "main"){
+		        	$("#"+target).jqGrid('GridUnload');
+
+		        	srcMainData = param;
+		        	src_grid.load();
+
+		        	// total record 표시
+					$("#srcList_toppager_right, #srcPager_right").html('<div dir="ltr" style="text-align:right" class="ui-paging-info">Total : '+srcMainData.length+'</div>');
+		        }
+			}catch(e){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+	        	delFlag = true;
+	    	}finally{
+	    		if(!delFlag){
+		    		alertify.success('<spring:message code="msg.common.success" />');
+	    		}
+	       	}
+	    },
+	    bulkEditDeleteLocalDataAfterDelRow : function (dataArray, rowId){
+	    	var reMakeArrObj=[];
+	    	var newIdx = 0;
+
+	    	for(var idx=0; idx < dataArray.length; ++idx) {
+				if(dataArray[idx].gridId != rowId) {
+					reMakeArrObj[newIdx++] = dataArray[idx];
 				}
 			}
-		};
+			
+			return reMakeArrObj;
+	    }
+	};
 //]]>
 </script>

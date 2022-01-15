@@ -6,7 +6,7 @@
 	/*jslint browser: true, nomen: true */
 	var lastsel;
 	var userIdList;
-	var pastEmpList;
+	var adminUserList;
 	var totalRow = 0;
 	var refreshParam = {};
 	const G_ROW_CNT = "${ct:getCodeExpString(ct:getConstDef('CD_EXCEL_DOWNLOAD'), ct:getConstDef('CD_MAX_ROW_COUNT'))}";
@@ -16,8 +16,8 @@
 		setMaxRowCnt(G_ROW_CNT); // maxRowCnt 값 setting
 		evt.init();
 		ajax.getUserIdList("Y", "REVIEWER"); // 근무자
-		ajax.getUserIdList("N", "PASTEMP"); // 퇴사자
-
+		ajax.getUserIdList("N", "ADMIN_USER"); // 관리자(퇴사자 포함)
+		
 		if('${sessUserInfo.authority}' == "ROLE_VIEWER"){
 			$(".btnAdd").hide();
 		}
@@ -25,8 +25,21 @@
 		showHelpLink("3rd-Party_List_Main");
 	});
 	
+	var gridTooltip = {
+	    typeCodes : [],
+		tooltipCont : "<div class=\"tooltipData\">"
+			+"<dl><dt><span class=\"iconSt progress\">Progress</span>Progress</dt></dl><br>"
+			+"<dl><dt><span class=\"iconSt request\">Request</span>Request</dt></dl><br>"
+			+"<dl><dt><span class=\"iconSt review\">Review</span>Review</dt></dl><br>"
+			+"<dl><dt><span class=\"iconSt confirm\">Confirm</span>Confirm</dt></dl><br>"
+			+"</div>",
+		existTooltip : false,
+		init : function(){
+	        list.load();	// Grid Load
+		}
+	};
 	
-	//이벤트
+	//event
 	var evt = {
 		init : function(){
 			refreshParam = $('#3rdSearch').serializeObject();
@@ -80,7 +93,7 @@
 				
 				$.ajax({
 					type: "POST",
-					url: '/exceldownload/getExcelPost',
+					url: '<c:url value="/exceldownload/getExcelPost"/>',
 					data: JSON.stringify({"type":"3rd", "parameter":JSON.stringify(data)}),
 					dataType : 'json',
 					cache : false,
@@ -111,6 +124,24 @@
 			
 			return display;
 		},
+		// Grid vulnerability cell display
+		displayVulnerability : function(cellvalue, options, rowObject){
+			var display = "";
+
+			if(parseInt(cellvalue) >= 9.0 ) {
+				display="<span class=\"iconSet vulCritical\" onclick=\"openNVD('"+ rowObject.cveId +"')\">"+cellvalue+"</span>";
+			} else if(parseInt(cellvalue) >= 7.0 ) {
+				display="<span class=\"iconSet vulHigh\" onclick=\"openNVD('"+ rowObject.cveId +"')\">"+cellvalue+"</span>";
+			} else if(parseInt(cellvalue) >= 4.0) {
+				display="<span class=\"iconSet vulMiddle\" onclick=\"openNVD('"+ rowObject.cveId +"')\">"+cellvalue+"</span>";
+			} else if(parseInt(cellvalue) > 0) {
+				display="<span class=\"iconSet vulLow\" onclick=\"openNVD('"+ rowObject.cveId +"')\">"+cellvalue+"</span>";
+			} else {
+				display="<span style=\"font-size:0;\"></span>";
+			}
+
+			return display;
+		},
 		reviewerChg : function(){
 			var partnerId = (this.id).replace(/[^0-9]/g,'');
 			var reviewer = Object.keys(userIdList)[Object.keys(userIdList)
@@ -121,7 +152,7 @@
 			var data = {"partnerId" : partnerId, "reviewer" : reviewer};
 			
 			$.ajax({
-				url : '/partner/updateReviewer',
+				url : '<c:url value="/partner/updateReviewer"/>',
 				type : 'POST',
 				data : JSON.stringify(data),
 				dataType : 'json',
@@ -138,17 +169,57 @@
 				}
 			})
 		}, getUserName : function(cellvalue, options, rowObject){
-			return userIdList[cellvalue] || pastEmpList[cellvalue] || "";
-		}
+			return adminUserList[cellvalue] || "";
+		},
+		displayStatus: function (cellvalue, options, rowObject) {
+			// 			206 COMF	Confirm
+			// 			206 PROG	Progress
+			// 			206 REQ		Request
+			// 			206 REV		Review
+			var display = "";
+			
+			switch (cellvalue) {
+				case "${ct:getCodeString(ct:getConstDef('CD_IDENTIFICATION_STATUS'), ct:getConstDef('CD_DTL_IDENTIFICATION_STATUS_REQUEST'))}":
+					display = "<span class=\"iconSt request\">Request</span>";
+					break;
+				case "${ct:getCodeString(ct:getConstDef('CD_IDENTIFICATION_STATUS'), ct:getConstDef('CD_DTL_IDENTIFICATION_STATUS_REVIEW'))}":
+					display = "<span class=\"iconSt review\">Review</span>";
+					break;
+				case "${ct:getCodeString(ct:getConstDef('CD_IDENTIFICATION_STATUS'), ct:getConstDef('CD_DTL_IDENTIFICATION_STATUS_CONFIRM'))}":
+					display = "<span class=\"iconSt confirm\">Confirm</span>";
+					break;
+				case "${ct:getCodeString(ct:getConstDef('CD_IDENTIFICATION_STATUS'), ct:getConstDef('CD_DTL_IDENTIFICATION_STATUS_PROGRESS'))}":
+					display = "<span class=\"iconSt progress\">Progress</span>";
+					break;
+			}
+			return display;
+		},
+		displayDeliveryForm: function (cellvalue, options, rowObject) {
+			var display = "";
+
+			switch (cellvalue) {
+				case "${ct:getConstDef('CD_DTL_PARTNER_DELIVERY_FORM_SRC')}":
+					display = "<span class=\"iconDeliveryForm source\">"
+						+ "${ct:getCodeString(ct:getConstDef('CD_PARTNER_DELIVERY_FORM'), ct:getConstDef('CD_DTL_PARTNER_DELIVERY_FORM_SRC'))}"
+						+ "</span>";
+					break;
+				case "${ct:getConstDef('CD_DTL_PARTNER_DELIVERY_FORM_BIN')}":
+					display = "<span class=\"iconDeliveryForm binary\">"
+						+ "${ct:getCodeString(ct:getConstDef('CD_PARTNER_DELIVERY_FORM'), ct:getConstDef('CD_DTL_PARTNER_DELIVERY_FORM_BIN'))}"
+						+ "</span>";
+					break;
+			}
+			return display;
+		},
 	}
 	
 	//http
 	var ajax = {
-		getUserIdList : function(adminYn, type){
+		getUserIdList : function(reviewerFlag, type){
 			return $.ajax({
 				type: 'GET',
-				url: "/project/getUserIdList",
-				data: {adminYn : adminYn},
+				url: '<c:url value="/project/getUserIdList"/>',
+				data: {reviewerFlag : reviewerFlag},
 				success : function(data){
 					temp = data.split(";").reduce(function(obj, cur){
 					    var keys = Object.keys(obj);
@@ -164,10 +235,9 @@
 					if(type == "REVIEWER") {
 						userIdList = temp;
 					} else {
-						pastEmpList = temp;
+						adminUserList = temp;
 						partnerList.load();
 					}
-					
 				}
 			});
 		}
@@ -180,7 +250,7 @@
 			lastIdNo: '',			//서버에서 가져온 마지막 ID
 			load : function(){
 			$('#list').jqGrid({
-				url: '/partner/listAjax',
+				url: '<c:url value="/partner/listAjax"/>',
 				datatype: 'json',
 				jsonReader:{
 					repeatitems: false,
@@ -190,16 +260,18 @@
 					total:function(obj){return obj.total;},
 					records:function(obj){return obj.records;}
 				},
-				colNames: ['ID','3rd Party Name','Software Name','Software<br/>Version', 'Status', 'Delivery Form','Description', 'Division', 'Creator', 'Created Date', 'Updated Date', 'Reviewer', 'Comment', 'fileName'],
+				colNames: ['ID','3rd Party Name','Software Name (Version)','Software<br/>Version', 'Status', 'Delivery<br/>Form','Description', 'Division', 'CVE ID', 'Vulnera<br/>bility', 'Creator', 'Created Date', 'Updated Date', 'Reviewer', 'Comment', 'fileName'],
 				colModel: [
 					{name: 'partnerId', index: 'partnerId', width: 30, align: 'center', key:true, sortable : true},
 					{name: 'partnerName', index: 'partnerName', width: 100, align: 'left', sortable : true},
 					{name: 'softwareName', index: 'softwareName', width: 100, align: 'left', sortable : true},
-					{name: 'softwareVersion', index: 'softwareVersion', width: 40, align: 'left', sortable : true},
-					{name: 'status', index: 'status', width: 50, align: 'center', sortable : true},
-					{name: 'deliveryForm', index: 'deliveryForm', width: 100, align: 'center', sortable : true},
+					{name: 'softwareVersion', index: 'softwareVersion', width: 40, align: 'left', sortable : true, hidden:true},
+					{name: 'status', index: 'status', width: 50, align: 'center', formatter: fn.displayStatus, sortable : true},
+					{name: 'deliveryForm', index: 'deliveryForm', width: 50, align: 'center', formatter: fn.displayDeliveryForm, sortable : true},
 					{name: 'description', index: 'description', width: 100, align: 'left', sortable : true},
 					{name: 'division', index: 'division', width: 100, align: 'left', sortable : true},
+					{name: 'cveId', index: 'cveId', hidden:true},
+					{name: 'cvssScore', index: 'cvssScore', width: 50, align: 'center', formatter:fn.displayVulnerability, unformatter:fn.unformatter, sortable : false, hidden:true},
 					{name: 'creator', index: 'creator', width: 70, align: 'center', sortable : true},
 					{name: 'createdDate', index: 'createdDate', width: 80, align: 'center', formatter:'date', formatoptions: {srcformat: 'Y-m-d H:i:s.t', newformat: 'Y-m-d'}, sortable : true},
 					{name: 'modifiedDate', index: 'modifiedDate', width: 80, align: 'center', formatter:'date', formatoptions: {srcformat: 'Y-m-d H:i:s.t', newformat: 'Y-m-d'}, sortable : true},
@@ -234,7 +306,7 @@
 						}
 						, sortable : true
 					},
-					{name: 'comment', index: 'comment', width: 100, align: 'left', formatter:fn.displayComment, sortable : true},
+					{name: 'comment', index: 'comment', width: 100, align: 'left', formatter:fn.displayComment, sortable : true, hidden:true},
 					{name: 'fileName', index: 'fileName', width: 70, align: 'left', hidden:true}
 				],
 				onSelectRow: function(id){},
@@ -264,49 +336,63 @@
 					totalRow = data.records;
 					data = data.rows;
 
+					var target = $("#list");
+					var arr = target.jqGrid('getDataIDs');
+					var rowid;
+
+					for(var idx in arr) {
+						rowid = arr[idx];
+
+						//prjName prjVersion 데이터 join
+						var swNmVer = data[idx].softwareName;
+
+						if(data[idx].softwareVersion != ""){
+							swNmVer += " (ver "+data[idx].softwareVersion+")";
+						}
+
+						$("#list").jqGrid("setCell",rowid,"softwareName",swNmVer,"");
+					}
+
 					if(totalRow == 0){
 						var startDate = $("#createdDate1").val()||0;
 						var endDate = $("#createdDate2").val()||0;
 						var diffNum = +startDate - +endDate;
 						
 						if(diffNum > 0 && endDate > 0){
-							alertify.alert('<spring:message code="msg.common.search.check.date" />');
+							alertify.alert('<spring:message code="msg.common.search.check.date" />', function(){});
 						}
 					}
 					for(var i=0; i<data.length; i++){
-						// 조건에 따라 cell 색상 변경
 						if(data[i].status){
 							if(data[i].status.indexOf("PROG") != -1){
 								$("#list").jqGrid("setCell", data[i].partnerId, "status", 'Progress');
 							}
 							
 							if(data[i].status.indexOf("REV") != -1){
-								$("#list").jqGrid("setCell", data[i].partnerId, "status", "", {'background-color':'#6d7e9c', 'color':'#fff'});
 								$("#list").jqGrid("setCell", data[i].partnerId, "status", 'Review');
 							}
 							
 							if(data[i].status.indexOf("REQ") != -1){
-								$("#list").jqGrid("setCell", data[i].partnerId, "status", "", {'background-color':'#9da5b8', 'color':'#fff'});
 								$("#list").jqGrid("setCell", data[i].partnerId, "status",'Request');
 							}
 							
 							if(data[i].status.indexOf("CONF") != -1){
-								$("#list").jqGrid("setCell", data[i].partnerId, "status", "", {'background-color':'#384f7b', 'color':'#fff'});
 								$("#list").jqGrid("setCell", data[i].partnerId, "status",'Confirm');
 							}							
 						}
-						
-						if(data[i].deliveryForm){
-							if(data[i].deliveryForm == 'SRC') {
-								$("#list").jqGrid("setCell", data[i].partnerId, "deliveryForm",'source form');
-							} else if(data[i].deliveryForm == 'BIN') {
-								$("#list").jqGrid("setCell", data[i].partnerId, "deliveryForm",'binary form');
+					}
+					if(!gridTooltip.existTooltip){
+						$('<span class="iconSet help right">Help</span>').appendTo($("#jqgh_list_status"))
+							.attr("title", gridTooltip.tooltipCont).tooltip({
+							content: function () {
+								return $(this).prop('title');
 							}
-						}
+						});
+						gridTooltip.existTooltip = true;
 					}
 				},
 				ondblClickRow: function(rowid,iRow,iCol,e) {
-					createTabInFrame(rowid+'_3rdParty', '#/partner/edit/'+rowid);
+					createTabInFrame(rowid+'_3rdParty', '#<c:url value="/partner/edit/'+rowid+'"/>');
 				},
 				postData : refreshParam
 			})

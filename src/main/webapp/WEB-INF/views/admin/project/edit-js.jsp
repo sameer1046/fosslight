@@ -30,7 +30,7 @@
 		
 		$('.btnCommentHistory').on('click', function(e){
 			e.preventDefault();
-			openCommentHistory("prj", "${project.prjId}");
+			openCommentHistory('<c:url value="/comment/popup/prj/${project.prjId}"/>');
 		});
 		
 		// distribution까지 진행되는 경우
@@ -134,37 +134,39 @@
 			})				
 			
 			$('#drop').on('click', function(){
-				if(distributionStatus == "PROC"){
-					var br = "<br>";
-					var comment = "Thank you so much for your patience." + br;
-					comment += "The distribution has already begun and has not yet completed." + br;
-					comment += "It takes a long time to deploy because of the large packaging file size.";
-					
-					alertify.error(comment, 0);
+				var comment = CKEDITOR.instances.editor2.getData();
+				if(comment == ""){
+					alertify.alert('<spring:message code="msg.project.confirm.comment" />', function(){});
+				}else{
+					if(distributionStatus == "PROC"){
+						var comment = '<spring:message code="msg.project.distribution.loading" />';
+						
+						alertify.error(comment, 0);
 
-					return false;
-				} else if(distributionStatus == "RSV"){
-					var dropMessage = "If you drop this project, then distribution will be cancled.";
+						return false;
+					} else if(distributionStatus == "RSV"){
+						var dropMessage = '<spring:message code="msg.project.warn.drop.rsv" />';
 
-					alertify.confirm(dropMessage, function (e) {
-						if (e) {
-							fn.cancelDistributeReserve();
-						} else {
-							return false;
-						}
-					});
-				} else if(distributionStatus == "DONE"){
-					var dropMessage = "If you drop this project, then distribution will be cancled.";
+						alertify.confirm(dropMessage, function (e) {
+							if (e) {
+								fn.cancelDistributeReserve();
+							} else {
+								return false;
+							}
+						});
+					} else if(distributionStatus == "DONE"){
+						var dropMessage = '<spring:message code="msg.project.warn.drop.rsv" />';
 
-					alertify.confirm(dropMessage, function (e) {
-						if (e) {
-							fn.deleteWithOSDD();
-						} else {
-							return false;
-						}
-					});
-				} else {
-					fn.exeProjectDrop();
+						alertify.confirm(dropMessage, function (e) {
+							if (e) {
+								fn.deleteWithOSDD();
+							} else {
+								return false;
+							}
+						});
+					} else {
+						fn.exeProjectDrop();
+					}
 				}
 			});
 			
@@ -202,7 +204,7 @@
 			// 삭제
 			$("#delete").click(function(){
 				if(data.detail.completeYn == 'Y' || data.detail.identificationStatus == "CONF") {
-					alertify.alert("If you want to delete, please  reject  identification first.");
+					alertify.alert('<spring:message code="msg.project.warn.edit.delete" />', function(){});
 
 					return;
 				} else {
@@ -214,7 +216,7 @@
 					
 					alertify.confirm(innerHtml, function () {
 						if(CKEDITOR.instances['editor3'].getData() == ""){
-							alertify.alert('<spring:message code="msg.project.required.comments" />');
+							alertify.alert('<spring:message code="msg.project.required.comments" />', function(){});
 
 							return false;
 						}else{
@@ -270,7 +272,7 @@
 			</c:forEach> 
 			
 			$('#modelFile').uploadFile({
-				url : '/project/modelFile',
+				url : '<c:url value="/project/modelFile"/>',
 				multiple:false,
 				dragDrop:true,
 				fileName:'myfile',
@@ -303,7 +305,7 @@
 
 				if(adId == "") {
 					$("#adId").focus();
-					return alertify.error('Please enter watcher AD ID', 0);
+					return alertify.error('<spring:message code="enter.watcher.error" />', 0);
 				}
 				
 				var _email = adId + "@" + domain;
@@ -312,12 +314,12 @@
 				if (!regEmail.test(_email)) {
 					$("#adId").focus();
 
-					return alertify.error('Invalid email address.', 0);
+					return alertify.error('<spring:message code="invalid.email.error" />', 0);
 				}
 				
 				$.ajax({
 					type: "POST",
-					url: '/system/user/checkEmail', 
+					url: '<c:url value="/system/user/checkEmail"/>', 
 					type : 'GET',
 					dataType : 'json',
 					cache : false,
@@ -348,7 +350,7 @@
 				if(idx != ""){
 					changeTabInFrame(idx);
 				}else{
-					createTabInFrame(prjId+'_Identify', '#/project/identification/'+prjId+'/4');
+					createTabInFrame(prjId+'_Identify', '#<c:url value="/project/identification/'+prjId+'/4"/>');
 				}
 			});
 			
@@ -359,7 +361,7 @@
 				if(idx != ""){
 					changeTabInFrame(idx);
 				}else{
-					createTabInFrame(prjId+'_Packaging', '#/project/verification/'+prjId);
+					createTabInFrame(prjId+'_Packaging', '#<c:url value="/project/verification/'+prjId+'"/>');
 				}
 			});
 			
@@ -370,7 +372,7 @@
 				if(idx != ""){
 					changeTabInFrame(idx);
 				}else{
-					createTabInFrame(prjId+'_Distribute', '#/project/distribution/'+prjId);
+					createTabInFrame(prjId+'_Distribute', '#<c:url value="/project/distribution/'+prjId+'"/>');
 				}
 			});
 			
@@ -381,7 +383,7 @@
 				if(idx != ""){
 					changeTabInFrame(idx);
 				}else{
-					createTabInFrame(prjId+'_Project', '#/project/edit/'+prjId);
+					createTabInFrame(prjId+'_Project', '#<c:url value="/project/edit/'+prjId+'"/>');
 				}
 			});
 			
@@ -397,7 +399,7 @@
 					var param = {prjId : '${project.prjId}', publicYn : ($("[name='publicYn']:checked").val())};
 					
 					$.ajax({
-						url : '/project/updatePublicYn',
+						url : '<c:url value="/project/updatePublicYn"/>',
 						type : 'POST',
 						data : JSON.stringify(param),
 						dataType : 'json',
@@ -423,7 +425,7 @@
 					var param = {};
 					
 					$.ajax({
-						url : '/comment/getCommentInfo/'+commId,
+						url : '<c:url value="/comment/getCommentInfo/'+commId+'"/>',
 						type : 'GET',
 						dataType : 'json',
 						cache : false,
@@ -488,7 +490,7 @@
 			
 			activeDeleteTabInFrame();
 			
-			createTabInFrame(prjId+'copy_Project', '#/project/copy/'+prjId);
+			createTabInFrame(prjId+'copy_Project', '#<c:url value="/project/copy/'+prjId+'"/>');
 		},	
 		// 왓쳐 엘리먼트 그리기
 		addHtml : function(target, str, division, userId){
@@ -511,7 +513,7 @@
 			var data = {"prjId" : $('input[name=prjId]').val() , "prjDivision" : uDiv, "prjUserId":uId, "prjEmail":uEmail};
 			
 			$.ajax({
-				url : '/project/addWatcher',
+				url : '<c:url value="/project/addWatcher"/>',
 				type : 'POST',
 				data : JSON.stringify(data),
 				dataType : 'json',
@@ -540,7 +542,7 @@
 			var data = {"prjId" : $('input[name=prjId]').val() , "prjDivision" : uDiv, "prjUserId":uId, "prjEmail":uEmail};
 
 			$.ajax({
-				url : '/project/removeWatcher',
+				url : '<c:url value="/project/removeWatcher"/>',
 				type : 'POST',
 				data : JSON.stringify(data),
 				dataType : 'json',
@@ -560,7 +562,7 @@
 			obj["prjId"] = prjId;
 			
 			$.ajax({
-				url : '/project/copyWatcher',
+				url : '<c:url value="/project/copyWatcher"/>',
 				type : 'POST',
 				data : JSON.stringify(obj),
 				dataType : 'json',
@@ -638,7 +640,7 @@
 					}
 					
 					if(!copyWatcher.length) {
-						alertify.warning("The ID you entered does not exist.");
+						alertify.warning('<spring:message code="msg.project.required.id" />');
 					}
 				},
 				error : fn.onError
@@ -674,7 +676,7 @@
 				var data = {"prjId" : $('input[name=prjId]').val() , "completeYn" : flag, "userComment":CKEDITOR.instances.editor2.getData()};
 				
 				$.ajax({
-					url : '/project/updateProjectStatus',
+					url : '<c:url value="/project/updateProjectStatus"/>',
 					type : 'POST',
 					data : JSON.stringify(data),
 					dataType : 'json',
@@ -689,7 +691,7 @@
 				var data = {"prjId" : $('input[name=prjId]').val() , "dropYn" : "Y", "userComment":CKEDITOR.instances.editor2.getData()};
 				
 				$.ajax({
-					url : '/project/updateProjectStatus',
+					url : '<c:url value="/project/updateProjectStatus"/>',
 					type : 'POST',
 					data : JSON.stringify(data),
 					dataType : 'json',
@@ -705,7 +707,7 @@
 				params["userComment"] = "";
 
 				$.ajax({
-					url : "/project/distribution/distribute/cancel",
+					url : '<c:url value="/project/distribution/distribute/cancel"/>',
 					type : "POST",
 					dataType: "json",
 					cache : false,
@@ -732,7 +734,7 @@
 				params["userComment"] = "";
 				
 				$.ajax({
-					url : "/project/distribution/distribute/resetWithOSDD",
+					url : '<c:url value="/project/distribution/distribute/resetWithOSDD"/>',
 					type : "POST",
 					dataType: "json",
 					cache : false,
@@ -777,7 +779,7 @@
 			<c:if test="${ct:isAdmin() and not empty project.prjId and 'Y' ne project.copyFlag}">
 				var creator = $("input[name=creator]").val();
 				if(creator == ""){
-					alertify.alert("Creator의 autoComplete을 해 주시기 바랍니다.");
+					alertify.alert('<spring:message code="msg.project.required.autocomplete" />', function(){});
 					
 					return false;
 				}
@@ -786,9 +788,9 @@
 				var URL = '';
 				
 				if(data.copy){
-					URL = '/project/saveAjax?copy=true';
+					URL = '<c:url value="/project/saveAjax?copy=true"/>';
 				} else {
-					URL = '/project/saveAjax?copy=false';
+					URL = '<c:url value="/project/saveAjax?copy=false"/>';
 				}
 				
 				//public 값 넣어주기
@@ -813,7 +815,7 @@
 				$('input[name=userComment]').val(editorVal);
 				
 				$("#projectForm").ajaxForm({
-					url :'/project/delAjax',
+					url :'<c:url value="/project/delAjax"/>',
 					type : 'POST',
 					dataType:"json",
 					cache : false,
@@ -827,7 +829,7 @@
 				$('input[name=prjModelJson]').val(JSON.stringify(rows));
 				
 				$("#projectForm").ajaxForm({
-					url : '/project/saveModelAjax',
+					url : '<c:url value="/project/saveModelAjax"/>',
 					type : 'POST',
 					dataType: "json",
 					cache : false,
@@ -852,18 +854,18 @@
 					
 					if(data.copy) {
 						alertify.alert('<spring:message code="msg.common.success" />', function(){
-							reloadTabInframe('/project/list');
+							reloadTabInframe('<c:url value="/project/list"/>');
 							
-							deleteTabInFrame('#/project/copy/'+data.copy.prjId);
+							deleteTabInFrame('#<c:url value="/project/copy/'+data.copy.prjId+'"/>');
 							
 							activeTabInFrameList("PROJECT");
 						});
 					} else {
 						alertify.alert('<spring:message code="msg.common.success" />', function(){
-							reloadTabInframe('/project/list');
+							reloadTabInframe('<c:url value="/project/list"/>');
 							
 							if(prjId == '') {
-								deleteTabInFrame('#/project/edit');
+								deleteTabInFrame('#<c:url value="/project/edit"/>');
 								activeTabInFrameList("PROJECT");
 							} else {
 								var status = data.detail.destributionStatus;
@@ -874,16 +876,16 @@
 								}
 								
 								if(status == "DONE" && flag == "true") {
-									alertify.confirm('If you want to add models to OSS Distribution site, you have to click "Distribute model only" ', function () {
-											deleteTabInFrame('#/project/edit/'+prjId);
-											createTabInFrame(prjId+'_Distribute', '#/project/distribution/'+prjId);
+									alertify.confirm('<spring:message code="msg.project.required.only" />', function () {
+											deleteTabInFrame('#<c:url value="/project/edit/'+prjId+'"/>');
+											createTabInFrame(prjId+'_Distribute', '#<c:url value="/project/distribution/'+prjId+'"/>');
 										}, function() {
-											deleteTabInFrame('#/project/edit/'+prjId);
+											deleteTabInFrame('#<c:url value="/project/edit/'+prjId+'"/>');
 											activeTabInFrameList("PROJECT");
 										}
 									);
 								} else {
-									deleteTabInFrame('#/project/edit/'+prjId);
+									deleteTabInFrame('#<c:url value="/project/edit/'+prjId+'"/>');
 									activeTabInFrameList("PROJECT");
 								}
 							}
@@ -897,18 +899,18 @@
 				var prjId = $('input[name=prjId]').val();
 				
 				if(json.resCd=='10') {
-					reloadTabInframe('/project/list');
+					reloadTabInframe('<c:url value="/project/list"/>');
 					
 					if(data.copy) {
 						alertify.alert('<spring:message code="msg.common.success" />', function(){
-							deleteTabInFrame('#/project/copy/'+data.copy.prjId);
+							deleteTabInFrame('#<c:url value="/project/copy/'+data.copy.prjId+'"/>');
 						});
 					} else {
 						alertify.alert('<spring:message code="msg.common.success" />', function(){
 							if(prjId){
-								deleteTabInFrame('#/project/edit/'+prjId);
+								deleteTabInFrame('#<c:url value="/project/edit/'+prjId+'"/>');
 							} else {
-								deleteTabInFrame('#/project/edit');
+								deleteTabInFrame('#<c:url value="/project/edit"/>');
 							}
 						});
 					}
@@ -929,7 +931,7 @@
 				}
 				$('#prjUserId').attr('disabled', false);
 				$.ajax({
-					url : '/partner/getUserList',
+					url : '<c:url value="/partner/getUserList"/>',
 					type : 'GET',
 					dataType : 'json',
 					cache : false,
@@ -961,7 +963,7 @@
 				
 				$.ajax({
 					type: "POST",
-					url: '/exceldownload/getExcelPost',
+					url: '<c:url value="/exceldownload/getExcelPost"/>',
 					data: JSON.stringify({"type":"model", "parameter":JSON.stringify(data), "extParam" : $('input[name=distributeTarget]:checked').val()}),
 					dataType : 'json',
 					cache : false,
@@ -998,7 +1000,7 @@
 				var editorVal = CKEDITOR.instances.editor2.getData();
 				
 				if(!editorVal || editorVal == "") {
-					alertify.alert("Please enter a comment");
+					alertify.alert("<spring:message code="msg.project.enter.comment" />", function(){});
 					
 					return false;
 				}
@@ -1006,7 +1008,7 @@
 				var param = {referenceId : '${project.prjId}', referenceDiv :'19', contents : editorVal, mailSendType : type};
 				
 				$.ajax({
-					url : '/project/sendComment',
+					url : '<c:url value="/project/sendComment"/>',
 					type : 'POST',
 					dataType : 'json',
 					cache : false,
@@ -1016,7 +1018,7 @@
 							alertify.error('<spring:message code="msg.common.valid2" />', 0);
 						} else {
 							$('.ajs-close').trigger("click");
-							alertify.success('<spring:message code="msg.common.success" />');
+							alertify.success('<spring:message code="msg.project.sent.comments.success" />');
 							resetEditor(CKEDITOR.instances.editor2);
 							
 							$(".commentBtn open").trigger( "click" );
@@ -1034,7 +1036,7 @@
 				var param = {referenceId : '${project.prjId}', referenceDiv :'09', contents : editorVal};
 				
 				$.ajax({
-					url : '/project/saveComment',
+					url : '<c:url value="/project/saveComment"/>',
 					type : 'POST',
 					dataType : 'json',
 					cache : false,
@@ -1056,7 +1058,7 @@
 			editorDialog : function(){
 				var editorVal = CKEDITOR.instances.editor2.getData();
 				if(!editorVal || editorVal == "") {
-					alertify.alert("Please enter a comment");
+					alertify.alert("<spring:message code="msg.project.enter.comment" />", function(){});
 					
 					return false;
 				}
@@ -1162,16 +1164,14 @@
 					<c:if test="${ct:isAdmin()}">
 						innerHtml    += '	<div class="grid-width-100" style="width:560px;height:40px;">';
 						innerHtml    += 'Creator : ' + info.creatorDivisionName + ' > ' + info.creatorName + '(' + info.creator + ')<br/>';
-						innerHtml    += 'Creator Date : ' + info.createdDate;
+						innerHtml    += 'Created Date : ' + info.createdDate;
 						innerHtml    += '</div>';
 					</c:if>
 					innerHtml    += '	</div>';
 					<c:if test="${ct:isAdmin()}">
 						readOnly = true;
 						height = "150px";
-						innerHtml    += '	<div class="grid-width-100" style="width:560px; height:300px;margin-top:10px;">Are you sure you want to reject?';
 						innerHtml    += '		<div id="editor4" style="width:560px; height:150px;"></div>';
-						innerHtml    += '	</div>';
 					</c:if>
 					innerHtml    += '</div>';
 					if(!alertify.rejectConfirm){
@@ -1205,7 +1205,7 @@
 									<c:if test="${ct:isAdmin()}">
 									if (closeEvent.index == 2) {
 										if(CKEDITOR.instances['editor4'].getData() == "") {
-											alertify.alert('<spring:message code="msg.project.required.comments.reject.ignore" />');
+											alertify.alert('<spring:message code="msg.project.required.comments.reject.ignore" />', function(){});
 
 											closeEvent.cancel = true;
 										} else {
@@ -1232,18 +1232,18 @@
 						
 						if(commentsMode=="insert" || commentsMode=="update") {
 							if(CKEDITOR.instances['editor3'].getData() == ""){
-									alertify.alert('<spring:message code="msg.project.required.comments.reject" />');
+									alertify.alert('<spring:message code="msg.project.required.comments.reject" />', function(){});
 									return false;
 							}
 							
 							if(referenceDiv==undefined) {
-								alertify.alert('<spring:message code="msg.project.required.rejectDiv" />');
+								alertify.alert('<spring:message code="msg.project.required.rejectDiv" />', function(){});
 								return false;
 							}
 						} else if(commentsMode=="reject") {
 							if(referenceDiv==undefined){
 								if(deleteOsdd==undefined){
-									alertify.alert('<spring:message code="msg.project.required.rejectDiv" />');
+									alertify.alert('<spring:message code="msg.project.required.rejectDiv" />', function(){});
 
 									return false;
 								}
@@ -1251,7 +1251,7 @@
 								var hasDistribution = '${not empty project.distributeOsdKey}';
 								if(hasDistribution == "true") {
 									if(deleteOsdd==undefined){
-										alertify.alert('<spring:message code="msg.project.required.rejectDiv" />');
+										alertify.alert('<spring:message code="msg.project.required.rejectDiv" />', function(){});
 
 										return false;
 									}
@@ -1259,7 +1259,7 @@
 							}
 
 							if(CKEDITOR.instances['editor4'].getData() == ""){
-								alertify.alert('Please enter a reason for reject ok.');
+								alertify.alert('<spring:message code="msg.project.required.comments.reject.ok" />', function(){});
 
 								return false;
 							}
@@ -1327,7 +1327,7 @@
 				/* 2018-07-19 choye 추가  */
 				if(data.commentsMode=="insert" || data.commentsMode=="update"){
 					$.ajax({
-						url : '/project/commentsSave',
+						url : '<c:url value="/project/commentsSave"/>',
 						type : 'POST',
 						dataType : 'json',
 						cache : false,
@@ -1337,8 +1337,8 @@
 								alertify.error('<spring:message code="msg.common.valid2" />', 0);
 							} else {
 								alertify.alert('<spring:message code="msg.common.success" />', function(){
-									reloadTabInframe('/project/list');
-									deleteTabInFrame('#/project/edit/'+'${project.prjId}');
+									reloadTabInframe('<c:url value="/project/list"/>');
+									deleteTabInFrame('#<c:url value="/project/edit/${project.prjId}"/>');
 									activeTabInFrameList("PROJECT");
 								});
 							}
@@ -1351,15 +1351,15 @@
 					//identification, packing reject
 					if(data.identificationStatus != null || data.verificationStatus != null) {
 						$.ajax({
-							url : '/project/updateProjectStatus',
+							url : '<c:url value="/project/updateProjectStatus"/>',
 							type : 'POST',
 							data : JSON.stringify(data),
 							dataType : 'json',
 							cache : false,
 							contentType : 'application/json',
 							success: function(data){
-								reloadTabInframe('/project/list');
-								deleteTabInFrame('#/project/edit/'+'${project.prjId}');
+								reloadTabInframe('<c:url value="/project/list"/>');
+								deleteTabInFrame('#<c:url value="/project/edit/${project.prjId}"/>');
 								activeTabInFrameList("PROJECT");
 							},
 							error : function(){
@@ -1368,7 +1368,7 @@
 						});
 					} else {
 						$.ajax({
-							url : '/project/commentsSave',
+							url : '<c:url value="/project/commentsSave"/>',
 							type : 'POST',
 							dataType : 'json',
 							cache : false,
@@ -1378,8 +1378,8 @@
 									alertify.error('<spring:message code="msg.common.valid2" />', 0);
 								} else {
 									alertify.alert('<spring:message code="msg.common.success" />', function(){
-										reloadTabInframe('/project/list');
-										deleteTabInFrame('#/project/edit/'+'${project.prjId}');
+										reloadTabInframe('<c:url value="/project/list"/>');
+										deleteTabInFrame('#<c:url value="/project/edit/${project.prjId}"/>');
 										activeTabInFrameList("PROJECT");
 									});
 								}
@@ -1396,7 +1396,7 @@
 				var data = {"referenceId" : '${project.prjId}', "contents" : CKEDITOR.instances['editor4'].getData()};
 
 				$.ajax({
-					url : '/project/commentsIgnore',
+					url : '<c:url value="/project/commentsIgnore"/>',
 					type : 'POST',
 					dataType : 'json',
 					cache : false,
@@ -1406,8 +1406,8 @@
 							alertify.error('<spring:message code="msg.common.valid2" />', 0);
 						} else {
 							alertify.alert('<spring:message code="msg.common.success" />', function(){
-								reloadTabInframe('/project/list');
-								deleteTabInFrame('#/project/edit/'+'${project.prjId}');
+								reloadTabInframe('<c:url value="/project/list"/>');
+								deleteTabInFrame('#<c:url value="/project/edit/${project.prjId}"/>');
 								activeTabInFrameList("PROJECT");
 							});
 						}
@@ -1448,9 +1448,9 @@
 			},
 			CheckChar : function(){
 				if(event.keyCode == 64){//@ 특수문자 체크
-            		alertify.alert("\'@\' Special characters are not allowed!");
+            				alertify.alert('<spring:message code="msg.login.check.char" />', function(){});
             		
-            		event.returnValue = false;
+            				event.returnValue = false;
             	}
 			}
 		}
@@ -1624,7 +1624,7 @@
 		},
 		getModelGridData : function(param){
 			$.ajax({
-				url:"/project/modellistAjax",
+				url:'<c:url value="/project/modellistAjax"/>',
 				dataType : 'json',
 				cache : false,
 				data : (param) ? param : {prjId : $('input[name=prjId]').val()},
@@ -1798,7 +1798,7 @@
 			
 			if(!regExp.test(date)){
 				$this.val("");
-				alert("날짜 입력 형식이 틀립니다. 예:2016.01.01");
+				alert('<spring:message code="msg.project.confirm.wrong.input.date" />');
 			}
 		}
 	}
@@ -1811,7 +1811,7 @@
 			data: {code:cd},
 			async:false,
 			dataType:'json',
-			url: "/project/getCategoryCodeToJson",
+			url: '<c:url value="/project/getCategoryCodeToJson"/>',
 			success : function(json){
 				if(json != null){
 					var str = '';

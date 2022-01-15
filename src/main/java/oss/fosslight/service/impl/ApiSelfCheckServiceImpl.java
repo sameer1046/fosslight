@@ -33,15 +33,15 @@ public class ApiSelfCheckServiceImpl implements ApiSelfCheckService {
 		
 		apiSelfcheckMapper.createSelfCheck(paramMap);
 		
-		BigInteger prjId = (BigInteger) paramMap.get("prjId");
+		Long prjId = (Long) paramMap.get("prjId");
 		result.put("prjId", prjId.toString());
 		
 		return result;
 	}
 	
 	@Override
-	public boolean existProjectCnt(String userId, String prjId) {
-		int records = apiSelfcheckMapper.selectProjectCount(userId, prjId);
+	public boolean existProjectCnt(Map<String, Object> paramMap) {
+		int records = apiSelfcheckMapper.selectProjectCount(paramMap);
 		
 		return records == 1 ? true : false;
 	}

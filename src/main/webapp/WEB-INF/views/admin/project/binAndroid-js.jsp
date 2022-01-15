@@ -34,7 +34,7 @@ var binAndroid_evt = {
 	init: function(){
 		$("#binAndroidList").jqGrid('GridUnload');
 
-		doNotUseAutoLoadingFlag = "Y"; // loading 이 표시되지 않는 현상이 발생하여, 수동으로 loading 조작
+		doNotUseAutoLoadingFlag = "Y"; // loading is not displayed, so loading operation manually occurs.
 
 		loading.show();
 		binAndroid_grid.load();
@@ -49,7 +49,7 @@ var binAndroid_evt = {
 			$('.binAndroidBtn').hide();
 		}
 		
-		// 그리드 리셋 버튼
+		// Grid reset button
 		$("#binAndroidReset, #binAndroidResetUp").click(function(e){
  			e.preventDefault();
  			
@@ -65,20 +65,24 @@ var binAndroid_evt = {
 		});
 		// 그리드 저장 버튼
 		$("#binAndroidSave, #binAndroidSaveUp").click(function(e){
-			e.preventDefault();
+			if (com_fn.checkStatus()){
+				e.preventDefault();
 
-			com_fn.exitCell(_mainLastsel, "binAndroidList");
-			
-			alertify.confirm('<spring:message code="msg.common.confirm.save" />', function (e) {
-				if (e) {
-					// 메인, 서브 그리드 세이브 모드
-					fn_grid_com.totalGridSaveMode('binAndroidList');
-					// 닉네임 체크
-					binAndroid_fn.saveMakeData();
-				} else {
-					return false;
-				}
-			});
+				com_fn.exitCell(_mainLastsel, "binAndroidList");
+				
+				alertify.confirm('<spring:message code="msg.common.confirm.save" />', function (e) {
+					if (e) {
+						// 메인, 서브 그리드 세이브 모드
+						fn_grid_com.totalGridSaveMode('binAndroidList');
+						// 닉네임 체크
+						binAndroid_fn.saveMakeData();
+					} else {
+						return false;
+					}
+				});
+			}else {
+				alertify.alert('<spring:message code="msg.project.warn.project.status" />', function(){});
+			}
 		});
 		// 프로젝트 조회 버튼
 		$('#binAndroidProjectSearchBtn').click(function(e){
@@ -106,7 +110,7 @@ var binAndroid_evt = {
 		</c:forEach>
 		
 		$('#androidCsvFile').uploadFile({
-			url:'/project/androidFile?fileType=csv',
+			url:'<c:url value="/project/androidFile?fileType=csv"/>',
 			multiple:false,
 			dragDrop:true,
 			fileName:"myfile",
@@ -171,7 +175,7 @@ var binAndroid_evt = {
 		</c:forEach>
 		
 		$('#androidNoticeFile').uploadFile({
-			url:'/project/androidFile?fileType=notice',
+			url:'<c:url value="/project/androidFile?fileType=notice"/>',
 			multiple:false,
 			dragDrop:true,
 			allowedTypes:accept3,
@@ -238,7 +242,7 @@ var binAndroid_evt = {
 		</c:forEach>
 		
 		$('#androidResultFile').uploadFile({
-			url:'/project/androidFile?fileType=result',
+			url:'<c:url value="/project/androidFile?fileType=result"/>',
 			multiple:false,
 			dragDrop:true,
 			allowedTypes:accept4,
@@ -316,7 +320,7 @@ var binAndroid_fn = {
 	// src 그리드 데이터
 	getBinAndroidGridData : function(param){
 		$.ajax({
-			url : '/project/identificationGrid/${project.prjId}/14',
+			url : '<c:url value="/project/identificationGrid/${project.prjId}/14"/>',
 			dataType : 'json',
 			cache : false,
 			data : (param) ? param : {referenceId : '${project.prjId}'},
@@ -374,12 +378,12 @@ var binAndroid_fn = {
 		var loadFromAndroidProjectFlag = "N";
 		
 		if(androidNoticeFileId == ""){
-			alertify.alert('NOTICE.html을 업로드 해주세요!');
+			alertify.alert('<spring:message code="msg.project.required.upload" />', function(){});
 			
 			return;
 		}
 		
-		// 다른 프로젝트에서 load한 경우, notice file과 result 파일을 프로젝트 load시 업로드한 파일로 대체한다.
+		// When loaded in another project, the notice file and the result file are replaced with the uploaded file when loading the project.
 		if(globalBinAndroidNoticeFileId != "") {
 			androidNoticeFileId = globalBinAndroidNoticeFileId;
 			androidResultFileId = globalBinAndroidResultFileId;
@@ -401,7 +405,7 @@ var binAndroid_fn = {
 	// 저장
 	exeSave : function(finalData){
 		$.ajax({
-			url : '/project/saveBinAndroid',
+			url : '<c:url value="/project/saveBinAndroid"/>',
 			type : 'POST',
 			data : JSON.stringify(finalData),
 			dataType : 'json',
@@ -422,14 +426,15 @@ var binAndroid_fn = {
 						com_fn.saveFlagObject["ANDROID"] = true;
 						
 						alertify.success('<spring:message code="msg.common.success" />');
+
+						curIdenStatus = data.resultData||"";
+						if(curIdenStatus == "PROG"){
+							$(".projdecBtn").show();
+							com_fn.btnCtl(userRole, curIdenStatus);
+						}
 					} else {
 						alertify.error('<spring:message code="msg.common.valid2" />', 0);
 					}
-				}
-				if(curIdenStatus == ""){
-					curIdenStatus = "PROG";
-					$(".projdecBtn").show();
-					com_fn.btnCtl(userRole, curIdenStatus);
 				}
 			},
 			error: function(data){
@@ -457,7 +462,7 @@ var binAndroid_fn = {
 	// 프로젝트 검색
 	setParamProject1 : function(){
 		return {
-			url: '/project/identificationProject/14',
+			url: '<c:url value="/project/identificationProject/14"/>',
 			datatype: 'json',
 			jsonReader:{
 				repeatitems: false,
@@ -591,7 +596,7 @@ var binAndroid_fn = {
 		var postData = {"mainData" : JSON.stringify(mainData), "prjId" : prjId};
 		
 		$.ajax({
-			url : '/project/nickNameValid/14',
+			url : '<c:url value="/project/nickNameValid/14"/>',
 			type : 'POST',
 			data : JSON.stringify(postData),
 			dataType : 'json',
@@ -725,7 +730,7 @@ var binAndroid_fn = {
 	downloadExcel : function(){
 		$.ajax({
 			type: "POST",
-			url: '/exceldownload/getExcelPost',
+			url: '<c:url value="/exceldownload/getExcelPost"/>',
 			data: JSON.stringify({"type":"binAndroid", "parameter":'${project.prjId}'}),
 			dataType : 'json',
 			cache : false,
@@ -758,7 +763,7 @@ var binAndroid_fn = {
 		});
 		
 		if(sheetNum.length == 0) {
-			alert('please select sheet');
+			alert('<spring:message code="msg.common.check.sheet" />');
 			return;
 		} else {
 			loading.show();
@@ -803,7 +808,7 @@ var binAndroid_fn = {
 	// load report data
 	exeLoadReportData : function(finalData) {
 		$.ajax({
-			url : '/project/getSheetData',
+			url : '<c:url value="${suffixUrl}/project/getSheetData"/>',
 			type : 'POST',
 			data : JSON.stringify(finalData),
 			dataType : 'json',
@@ -814,7 +819,7 @@ var binAndroid_fn = {
 
 				if("false" == data.isValid) {
 					if(data.validMsg) {
-						alertify.alert(data.validMsg);
+						alertify.alert(data.validMsg, function(){});
 					} else {
 						alertify.error('<spring:message code="msg.common.valid" />', 0);
 					}
@@ -823,7 +828,7 @@ var binAndroid_fn = {
 					binAndroid_fn.makeOssList(data.resultData);
 					
 					if(data.validMsg) {
-						alertify.alert(data.validMsg);
+						alertify.alert(data.validMsg, function(){});
 					}
 				}
 			},
@@ -837,7 +842,7 @@ var binAndroid_fn = {
 	// load report data
 	exeLoadBuildImageReportData : function(finalData){
 		$.ajax({
-			url : '/project/androidApply',
+			url : '<c:url value="${suffixUrl}/project/androidApply"/>',
 			type : 'POST',
 			data : JSON.stringify(finalData),
 			dataType : 'json',
@@ -848,7 +853,7 @@ var binAndroid_fn = {
 				
 				if("false" == data.isValid) {
 					if(data.validMsg) {
-						alertify.alert(data.validMsg);
+						alertify.alert(data.validMsg, function(){});
 					} else {
 						alertify.error('<spring:message code="msg.common.valid2" />', 0);
 					}
@@ -873,12 +878,12 @@ var binAndroid_fn = {
 					if(data.validMsg) {
 						alertify.alert(data.validMsg, function(){
 							if(data.resultData.changehisLicenseName && data.resultData.changehisLicenseName != "") {
-								alertify.alert(data.resultData.changehisLicenseName);
+								alertify.alert(data.resultData.changehisLicenseName, function(){});
 							}
 						});
 					} else {
 						if(data.resultData.changehisLicenseName && data.resultData.changehisLicenseName != "") {
-							alertify.alert(data.resultData.changehisLicenseName);
+							alertify.alert(data.resultData.changehisLicenseName, function(){});
 						}
 					}
 				}
@@ -910,13 +915,13 @@ var binAndroid_fn = {
 		var srcAndroidResultFileId 	= $('#srcAndroidResultFileId').val();
 
 		if(srcAndroidCsvFileId == "") {
-			alertify.alert('<spring:message code="msg.project.android.bulidimagefile.required" />');
+			alertify.alert('<spring:message code="msg.project.android.bulidimagefile.required" />', function(){});
 
 			return false;
 		}
 		
 		if(srcAndroidNoticeFileId == "") {
-			alertify.alert('<spring:message code="msg.project.android.noticefile.required" />');
+			alertify.alert('<spring:message code="msg.project.android.noticefile.required" />', function(){});
 
 			return false;
 		}
@@ -929,7 +934,7 @@ var binAndroid_fn = {
 		}
 		
 		$.ajax({
-			url : '/project/androidSheetName',
+			url : '<c:url value="/project/androidSheetName"/>',
 			type : 'POST',
 			data : JSON.stringify(applyData),
 			dataType : 'json',
@@ -970,7 +975,7 @@ var binAndroid_fn = {
 	//file Info 가져오기
 	getFileInfo : function(param){
 		$.ajax({
-			url : '/project/getFileInfo',
+			url : '<c:url value="/project/getFileInfo"/>',
 			dataType : 'json',
 			cache : false,
 			data : param,
@@ -983,9 +988,11 @@ var binAndroid_fn = {
 						var csvFileId = fileData.androidCsvFile;
 						var noticeFileId = fileData.androidNoticeFile;
 						var resultFileId = fileData.androidResultFile;
+						var _url ="";
 						
 						if(csvFileId.length > 0){
-							$('.androidCsvFileArea').html('<li><span><strong><a href="/download/'+csvFileId[0].fileSeq+'/'+csvFileId[0].logiNm+'">'+csvFileId[0].origNm+'</a></strong><input type="hidden" value="'+csvFileId[0].fileSeq+'"/><input type="button" value="Delete" class="smallDelete" onclick="binAndroid_fn.deleteCsv(this, \'2\')"/></span></li>');
+							_url = '<c:url value="/download/'+csvFileId[0].fileSeq+'/'+csvFileId[0].logiNm+'"/>';
+							$('.androidCsvFileArea').html('<li><span><strong><a href="'+_url+'">'+csvFileId[0].origNm+'</a></strong><input type="hidden" value="'+csvFileId[0].fileSeq+'"/><input type="button" value="Delete" class="smallDelete" onclick="binAndroid_fn.deleteCsv(this, \'2\')"/></span></li>');
 
 							if($('.androidCsvFileArea').find('li').length == 0){
 								$('#androidCsvFile').show();
@@ -997,7 +1004,8 @@ var binAndroid_fn = {
 						}
 						
 						if(noticeFileId.length > 0){
-							$('.androidNoticeFileArea').html('<li><span><strong><a href="/download/'+noticeFileId[0].fileSeq+'/'+noticeFileId[0].logiNm+'">'+noticeFileId[0].origNm+'</a></strong><input type="hidden" value="'+noticeFileId[0].fileSeq+'"/><input type="button" value="Delete" class="smallDelete" onclick="binAndroid_fn.deleteCsv(this, \'5\')"/></span></li>');
+							_url = '<c:url value="/download/'+noticeFileId[0].fileSeq+'/'+noticeFileId[0].logiNm+'"/>';
+							$('.androidNoticeFileArea').html('<li><span><strong><a href="'+_url+'">'+noticeFileId[0].origNm+'</a></strong><input type="hidden" value="'+noticeFileId[0].fileSeq+'"/><input type="button" value="Delete" class="smallDelete" onclick="binAndroid_fn.deleteCsv(this, \'5\')"/></span></li>');
 
 							if($('.androidNoticeFileArea').find('li').length == 0){
 								$('#androidNoticeFile').show();
@@ -1009,7 +1017,8 @@ var binAndroid_fn = {
 						}
 						
 						if(resultFileId.length > 0){
-							$('.androidResultFileArea').html('<li><span><strong><a href="/download/'+resultFileId[0].fileSeq+'/'+resultFileId[0].logiNm+'">'+resultFileId[0].origNm+'</a></strong><input type="hidden" value="'+resultFileId[0].fileSeq+'"/><input type="button" value="Delete" class="smallDelete" onclick="binAndroid_fn.deleteCsv(this, \'6\')"/></span></li>');
+							_url = '<c:url value="/download/'+resultFileId[0].fileSeq+'/'+resultFileId[0].logiNm+'"/>';
+							$('.androidResultFileArea').html('<li><span><strong><a href="'+_url+'">'+resultFileId[0].origNm+'</a></strong><input type="hidden" value="'+resultFileId[0].fileSeq+'"/><input type="button" value="Delete" class="smallDelete" onclick="binAndroid_fn.deleteCsv(this, \'6\')"/></span></li>');
 
 							if($('.androidResultFileArea').find('li').length == 0){
 								$('#androidResultFile').show();
@@ -1034,7 +1043,7 @@ var binAndroid_fn = {
 		postData.referenceId = id;
 		
         $.ajax({
-            url : '/project/identificationProjectSearch/14',
+        	url : '<c:url value="/project/identificationProjectSearch/14"/>',
             type : 'GET',
             dataType : 'json',
             data : postData,
@@ -1116,7 +1125,7 @@ var binAndroid_fn = {
     	var ValidCnt = Object.keys(binAndroidValidMsgData).reduce(binAndroid_fn.checkErrorData, []).length;
 
 		if(ValidCnt > 0){
-			alertify.alert("You can download NOTICE only if there is no warning message in OSS Name, OSS Version, License or Binary Name is not null.");
+			alertify.alert("<spring:message code='msg.project.download.notice'>", function(){});
 
 			return false;	
 		}
@@ -1124,7 +1133,7 @@ var binAndroid_fn = {
     	var DiffCnt = Object.keys(binAndroidDiffMsgData).reduce(binAndroid_fn.checkErrorData, []).length;
 
         if(DiffCnt > 0){
-        	alertify.alert("You can download NOTICE only if there is no warning message in OSS Name, OSS Version, License or Binary Name is not null.");
+        	alertify.alert("<spring:message code='msg.project.download.notice' />", function(){});
 
 			return false;
         }
@@ -1132,7 +1141,7 @@ var binAndroid_fn = {
         var notExcludeRow = $("#binAndroidList").getRowData().filter(function(a){ return a.excludeYn == "N"; }).length;
 
         if(notExcludeRow == 0){ // excludeYn이 N인 대상이 0 건일 경우(전체 Data가 excludeYn:Y 이거나 binAndroid의 Data가 0건 인 경우)
-        	alertify.alert("There is no binary that meets the conditions for creating NOTICE.");
+        	alertify.alert("<spring:message code='msg.project.no.binary' />", function(){});
 
 			return false;
         }
@@ -1146,7 +1155,7 @@ var binAndroid_fn = {
         }, []).length;
 
         if(noticeCheckRow == 0){ //  "NOTICE Should be "ok" in case OSS is used" 인 대상이 0건 일 경우
-        	alertify.alert("There is no binary that meets the conditions for creating NOTICE.");
+			alertify.alert("<spring:message code='msg.project.no.binary' />", function(){});
 
 			return false;
         }
@@ -1167,7 +1176,7 @@ var binAndroid_fn = {
         var param = {referenceId : '${project.prjId}', zipFlag : type.toUpperCase()};
         
 		$.ajax({
-			url : '/project/getSupplementNoticeFile',
+			url : '<c:url value="/project/getSupplementNoticeFile"/>',
 			type : 'POST',
 			dataType : 'json',
 			cache : false,
@@ -1178,7 +1187,7 @@ var binAndroid_fn = {
 					$(".ajs-close").trigger("click"); // dialog popup close
 					$(".ajs-dialog").css("height", ""); // height rollback
 
-					alertify.alert(data.validMsg);
+					alertify.alert(data.validMsg, function(){});
 				} else {
 					$(".ajs-close").trigger("click"); // dialog popup close
 
@@ -1294,6 +1303,18 @@ var binAndroid_grid = {
  				{name: 'licenseName', index: 'licenseName', width: 150, align: 'left', editable:false, edittype:'text', template: searchStringOptions, 
  					editoptions: {
  						dataInit: function (e) {
+ 								var licenseNameId = $(e).attr("id").split('_')[0];
+								var licenseNameTd = $(e).parent();
+
+								var displayLicenseNameCell = '<div style="width:100%; display:table; table-layout:fixed;">';
+								displayLicenseNameCell += '<div id="'+licenseNameId+'_licenseNameDiv" style="width:60px; display:table-cell; vertical-align:middle;"></div>';
+								displayLicenseNameCell += '<div id="'+licenseNameId+'_licenseNameBtn" style="display:table-cell; vertical-align:middle;"></div>';
+								displayLicenseNameCell += '</div>';
+					
+								$(licenseNameTd).empty();
+								$(licenseNameTd).html(displayLicenseNameCell);
+								$('#'+licenseNameId+'_licenseNameDiv').append(e);
+ 	 						
 								// licenseName auto complete
 								$(e).autocomplete({
 									source: licenseNames
@@ -1310,19 +1331,26 @@ var binAndroid_grid = {
 								$(e).on( "autocompletechange", function() {
 									var rowid = (e.id).split('_')[0];
 									var mult = null;
+									var multText = null;
 									
 									for(var i in licenseNames){
 										if("" != e.value && e.value == licenseNames[i].value){
 											var licenseIds = $('#'+rowid+'_licenseId').val();
-											mult = "<span class=\"btnMulti\">" + licenseNames[i].value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+											mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + licenseNames[i].value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+											multText = licenseNames[i].value;
+											break;
 										}
 									}
 
 									if(mult == null){
-										mult = "<span class=\"btnMulti\">" + e.value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+										mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + e.value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+										multText = e.value;
 									}
 									
-									$('#'+rowid+'_licenseName').parent().append(mult);
+									var licenseNameBtnText = $('#'+rowid+'_licenseNameBtn').text();
+									if (multText != null && licenseNameBtnText.indexOf(multText) < 0){
+										$('#'+rowid+'_licenseNameBtn').append(mult);
+									}
 									$('#'+rowid+'_licenseName').val("");
 									
 									fn_grid_com.saveCellData("binAndroidList",rowid,e.name,e.value,binAndroidValidMsgData, binAndroidDiffMsgData, binAndroidInfoMsgData);
@@ -1330,21 +1358,26 @@ var binAndroid_grid = {
 									if(evt.keyCode == 13){
 										var rowid = (e.id).split('_')[0];
 										var mult = null;
+										var multText = null;
 										
 										for(var i in licenseNames){
 											if("" != e.value && e.value == licenseNames[i].value){
 												var licenseIds = $('#'+rowid+'_licenseId').val();
-												mult = "<span class=\"btnMulti\">" + licenseNames[i].value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-
+												mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + licenseNames[i].value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+												multText = licenseNames[i].value;
 												break;
 											}
 										}
 										
 										if(mult == null && "" != e.value){
-											mult = "<span class=\"btnMulti\">" + e.value + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
+											mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + e.value + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+											multText = e.value;
 										}
 										
-										$('#'+rowid+'_licenseName').parent().append(mult);
+										var licenseNameBtnText = $('#'+rowid+'_licenseNameBtn').text();
+										if (multText != null && licenseNameBtnText.indexOf(multText) < 0){
+											$('#'+rowid+'_licenseNameBtn').append(mult);
+										}
 										$('#'+rowid+'_licenseName').val("");
 										
 										fn_grid_com.saveCellData("srcList",rowid,e.name,e.value,srcValidMsgData,srcDiffMsgData);
@@ -1446,6 +1479,7 @@ var binAndroid_grid = {
 			recordpos:'right',
 			loadonce:true,
 			ignoreCase: true,
+			multiselect: true,
 			hoverrows:false,
 			toppager:true,
 			loadComplete: function(data) {
@@ -1478,6 +1512,9 @@ var binAndroid_grid = {
 						} else if(className.indexOf('ui-subgrid') !== -1){
 							rowIdx++;
 						}
+
+						// checkbox click event
+						$("#"+row.id).find("input[type=checkbox]").removeClass("cbox");
 					}
 					
 					// 한번에 처리
@@ -1488,19 +1525,33 @@ var binAndroid_grid = {
 
 			},
 			beforeSelectRow: function(rowid, e) {
-				// 경고 클래스 설정
-				fn_grid_com.setWarningClass(binAndroidList,rowid,["ossName","licenseName"]);
-				return true;
+				var $self = $(this), iCol, cm,
+			    $td = $(e.target).closest("tr.jqgrow>td"),
+			    $tr = $td.closest("tr.jqgrow"),
+			    p = $self.jqGrid("getGridParam");
+
+			    if ($(e.target).is("input[type=checkbox]") && $td.length > 0) {
+			       iCol = $.jgrid.getCellIndex($td[0]);
+			       cm = p.colModel[iCol];
+			       if (cm != null && cm.name === "cb") {
+			           // multiselect checkbox is clicked
+			           $self.jqGrid("setSelection", $tr.attr("id"), true ,e);
+			       }
+			    }
+
+			 	// 경고 클래스 설정
+			    fn_grid_com.setWarningClass(binAndroidList,rowid,["ossName","licenseName"]);
+//			    return true;
 			},
 			onCellSelect: function(rowid,iCol,cellcontent,e) {
-				if(iCol=="2") {
+				if(iCol=="3") {
 					com_fn.exitCell(_mainLastsel, "binAndroidList");
 					
 					fn_grid_com.showOssViewPage(binAndroidList, rowid, true, binAndroidValidMsgData, binAndroidDiffMsgData, binAndroidInfoMsgData, com_fn.getLicenseName);
 				}
 			},
 			ondblClickRow: function(rowid,iRow,iCol,e) {
-				if(iCol=="3"){
+				if(iCol=="4"){
 					com_fn.exitCell(_mainLastsel, "binAndroidList");
 					
 					fn_grid_com.showBinaryViewPage(binAndroidList, rowid, true, binAndroidValidMsgData, binAndroidDiffMsgData, binAndroidInfoMsgData);
@@ -1513,13 +1564,13 @@ var binAndroid_grid = {
 				ondblClickRowBln = false;
 				
 				$('#'+rowid+'_licenseName').addClass('autoCom');
- 	 			$('#'+rowid+'_licenseName').css({'width' : '60px'});
+ 	 			$('#'+rowid+'_licenseName').css({'width' : '100%'});
 				var result = $('#'+rowid+'_licenseName').val().split(",");
 
 				result.forEach(function(cur,idx){
 					if(cur != ""){
-						var mult = "<span class=\"btnMulti\">" + cur + "<button onclick='com_fn.deleteLicense(this)'>x</button></span>";
-						$('#'+rowid+'_licenseName').parent().append(mult);
+						var mult = "<span class=\"btnMulti\" style='margin-bottom:2px;'><span ondblclick='com_fn.showLicenseInfo(this)'>" + cur + "</span><button onclick='com_fn.deleteLicenseRenewal(this)'>x</button></span><br/>";
+						$('#'+rowid+'_licenseNameBtn').append(mult);
 					}
 				});
 				
@@ -1551,9 +1602,9 @@ var binAndroid_grid = {
 		binAndroidList.jqGrid('navGrid',"#binAndroidPager",{add:true,edit:false,del:true,search:false,refresh:false
 												  , addfunc: function () {
 													  com_fn.saveFlagObject["ANDROID"] = false; 
-													  fn_grid_com.rowAdd('binAndroidList',binAndroidList,"main", null, com_fn.getLicenseName);
+													  fn_grid_com.rowAddNew('binAndroidList',binAndroidList,"main", null, com_fn.getLicenseName);
 												  }, delfunc: function () { 
-													  fn_grid_com.rowDel(binAndroidList,"main");
+													  fn_grid_com.rowDelNew(binAndroidList,"main");
 												  }, cloneToTop:true
 		});
 		
@@ -1584,7 +1635,7 @@ function initAndroidDummyFileUpload() {
 	</c:forEach>
 	
 	$('#androidNoticeFileDummy').uploadFile({
-		url:'/project/androidFile?fileType=notice',
+		url:'<c:url value="/project/androidFile?fileType=notice"/>',
 		multiple:false,
 		dragDrop:true,
 		allowedTypes:accept3,
@@ -1619,7 +1670,7 @@ function initAndroidDummyFileUpload() {
 	});
 
 	$('#androidResultFileDummy').uploadFile({
-		url:'/project/androidFile?fileType=result',
+		url:'<c:url value="/project/androidFile?fileType=result"/>',
 		multiple:false,
 		dragDrop:true,
 		allowedTypes:accept4,

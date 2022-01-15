@@ -97,6 +97,7 @@ input.cal:focus {background:#fff8ea url("../images/bg_cal.png") no-repeat right 
 .multiItemSet span .smallDelete {position:absolute;right:7px;top:7px;}
 .multiItemSet + input {float:left;width:90px;}
 .multiItemSet .retxt {clear:left;} /* 2016-11-05 by mj-cho*/
+.multiDetectedLicenseSet a {color:#0070c0;}
 /**/
 .taSet {padding-right:12px;}
 .taSet label {display:block;}
@@ -128,12 +129,14 @@ input.cal:focus {background:#fff8ea url("../images/bg_cal.png") no-repeat right 
 .mt10 {margin-top:10px;}
 .mt20 {margin-top:20px;}
 .mb5 {margin-bottom:5px;}
+.mr5 {margin-right:5px !important;}
 .w55 {width:56px !important;padding:0 0 0 !important;}
 .w60 {width:60px !important;}
-.w100 {width:100px ;}
+.w100 {width:100px !important;}
 .w120 {width:120px !important;}
 .w150 {width:150px !important;}
 .w155 {width:155px !important;} /* 161104 jh_son 추가 */
+.w200 {width:200px !important;}
 .w220 {width:220px !important;} /* 171017 yuns 추가 */
 .w250 {width:250px !important;}
 .w350 {width:350px !important;}
@@ -148,6 +151,7 @@ input.cal:focus {background:#fff8ea url("../images/bg_cal.png") no-repeat right 
 .hidden {display:none;}
 .imgblock img {display:block;}
 .grp {margin:-10px 0 0 -2px;}
+.watcherEmail{padding-right:55px;}
 /* txt */
 .red {color:red;}
 .txt14 {font-size:14px;}
@@ -231,7 +235,7 @@ input.btnCLightAnalysis {height:20px;padding-bottom:1px;line-height:auto;}
 .btnSet span {display:block;padding:0 0 0 18px;font-family:Tahoma;background: url("../images/bg_btn.png") no-repeat left -2px;}
 .btnSet.excel span {background-position:left -2px;}
 .btnSet.confirm span {background-position:left -32px;}
-.btnSet.review span {background-position:left -62px;}
+.btnSet.review span {background-position:left -62px;background-size:0 0px;padding:0 0 0 4px;}
 .btnSet.reject span {background-position:left -150px;}
 .btnSet.restart span {background-position:left -242px;}
 /**/
@@ -278,6 +282,7 @@ input.btnCLightAnalysis {height:20px;padding-bottom:1px;line-height:auto;}
 /* end 2020-02-12 */
 /* ===== Icon ===== */
 .iconSet {display:inline-block;width:16px;height:16px;line-height:1000%;font-size:0;overflow:hidden;background: url("../images/img_icon.png?v=20180612") no-repeat;}
+.iconSet.none {margin:0 2px;background-position:-155px top;}
 .iconSet.reg {margin:0 2px;background-position:-185px top;}
 .iconSet.multi {margin:0 2px;background-position:-215px top;}
 .iconSet.dual {margin:0 2px;background-position:-245px top;}
@@ -286,10 +291,10 @@ input.btnCLightAnalysis {height:20px;padding-bottom:1px;line-height:auto;}
 .iconSet.help:hover {background-position:-215px -30px;}
 .iconSet.ops {margin:0 3px;width:15px;height:15px;background-position:-245px -30px;}
 .iconSet.man {margin:0 3px;width:16px;height:15px;background-position:-275px -30px;}
-.iconSet.vulCritical {width:18px;height:16px;background-position:-90px -200px;}  /* 20180511 by mj-cho */
-.iconSet.vulHigh {width:18px;height:16px;background-position:0 -200px;}  /* 20161025 by mj-cho */
-.iconSet.vulMiddle {width:18px;height:16px;background-position:-60px -200px;}  /* 20161025 by mj-cho */
-.iconSet.vulLow {width:18px;height:16px;background-position:-30px -200px;}  /* 20161025 by mj-cho */
+.iconSet.vulCritical {cursor:pointer;width:18px;height:16px;background-position:-90px -200px;}
+.iconSet.vulHigh {cursor:pointer;width:18px;height:16px;background-position:0 -200px;}
+.iconSet.vulMiddle {cursor:pointer;width:18px;height:16px;background-position:-60px -200px;}
+.iconSet.vulLow {cursor:pointer;width:18px;height:16px;background-position:-30px -200px;}
 .iconSet.prj {width:28px;height:16px;background-position:-215px -60px;vertical-align:middle;}
 .iconSet.nick {width:25px;height:12px;background-position:-215px -150px;vertical-align:middle;} /* 20161025 by mj-cho */
 .iconSet.nick.dummy {width:25px;height:12px;background-position:-265px -170px;vertical-align:middle;} /* 20161025 by sw-yun empty */
@@ -305,12 +310,23 @@ input.btnCLightAnalysis {height:20px;padding-bottom:1px;line-height:auto;}
 .iconSt {display:inline-block;width:16px;height:16px;line-height:1000%;font-size:0;overflow:hidden;border-radius:20px;background: url("../images/img_icon.png?v=20180612") no-repeat;}
 /* 2018-01-16 */
 .iconSt.draft {background-color:#80b600;background-position:-155px -200px}
-.iconSt.review {background-color:#ff7d26;background-position:-185px -200px}
+.iconSt.progress {background-color:#80b600;background-position:-155px -200px}
+.iconSt.review {cursor:pointer;background-color:#ff7d26;background-position:-185px -200px}
 .iconSt.complete {background-color:#4c84f5;background-position:-215px -200px}
+.iconSt.confirm {background-color:#4c84f5;background-position:-215px -200px}
 .iconSt.delay {background-color:#f5f34c;background-position:-245px -200px;border-radius:0;}
 .iconSt.request {background-color:#ffa4e6;background-position:-275px -200px;}
 .iconSt.drop {background-color:#a39d9b;background-position:-155px -225px;} /* 2021-01-26 */
 /* end 2018-01-16 */
+
+.evidenceIcon {display:inline-block;width:16px;height:16px;line-height:1000%;font-size:0;overflow:hidden;border-radius:20px;background: url("../images/img_icon_evidence.png?v=20180612") no-repeat;}
+.evidenceIcon.github {background-color:#C56272; background-position:-4px -1px}
+.evidenceIcon.existdb {background-color:#9B59B6;background-position:-28px -1px;}
+.evidenceIcon.clearlydefined {background-color:#0064B5;background-position:-52px -1px}
+
+.iconDeliveryForm {display:inline-block;width:16px;height:16px;line-height:1000%;font-size:0;overflow:hidden;border-radius:20px;background: url("../images/img_icon_delivery_form.png?v=20180612") no-repeat;}
+.iconDeliveryForm.source {background-color:#9a58b5; background-position:-4px -4px}
+.iconDeliveryForm.binary {background-color:#c56272;background-position:-28px -4px;}
 
 .iconReport {display:inline-block;margin-left:3px;width:20px;height:20px;font-size:0;background: url("../images/report-icon-32.png") center top no-repeat;}
 
@@ -396,6 +412,7 @@ body,html {/*overflow:hidden !important;letter-spacing:0.06em;*/background:#fff;
 .listSearch .detailArea > dl.col1 dd {padding-left:0;}
 .listSearch .detailArea > dl.col1 dd label {display:inline-block;width:140px;vertical-align:middle;}
 .listSearch .detailArea > dl.col1 dd label + input[type='text'] {width:calc(100% - 155px);vertical-align:middle;}
+.listSearch .detailArea > dl.col1 dd label + input[type='password'] {width:calc(100% - 155px);vertical-align:middle;}
 .listSearch .basicSearch dt {display:none;}
 .listSearch .adminSearch {clear:left;display:inline-block;margin:10px -20px 0;padding:12px 0 0;width:1023px;height:40px;border-radius:0 0 5px 5px;border-top:1px solid #e3dbd0;background:#faf6ed;}
 .listSearch .adminSearch dt {float:left;padding:6px 18px 0 0;width:120px;text-align:right;}
@@ -403,6 +420,7 @@ body,html {/*overflow:hidden !important;letter-spacing:0.06em;*/background:#fff;
 .listSearch .adminSearch dt span {font-size:13px;color:#c00c3f;}
 .listSearch .adminSearch dd {padding:0 17px 0 0;}
 .listSearch .adminSearch dd input {width:60px;}
+.listSearch .adminSearch dd input[type=checkbox] {width: 13px;}
 .listSearch .adminSearch dd input.cal {width:92px;}
 .listSearch .adminSearch dd label {padding:0 15px 0 0;color:#454545;}
 .listSearch .hiddenSearch {clear:left;display:inline-block;margin:10px -20px 0;padding:12px 0 0;width:1023px;height:135px;border-radius:0 0 5px 5px;border-top:1px solid #e3dbd0;background:#faf6ed;}
@@ -764,3 +782,13 @@ div .retxtg {padding-top:2px;font-size:11px;color:gray !important;}
 .packagingAppend + div {width:795px !important;}
 .verifyProjectSearch {position: absolute;top: 80px;}
 .deleteUser{color:#aaa;}
+
+/* syncpopup */
+.statisticsLayout .grdSetSyncPopup {display:table;width:100%;}
+.statisticsLayout .grdSetSyncPopup .grdItemSyncPopup {padding-bottom:10px;}
+.statisticsLayout .grdItemSyncPopup.first {display:table-cell;width:40%;}
+.statisticsLayout .grdItemSyncPopup {display:table-cell;width:60%;}
+.statisticsLayout .grdItemSyncPopup:first-child {padding-left:10px; padding-right:5px;}
+.statisticsLayout .grdItemSyncPopup:last-child {padding-left:5px; padding-right:10px;}
+.syncPopupEditor {padding:0px 10px 0px;}
+.btnLayoutSyncPopupBtn {float:right; padding-right:10px;}

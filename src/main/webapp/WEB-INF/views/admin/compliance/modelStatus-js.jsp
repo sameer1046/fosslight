@@ -35,7 +35,7 @@
 				</c:if>
 			</c:forEach>
 			$('#modelListFile').uploadFile({
-				url:'/compliance/readModelList',
+				url:'<c:url value="/compliance/readModelList"/>',
 				multiple:false,
 				dragDrop:true,
 				allowedTypes:accept4,
@@ -112,10 +112,10 @@
 					$("#list").jqGrid('clearGridData');
 					
 					window.setTimeout(function(){
-						$(".ajax-file-upload-error").text("ERROR: The uploaded file does not contain a sheet named 'All Model(Software) List'.");
+						$(".ajax-file-upload-error").text("ERROR: " + '<spring:message code="msg.compliance.required.model" />');
 					}, 1);
 					
-					alertify.error("The uploaded file does not contain a sheet named 'All Model(Software) List'.", 0);
+					alertify.error('<spring:message code="msg.compliance.required.model" />', 0);
 				}
 			});
 			
@@ -147,7 +147,7 @@
 				switch(key) {
 					case "division":
 						if(value == "") {
-							alertify.alert('<spring:message code="msg.project.required.selectDivision" />');
+							alertify.alert('<spring:message code="msg.project.required.selectDivision" />', function(){});
 
 							return false;
 						}
@@ -155,7 +155,7 @@
 						break;
 					case "createdDate1":
 						if(value == "") {
-							alertify.alert('Please, enter the created date first.');
+							alertify.alert('<spring:message code="msg.compliance.required.date" />', function(){});
 
 							return false;
 						}
@@ -163,7 +163,7 @@
 						break;
 					case "createdDate2":
 						if(value == "") {
-							alertify.alert('Please, enter the created date first.');
+							alertify.alert('<spring:message code="msg.compliance.required.date" />', function(){});
 
 							return false;
 						}
@@ -269,7 +269,7 @@
 		getModelListAjax : function(obj){
 			$.ajax({
 				type: "POST",
-   				url: '/compliance/modelListAjax',
+				url: '<c:url value="/compliance/modelListAjax"/>',
    				data: JSON.stringify(obj),
 				dataType : 'json',
 				cache : false,
@@ -337,7 +337,7 @@
 			
 				$.ajax({
 					type: "POST",
-	   				url: '/exceldownload/getExcelPost',
+					url: '<c:url value="/exceldownload/getExcelPost"/>',
 	   				data: JSON.stringify({"type":"modelStatus", "parameter":JSON.stringify(data)}),
 					dataType : 'json',
 					cache : false,
@@ -395,7 +395,7 @@
 				, loadComplete: function(data) {
 					totalRow = data.records;
 					if(!data.records && initStatus != "init"){
-						alertify.error("Information that matches the value written in the 'Model (Software) Name' column can not be found in the FOSSLight system.", 0);
+						alertify.error('<spring:message code="msg.compliance.loading.failure" />', 0);
 					}
 				},
 				onSortCol : function(colNm, colIdx, sOrd){

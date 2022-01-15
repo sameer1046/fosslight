@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +27,7 @@ import oss.fosslight.util.CryptUtil;
 import oss.fosslight.util.StringUtil;
 
 @Service
+@Slf4j
 public class SystemConfigurationServiceImpl extends CoTopComponent implements SystemConfigurationService {
 	// Service
 	@Autowired CodeService codeService;
@@ -49,7 +51,13 @@ public class SystemConfigurationServiceImpl extends CoTopComponent implements Sy
 		
 		T2CodeDtl smtpAuth = new T2CodeDtl(CoConstDef.CD_SMTP_SETTING);
 		List<T2CodeDtl> smtpAuthList = codeMapper.selectCodeDetailList(smtpAuth);
-		
+
+		T2CodeDtl externalServiceAuth = new T2CodeDtl(CoConstDef.CD_EXTERNAL_SERVICE_SETTING);
+		List<T2CodeDtl> tokenAuthList = codeMapper.selectCodeDetailList(externalServiceAuth);
+
+		T2CodeDtl externalAnalysisAuth = new T2CodeDtl(CoConstDef.CD_EXTERNAL_ANALYSIS_SETTING);
+		List<T2CodeDtl> externalAnalysisAuthList = codeMapper.selectCodeDetailList(externalAnalysisAuth);
+
 		T2CodeDtl defaultTab = new T2CodeDtl(CoConstDef.CD_DEFAULT_TAB);
 		List<T2CodeDtl> defaultTabList = codeMapper.selectCodeDetailList(defaultTab);
 		
@@ -67,6 +75,16 @@ public class SystemConfigurationServiceImpl extends CoTopComponent implements Sy
 					c.setCdDtlExp((String) configurationMap.get("smtpFlag"));
 					
 					break;
+				case CoConstDef.CD_EXTERNAL_SERVICE_USED_FLAG:
+					c.setCdDtlExp((String) configurationMap.get("externalServiceFlag"));
+
+					break;
+
+				case CoConstDef.CD_EXTERNAL_ANALYSIS_USED_FLAG:
+					c.setCdDtlExp((String) configurationMap.get("externalAnalysisFlag"));
+
+					break;
+
 			}
 			
 			return c;
@@ -124,7 +142,7 @@ public class SystemConfigurationServiceImpl extends CoTopComponent implements Sy
 							try {
 								_encPw = CryptUtil.encryptAES256(_pw, CoConstDef.ENCRYPT_DEFAULT_SALT_KEY);
 							} catch (Exception e) {
-								e.printStackTrace();
+								log.error(e.getMessage());
 							}
 							if(!StringUtil.isEmpty(_encPw)) {
 								c.setCdDtlExp(_encPw);
@@ -138,6 +156,51 @@ public class SystemConfigurationServiceImpl extends CoTopComponent implements Sy
 
 			codeService.setCodeDetails(smtpAuthList, CoConstDef.CD_SMTP_SETTING);
 		}
+
+		// External Service setting
+		Map<String, Object> tokenDetailMap = (Map<String, Object>) configurationMap.get("externalServiceDetail");
+
+		if(tokenDetailMap != null) {
+			tokenAuthList.stream().map(c -> {
+				switch (c.getCdDtlNo()) {
+					case CoConstDef.CD_DTL_GITHUB_TOKEN:
+						String token = (String) tokenDetailMap.get(CoConstDef.CD_DTL_GITHUB_TOKEN);
+						if(!token.isEmpty()) {
+							c.setCdDtlExp(token);
+						}
+						break;
+				}
+
+				return c;
+			}).collect(Collectors.toList());
+
+			codeService.setCodeDetails(tokenAuthList, CoConstDef.CD_EXTERNAL_SERVICE_SETTING);
+		}
+
+		// External Analysis detail setting
+		Map<String, Object> externalAnalysisDetailMap = (Map<String, Object>) configurationMap.get("externalAnalysisDetail");
+
+		if(externalAnalysisDetailMap != null) {
+			externalAnalysisAuthList.stream().map(c -> {
+				switch(c.getCdDtlNo()) {
+
+					case CoConstDef.CD_DTL_FL_SCANNER_URL:
+						c.setCdDtlExp((String) externalAnalysisDetailMap.get(CoConstDef.CD_DTL_FL_SCANNER_URL));
+
+						break;
+
+					case CoConstDef.CD_DTL_ADMIN_TOKEN:
+						c.setCdDtlExp((String) externalAnalysisDetailMap.get(CoConstDef.CD_DTL_ADMIN_TOKEN));
+
+						break;
+				}
+
+				return c;
+			}).collect(Collectors.toList());
+
+			codeService.setCodeDetails(externalAnalysisAuthList, CoConstDef.CD_EXTERNAL_ANALYSIS_SETTING);
+		}
+
 		
 		// default tab Setting
 		defaultTabList.stream().map(c -> {

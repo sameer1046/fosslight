@@ -79,6 +79,35 @@
 			} else {
 				params["smtpFlag"] = "N";
 			}
+
+			// External Service Setting
+			var externalServiceFlag = $("#externalServiceFlag").prop("checked");
+
+			if(externalServiceFlag){
+				params["externalServiceFlag"] = "Y";
+
+				var externalServiceDetail = {};
+			<c:forEach var="code" items="${ct:getCodeValues(ct:getConstDef('CD_EXTERNAL_SERVICE_SETTING'))}" varStatus="status">
+				externalServiceDetail["${code[0]}"] = $("#external${code[0]}").val();
+			</c:forEach>
+				params["externalServiceDetail"] = externalServiceDetail;
+
+			} else {
+				params["externalServiceFlag"] = "N";
+			}
+
+            // External Analysis Setting
+            var externalAnalysisFlag = $("#externalAnalysisFlag").prop("checked");
+            if(externalAnalysisFlag){
+                params["externalAnalysisFlag"] = "Y";
+                var externalAnalysisDetail = {};
+                <c:forEach var="code" items="${ct:getCodeValues(ct:getConstDef('CD_EXTERNAL_ANALYSIS_SETTING'))}" varStatus="status">
+                externalAnalysisDetail["${code[0]}"] = $("#externalAnalysis${code[0]}").val();
+                </c:forEach>
+                params["externalAnalysisDetail"] = externalAnalysisDetail;
+            } else {
+                params["externalAnalysisFlag"] = "N";
+            }
 			
 			// Menu Detail
 				// ㄴ DashBoard
@@ -194,7 +223,7 @@
 				var data = config_fn.makeParams();
 				
 				$.ajax({
-					url : '/system/configuration/saveAjax',
+					url : '<c:url value="/system/configuration/saveAjax"/>',
 					type : 'POST',
 					data : JSON.stringify({config : data}),
 					dataType : 'json',

@@ -18,6 +18,9 @@
 				<c:if test="${detail.viewOnlyFlag ne 'Y'}">
 					<c:if test="${detail.loginUserRole ne 'ROLE_VIEWER'}">
 						<div class="projdecBtn" style="top:0px;">
+						<c:if test="${detail.status eq 'CONF'}">
+							<input id="createProject" type="button" value="Create Project for OSS Notice" class="btnColor red w200" />
+						</c:if>
 						<c:if test="${detail.loginUserRole eq 'ROLE_ADMIN'}">
 							<c:if test="${detail.status eq 'REV' }">
 							<a href="javascript:void(0);" class="btnSet confirm" onclick="fn.confirm()"><span>Confirm</span></a>
@@ -29,7 +32,7 @@
 							<a href="javascript:void(0);" class="btnSet restart" onclick="fn.reviewStart()"><span>Review Start</span></a>
 							</c:if>
 								<c:if test="${detail.status eq 'PROG' }">
-							<a href="javascript:void(0);" class="btnSet review" onclick="fn.requestReview()"><span>Request Review</span></a>
+							<a href="javascript:void(0);" class="btnSet review" onclick="fn.requestReview()"><span>Request</span></a>
 							</c:if> 
 						</c:if>
 						<c:if test="${detail.loginUserRole ne 'ROLE_ADMIN'}">
@@ -37,7 +40,7 @@
 							<a href="javascript:void(0);" class="btnSet reject" onclick="fn.reject()"><span>Reject</span></a>
 							</c:if>
 							<c:if test="${detail.status eq 'PROG' }">
-							<a href="javascript:void(0);" class="btnSet review" onclick="fn.requestReview()"><span>Request Review</span></a>
+							<a href="javascript:void(0);" class="btnSet review" onclick="fn.requestReview()"><span>Request</span></a>
 							</c:if> 
 						</c:if>
 						</div>
@@ -53,7 +56,7 @@
 		</div>
 		<div class="commentEditor" style="display:none; top:85px;">
 			<div class="cBtn">
-				<input type="button" value="Save & Send comment" class="btnCLight saveEditor" onclick="fn.editorDialog();"/>
+				<input type="button" value="Save & Send comment" class="btnCLight saveEditor" onclick="fn.sendEditor('WR');"/>
 				<input type="button" value="Save draft" class="btnCLight saveEditorDraft" />
 			</div>
 			<div class="grid-container" style="height:240px;">
@@ -88,7 +91,7 @@
 					</colgroup>
 					<tbody>
 						<tr>
-							<th class="dCase txStr">3rd Party Name</th>
+							<th class="dCase txStr"><spring:message code="msg.common.field.3rdParty.name" /></th>
 							<td class="dCase">
 								<div class="required">
 									<input type="text" id="partnerName" name="partnerName" class="autoComParty w100P" value='' />
@@ -97,7 +100,7 @@
 							</td>
 						</tr>
 						<tr>
-							<th class="dCase txStr">3rd Party Software Name</th>
+							<th class="dCase txStr"><spring:message code="msg.common.field.3rdParty.softwareName" /></th>
 							<td class="dCase">
 								<div class="required">
 									<input type="text" id="softwareName" name="softwareName" class="autoComSwNm w100P" value=''/>
@@ -106,15 +109,15 @@
 							</td>
 						</tr>
 						<tr>
-							<th class="dCase">3rd Party Software Version</th>
+							<th class="dCase"><spring:message code="msg.common.field.3rdParty.softwareVersion" /></th>
 							<td class="dCase"><input type="text" id="softwareVersion" name="softwareVersion"
 							<c:if test="${not empty detail }">value="${detail.softwareVersion }"</c:if>/>
 							<div class="retxt" style="display:none;">This field is required.</div></td>
 						</tr>
 						<tr>
-							<th class="dCase">Delivery Form</th>
+							<th class="dCase"><spring:message code="msg.common.field.deliveryForm" /></th>
 							<td class="dCase">
-								<p class="pd5">If you exist in binary form 3rd party software, You can check opensource information using the <a href="#none" onclick="fn.binaryTab()" class="txBlueIt">Binary Analysis</a></p>
+								<p class="pd5"><spring:message code="msg.partner.deliveryForm.notice" /></p>
 								<span class="selectSet w150">
 									<strong for="deliveryForm" title="selected value">Source Code Form</strong>
 									<select id="deliveryForm" name="deliveryForm">
@@ -125,7 +128,7 @@
 						</tr>
 						<c:if test="${project.viewOnlyFlag ne 'Y'}">
 						<tr>
-							<th class="dCase">Permission</th>
+							<th class="dCase"><spring:message code="msg.common.field.permission" /></th>
 							<td class="dCase">
 								<span>View : </span>
 								<span class="radioSet">
@@ -137,11 +140,11 @@
 						</tr>
 						</c:if>
 						<tr>
-							<th class="dCase">Description</th>
+							<th class="dCase"><spring:message code="msg.common.field.description" /></th>
 							<td class="dCase"><textarea class="w100P h150" id="description" name="description"><c:if test="${not empty detail }">${detail.description }</c:if></textarea></td>
 						</tr>
 						<tr>
-							<th class="dCase">Open Source Agreement<br/><c:if test="${checkFlag}"><a href="javascript:void(0);" class="sampleDown" onclick="fn.sampleDownload('arg')"><span>Sample</span></a></c:if></th>
+							<th class="dCase"><spring:message code="msg.common.field.Agreement" /><br/><c:if test="${checkFlag}"><a href="javascript:void(0);" class="sampleDown" onclick="fn.sampleDownload('arg')"><span>Sample</span></a></c:if></th>
 							<td class="dCase uploadCase confirmationUpload">
 								<c:if test="${empty confirmationFile}">
 									<span class="fileex_back">
@@ -150,7 +153,7 @@
 									</span>
 								</c:if>
 								<c:if test="${not empty confirmationFile}">
-									<a href="/download/${confirmationFile.fileSeq }/${confirmationFile.logiNm}">${confirmationFile.origNm }</a><span style="margin-left:20px;">${confirmationFile.createdDate}</span>
+									<a href="<c:url value="/download/${confirmationFile.fileSeq }/${confirmationFile.logiNm}"/>">${confirmationFile.origNm }</a><span style="margin-left:20px;">${confirmationFile.createdDate}</span>
 									<c:if test="${detail.viewOnlyFlag ne 'Y'}">
 									<span><input type="button" value="Delete" class="smallDelete" onclick="fn.deleteConfirmationFile(this)" style="vertical-align:super;" <c:if test="${isCommited}">style="display:none;"</c:if>/></span>
 									</c:if>
@@ -162,7 +165,7 @@
 							</td>
 						</tr>
 						<tr>
-							<th class="dCase">OSS Checklist (Open Source List)<br/><a href="javascript:void(0);" class="sampleDown" onclick="fn.sampleDownload('chk')"><span>Sample</span></a></th>
+							<th class="dCase"><spring:message code="msg.common.field.OSSChecklist" />(Open Source List)<br/><a href="javascript:void(0);" class="sampleDown" onclick="fn.sampleDownload('chk')"><span>Sample</span></a></th>
 							<td class="dCase uploadCase ossUpload">
 								<c:if test="${empty ossFile}">
 									<span class="fileex_back">
@@ -171,7 +174,7 @@
 									</span>
 								</c:if>
 								<c:if test="${not empty ossFile}">
-									<a href="/download/${ossFile.fileSeq }/${ossFile.logiNm}">${ossFile.origNm }</a><span style="margin-left:20px;">${ossFile.createdDate}</span>
+									<a href="<c:url value="/download/${ossFile.fileSeq }/${ossFile.logiNm}"/>">${ossFile.origNm }</a><span style="margin-left:20px;">${ossFile.createdDate}</span>
 									<c:if test="${detail.viewOnlyFlag ne 'Y'}">
 									<span><input type="button" value="Delete" class="smallDelete" onclick="fn.deleteOssFile(this)" style="vertical-align:super;"/></span>
 									</c:if>
@@ -184,7 +187,7 @@
 						</tr>
 					</tr>
 					<tr>
-						<th class="dCase">Related Documents</th>
+						<th class="dCase"><spring:message code="msg.common.field.relatedDocuments" /></th>
 						<td class="dCase uploadCase documentsUpload">
 							<span class="fileex_back">
 								<div id="documentsFile" <c:if test="${isCommited or detail.documentsFileCnt eq '5'}">style="display:none;"</c:if>>+ Add file</div>
@@ -193,7 +196,7 @@
 							<c:forEach var="documentsFile" items="${detail.documentsFile }" varStatus="vs">
 								<c:if test="${documentsFile.delYn == 'N'}">
 									<li>
-										<a href="/download/${documentsFile.fileSeq}/${documentsFile.logiNm}">${documentsFile.origNm }</a>
+										<a href="<c:url value="/download/${documentsFile.fileSeq}/${documentsFile.logiNm}"/>">${documentsFile.origNm }</a>
 										<span style="margin-left:20px;">${documentsFile.createdDate}</span>
 										<span>
 											<input type="button" value="Delete" class="smallDelete" onclick="fn.deleteDocumentsFile(this)" style="vertical-align:super;margin-left: 5px;<c:if test="${isCommited}">display:none;</c:if>"/>
@@ -208,9 +211,16 @@
 						</td>
 					</tr>
 					<c:if test="${detail.viewOnlyFlag ne 'Y'}">
-					
+					<c:if test="${not empty prjList}">
+						<tr>
+							<th class="dCase"><spring:message code="msg.common.field.project" /><br/><input id="listMore" type="button" value="List more" class="btnCLight gray" /></th>
+							<td class="dCase">
+								<table id="_projectList"><tr><td></td></tr></table>
+							</td>
+						</tr>
+					</c:if>
 					<tr>
-						<th class="dCase">Watcher</th>
+						<th class="dCase"><spring:message code="msg.common.field.watcher" /></th>
 						<td class="dCase watchCase">
 							<div class="pb5">
 								<span class="selectSet w150">
@@ -285,7 +295,7 @@
 					</c:if>
 					<c:if test="${ct:isAdmin() and not empty detail.partnerId}">
 						<tr>
-							<th class="dCase txStr">Creator</th>
+							<th class="dCase txStr"><spring:message code="msg.common.field.creator" /></th>
 							<td class="dCase">
 								<div class="required">
 									<input type="text" name="creatorNm" class="autoComCreatorDivision" value=""/>
@@ -297,7 +307,7 @@
 					</c:if>
 						<c:if test="${not empty detail.partnerId}">
                         <tr>
-                            <th class="dCase  txStr">Reviewer</th>
+                            <th class="dCase  txStr"><spring:message code="msg.common.field.reviewer" /></th>
                             <td class="dCase">
                                 <div class="required">
                                     <input type="text" name="reviewerName" value="${detail.reviewerName}" disabled="disabled"/>
@@ -325,13 +335,16 @@
                     <input type="button" value="Export" class="btnColor red btnExport" onclick="fn.downloadExcel()"/>
                 </c:if>
                 <c:if test="${detail.status ne 'REQ' and detail.status ne 'CONF' and  (detail.loginUserRole eq 'ROLE_ADMIN'  or (detail.loginUserRole ne 'ROLE_ADMIN' and detail.status ne 'REV')) and detail.viewOnlyFlag ne 'Y'}">
+                    <input type="button" value="Check OSS Name" onclick="fn.CheckOssViewPage('PARTNER')" class="btnColor red srcBtn" style="width: 115px;" />
+                    <input type="button" value="Check License" onclick="fn.CheckOssLicenseViewPage('PARTNER')" class="btnColor red srcBtn" style="width: 100px;" />
                     <input id="partyReset" type="button" value="Reset" class="btnColor" onclick="fn.reset()"/>
                     <input id="partySave" type="button" value="Save" onclick="fn.save()" class="btnColor red" />
                 </c:if>
             </span>
             <span class="left">
 	            <c:if test="${not empty detail and detail.status ne 'REQ' and detail.status ne 'CONF' and (detail.loginUserRole eq 'ROLE_ADMIN'  or (detail.loginUserRole ne 'ROLE_ADMIN' and detail.status ne 'REV')) and detail.viewOnlyFlag ne 'Y'}">
-	                <input id="partyDelete" type="button" value="Delete" class="btnColor red left" onclick="fn.delete()"/>
+	                <input id="partyDelete" type="button" value="Delete" class="btnColor red" onclick="fn.delete()"/>
+	                <input id="partyBulkEdit" type="button" value="Bulk Edit" class="btnColor red" onclick="fn.bulkEdit()"/>
 	            </c:if>
             </span>
         </div>
@@ -346,6 +359,8 @@
 					<input type="button" value="Export" class="btnColor red btnExport" onclick="fn.downloadExcel()"/>
 				</c:if>
 				<c:if test="${detail.status ne 'REQ' and detail.status ne 'CONF' and  (detail.loginUserRole eq 'ROLE_ADMIN'  or (detail.loginUserRole ne 'ROLE_ADMIN' and detail.status ne 'REV')) and detail.viewOnlyFlag ne 'Y'}">
+					<input type="button" value="Check OSS Name" onclick="fn.CheckOssViewPage('PARTNER')" class="btnColor red srcBtn" style="width: 115px;" />
+					<input type="button" value="Check License" onclick="fn.CheckOssLicenseViewPage('PARTNER')" class="btnColor red srcBtn" style="width: 100px;" />
 					<input id="partyReset" type="button" value="Reset" class="btnColor" onclick="fn.reset()"/>
 					<input id="partySave" type="button" value="Save" onclick="fn.save()" class="btnColor red" />
 				</c:if>
@@ -390,8 +405,8 @@
 										<table id="_binaryFileList"><tr><td></td></tr></table>
 									</div>
 								</div>
-								<div>Binary analysis results are used only as reference data. Until the accuracy of the tool is improved, it is not included in the BOM and OSS Notice</div>
-								<div>※ Uploaded firmware is only kept for one month.</div>
+								<div><spring:message code="msg.partner.notice"/></div>
+								<div>※<spring:message code="msg.partner.notice.term"/></div>
 							</div>
 						</form>
 					</fieldset>
@@ -453,7 +468,7 @@
 		<div class="grid-container">
 			<div class="grid-width-100">
 				<div id="editor3">
-					<h1>Hello FOSSLight System</h1>
+					<h1>Hello FOSSLight Hub</h1>
 				</div>
 			</div>
 		</div>
