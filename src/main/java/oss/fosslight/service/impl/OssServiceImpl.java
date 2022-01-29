@@ -877,7 +877,6 @@ public class OssServiceImpl extends CoTopComponent implements OssService {
 	@Override
 	@CacheEvict(value="autocompleteCache", allEntries=true)
 	public String registOssMaster(OssMaster ossMaster) {
-
 		String[] ossNicknames = ossMaster.getOssNicknames();
 		String ossId = ossMaster.getOssId();
 		boolean isNew = StringUtil.isEmpty(ossId);
@@ -894,54 +893,17 @@ public class OssServiceImpl extends CoTopComponent implements OssService {
 		// oss name 또는 version이 변경된 경우만 vulnerability recheck 대상으로 업데이트 한다.
 		boolean vulnRecheck = false;
 		
-		// oss v-diff 체크 대상 선별
-		// oss name이 변경된 경우 변경전 후 모두 포함해야한다.
-		Map<String, OssMaster> updateOSSLicenseMap = new HashMap<>();
-		
 		// 변경전 oss name에 해당하는 oss_id 목록을 찾는다.
 		if(!isNew) {
 			OssMaster _orgBean = getOssInfo(ossId, false);
 			
 			if(_orgBean != null && !isEmpty(_orgBean.getOssName())) {
-				OssMaster param = new OssMaster();
-				List<String> ossNameList = new ArrayList<>();
-				ossNameList.add(_orgBean.getOssName());
-				String[] ossNames = new String[ossNameList.size()];
-				param.setOssNames(ossNameList.toArray(ossNames));
-				
-				// oss name 또는 nick name으로 참조 가능한 oss 이름만으로 검색한 db 정보
-				Map<String, OssMaster> ossMap = getBasicOssInfoList(param);
-				
-				if(ossMap != null) {
-					for(OssMaster _tempBean : ossMap.values()) {
-						if(!updateOSSLicenseMap.containsKey(_tempBean.getOssId())) {
-							updateOSSLicenseMap.put(_tempBean.getOssId(), _tempBean);
-						}
-					}
-				}
-				
 				if(!avoidNull(ossMaster.getOssName()).trim().equalsIgnoreCase(_orgBean.getOssName()) 
 						|| !avoidNull(ossMaster.getOssVersion()).trim().equalsIgnoreCase(avoidNull(_orgBean.getOssVersion()).trim())) {
 					vulnRecheck = true;
 				}
 			}
 
-		} else { // 신규 등록이지만 version 등록인 경우 v-diff 정보가 업데이트 안되는 현상 대응
-			OssMaster param = new OssMaster();
-			List<String> ossNameList = new ArrayList<>();
-			ossNameList.add(ossMaster.getOssName());
-			String[] ossNames = new String[ossNameList.size()];
-			param.setOssNames(ossNameList.toArray(ossNames));
-			// oss name 또는 nick name으로 참조 가능한 oss 이름만으로 검색한 db 정보
-			Map<String, OssMaster> ossMap = getBasicOssInfoList(param);
-			
-			if(ossMap != null) {
-				for(OssMaster _tempBean : ossMap.values()) {
-					if(!updateOSSLicenseMap.containsKey(_tempBean.getOssId())) {
-						updateOSSLicenseMap.put(_tempBean.getOssId(), _tempBean);
-					}
-				}
-			}
 		}
 		
 		if(vulnRecheck) {
@@ -1097,12 +1059,8 @@ public class OssServiceImpl extends CoTopComponent implements OssService {
 			}
 		}
 		
-		// multi / dual /v-diff license 여부 체크
-		updateOSSLicenseMap.put(ossMaster.getOssId(), ossMaster);
-
-		for(OssMaster bean : updateOSSLicenseMap.values()) {
-			updateLicenseDivDetail(bean);
-		}
+		// Version Flag Setting
+		updateLicenseDivDetail(ossMaster);
 		
 		// download location이 여러건일 경우를 대비해 table을 별도로 관리함.
 		registOssDownloadLocation(ossMaster);
@@ -1255,49 +1213,6 @@ public class OssServiceImpl extends CoTopComponent implements OssService {
 				ossMapper.deleteOssLicense(ossMaster);
 				ossMapper.deleteOssDownloadLocation(ossMaster);
 				ossMapper.deleteOssMaster(ossMaster);
-			}
-
-			// v-diff 체크
-			{
-				// version 에 따라 라이선스가 달라지는지 체크 (v-diff)
-				boolean vDiffFlag = false;
-				OssMaster param = new OssMaster();
-				List<String> ossNameList = new ArrayList<>();
-				ossNameList.add(beforeBean.getOssName());
-				String[] ossNames = new String[ossNameList.size()];
-				param.setOssNames(ossNameList.toArray(ossNames));
-				// oss name 또는 nick name으로 참조 가능한 oss 이름만으로 검색한 db 정보
-				Map<String, OssMaster> ossMap = getBasicOssInfoList(param);
-				// size가 1개인 경우는 처리할 필요 없음
-				List<String> ossIdListByName = new ArrayList<>();
-				
-				if(ossMap != null && ossMap.size() > 1) {
-					String _key = "";
-					
-					for(OssMaster _bean : ossMap.values()) {
-						if(!isEmpty(_bean.getOssId())) {
-							ossIdListByName.add(_bean.getOssId());
-							
-							if(!vDiffFlag && _bean.getOssLicenses() != null) {
-								if(isEmpty(_key)) {
-									// 비교대상 설정 처음 한번만
-									_key = makeLicenseIdKeyStr(_bean.getOssLicenses());
-								} else if(!beforeBean.getOssId().equals(_bean.getOssId()) &&  !_key.equals(makeLicenseIdKeyStr(_bean.getOssLicenses()))) { // 삭제대상은 제외하고 license 정보가 다른 oss가 존재하는지 체크
-									vDiffFlag = true;
-								}
-							}
-						}
-					}
-				}
-				
-				if(ossIdListByName != null && !ossIdListByName.isEmpty()) {
-					// v-diff flag 업데이트
-					OssMaster updateParam = new OssMaster();
-					updateParam.setOssIdList(ossIdListByName);
-					updateParam.setVersionDiffFlag(vDiffFlag ? CoConstDef.FLAG_YES : CoConstDef.FLAG_NO);
-					
-					ossMapper.updateOssLicenseVDiffFlag(updateParam);
-				}
 			}
 		} catch(Exception e) {
 			result = 0;
@@ -2634,8 +2549,6 @@ public class OssServiceImpl extends CoTopComponent implements OssService {
 
 	@Override
 	public void syncOssMaster(OssMaster ossMaster, boolean declaredLicenseCheckFlag, boolean detectedLicenseCheckFlag, boolean downloadLocationCheckFlag) {
-		Map<String, OssMaster> updateOSSLicenseMap = new HashMap<>();
-
 		ossMaster.setModifier(ossMaster.getLoginUserName());
 		checkOssLicenseAndObligation(ossMaster);
 
@@ -2663,11 +2576,7 @@ public class OssServiceImpl extends CoTopComponent implements OssService {
 				ossMapper.insertOssLicenseDeclared(om);
 			}
 
-			updateOSSLicenseMap.put(ossMaster.getOssId(), ossMaster);
-
-			for(OssMaster bean : updateOSSLicenseMap.values()) {
-				updateLicenseDivDetail(bean);
-			}
+			updateLicenseDivDetail(ossMaster);
 		}
 
 		if (detectedLicenseCheckFlag) {
@@ -2746,5 +2655,195 @@ public class OssServiceImpl extends CoTopComponent implements OssService {
 		bean.setCopyright(CommonFunction.lineReplaceToBR(bean.getCopyright()));
 
 		return bean;
+	}
+
+	@Override
+	public void updateVersionDiff(OssMaster ossMaster) {
+		Map<String, OssMaster> updateOSSLicenseMap = new HashMap<>();
+		OssMaster param = new OssMaster();
+		List<String> ossNameList = new ArrayList<>();
+		ossNameList.add(ossMaster.getOssName());
+		String[] ossNames = new String[ossNameList.size()];
+		param.setOssNames(ossNameList.toArray(ossNames));
+		
+		// oss name 또는 nick name으로 참조 가능한 oss 이름만으로 검색한 db 정보
+		Map<String, OssMaster> ossMap = getBasicOssInfoList(param);
+		
+		if(ossMap != null) {
+			for(OssMaster _tempBean : ossMap.values()) {
+				if(!updateOSSLicenseMap.containsKey(_tempBean.getOssId())) {
+					updateOSSLicenseMap.put(_tempBean.getOssId(), _tempBean);
+				}
+			}
+		}
+		
+		for(OssMaster bean : updateOSSLicenseMap.values()) {
+			updateLicenseDivDetail(bean);
+		}
+	}
+
+	@Override
+	public String checkOssVersionDiff(OssMaster ossMaster) {
+		boolean ossVersion_Flag = false;
+		OssMaster om = ossMapper.checkExistsOssname(ossMaster);
+		
+		if(om == null) {
+			List<String> afterOssNameList = new ArrayList<>();
+			afterOssNameList.add(ossMaster.getOssName().trim());
+			String[] afterOssNames = new String[afterOssNameList.size()];
+			ossMaster.setOssNames(afterOssNameList.toArray(afterOssNames));
+			
+			Map<String, OssMaster> afterOssMap = getBasicOssInfoList(ossMaster);
+									
+			if(afterOssMap == null || afterOssMap.isEmpty()) {
+				ossVersion_Flag = true;
+			}
+			
+			return ossVersion_Flag ? CoConstDef.FLAG_YES : CoConstDef.FLAG_NO;
+		
+		}else {
+			return ossVersion_Flag ? CoConstDef.FLAG_YES : CoConstDef.FLAG_NO;
+		}
+	}
+
+	@Transactional
+	@Override
+	public Map<String, List<OssMaster>> updateOssNameVersionDiff(OssMaster ossMaster) {
+		String beforeOssName = ossMaster.getOssName();
+		String afterOssName = ossMaster.getMergeOssName();
+		
+		Map<String, List<OssMaster>> ossNameVersionDiffMergeObject = new HashMap<>();
+		
+		if(!beforeOssName.equals(afterOssName)) {
+			List<OssMaster> beforeOssNameVersionBeanList = new ArrayList<OssMaster>();
+			List<OssMaster> afterOssNameVersionBeanList = new ArrayList<OssMaster>();
+			List<String> beforeOssNameVersionOssIdList = new ArrayList<String>();
+			OssMaster beforeOssNameVersionBean = null;
+			OssMaster afterOssNameVersionBean = null;
+			
+			List<String> beforeOssNameList = new ArrayList<>();
+			beforeOssNameList.add(beforeOssName);
+			String[] beforeOssNames = new String[beforeOssNameList.size()];
+			ossMaster.setOssNames(beforeOssNameList.toArray(beforeOssNames));
+			
+			Map<String, OssMaster> beforeOssMap = getBasicOssInfoList(ossMaster);
+			
+			for(OssMaster om : beforeOssMap.values()) {
+				beforeOssNameVersionOssIdList.add(om.getOssId());
+				beforeOssNameVersionBean = getOssInfo(om.getOssId(), true);
+				beforeOssNameVersionBeanList.add(beforeOssNameVersionBean);
+				
+				om.setOssName(afterOssName);
+				ossMapper.changeOssNameByDelete(om);
+			}
+			
+			List<OssMaster> ossNicknameList = ossMapper.selectOssNicknameList(ossMaster);
+			String[] ossNicknames = ossMaster.getOssNicknames();
+			if(ossNicknameList != null && !ossNicknameList.isEmpty()) {
+				ossMapper.deleteOssNickname(ossMaster);
+				
+				for(OssMaster om : ossNicknameList){
+					if(!isEmpty(om.getOssNickname())) {
+						ossMaster.setOssName(afterOssName);
+						ossMaster.setOssNickname(om.getOssNickname().trim());
+						ossMapper.insertOssNickname(ossMaster);
+					}
+				}
+			} else {
+				if(ossNicknames != null) {
+					for(String nickname : ossNicknames){
+						if(!isEmpty(nickname)) {
+							ossMaster.setOssName(afterOssName);
+							ossMaster.setOssNickname(nickname.trim());
+							ossMapper.insertOssNickname(ossMaster);
+						}
+					}
+				}else {
+					ossMapper.deleteOssNickname(ossMaster);
+				}
+			}
+			
+			CoCodeManager.getInstance().refreshOssInfo();
+			
+			for(String ossId : beforeOssNameVersionOssIdList) {
+				afterOssNameVersionBean = getOssInfo(ossId, true);
+				afterOssNameVersionBeanList.add(afterOssNameVersionBean);
+			}
+
+			ossNameVersionDiffMergeObject.put("before", beforeOssNameVersionBeanList);
+			ossNameVersionDiffMergeObject.put("after", afterOssNameVersionBeanList);
+			
+			// oss_components > admin check except
+			ossMaster.setOssName(beforeOssName);
+			ossMaster.setMergeOssName(afterOssName);
+			ossMaster.setOssVersion(null);
+			
+			// 3rdParty == 'CONF'
+			List<PartnerMaster> confirmPartnerList = ossMapper.getOssNameMergePartnerList(ossMaster);
+
+			if (confirmPartnerList.size() > 0) {
+				ossMaster.setReferenceDiv(CoConstDef.CD_DTL_COMPONENT_PARTNER);
+				ossMapper.updateOssComponents(ossMaster);
+				
+				for (PartnerMaster pm : confirmPartnerList) {
+					String contents = "<p>The following OSS Name has been changed.</p>\r\n" +
+							"<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"width:600px;\">\r\n" +
+							"	<tbody>\r\n" +
+							"		<tr>\r\n" +
+							"		    <th>OSS Name(OSS Version)</th>\r\n" +
+							"                    <th>OSS Name(OSS Version)</th>\r\n" +
+							"		</tr>\r\n" +
+							"                <tr>\r\n" +
+							"                    <td style=\"text-align:center;\">"+ beforeOssName + "</td>\r\n" +
+							"                    <td style=\"text-align:center;\">"+ afterOssName + "</td>\r\n" +
+							"                </tr>\r\n" +
+							"	</tbody>\r\n" +
+							"</table>";
+					
+					// partner Comment Regist
+					CommentsHistory historyBean = new CommentsHistory();
+					historyBean.setReferenceDiv(CoConstDef.CD_DTL_COMMENT_PARTNER_HIS);
+					historyBean.setReferenceId(pm.getPartnerId());
+					historyBean.setStatus("OSS Name Changed");
+					historyBean.setContents(contents);
+
+					commentService.registComment(historyBean);
+				}
+			}
+			
+			// Identification == 'CONF', verification
+			List<Project> confirmProjectList = ossMapper.getOssNameMergeProjectList(ossMaster);
+
+			if (confirmProjectList.size() > 0) {
+				ossMaster.setReferenceDiv(CoConstDef.CD_DTL_COMPONENT_ID_BOM);
+				ossMapper.updateOssComponents(ossMaster);
+
+				for (Project prj : confirmProjectList) {
+					String contents = "<p>The following OSS Name has been changed.</p>\r\n" +
+							"<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"width:600px;\">\r\n" +
+							"	<tbody>\r\n" +
+							"		<tr>\r\n" +
+							"		    <th>OSS Name(OSS Version) (Written before)</th>\r\n" +
+							"                    <th>OSS Name(OSS Version) (Changed)</th>\r\n" +
+							"		</tr>\r\n" +
+							"                <tr>\r\n" +
+							"                    <td style=\"text-align:center;\">"+ beforeOssName + "</td>\r\n" +
+							"                    <td style=\"text-align:center;\">"+ afterOssName + "</td>\r\n" +
+							"                </tr>\r\n" +
+							"	</tbody>\r\n" +
+							"</table>";
+					
+					// Project > Identification comment regist
+					CommentsHistory historyBean = new CommentsHistory();
+					historyBean.setReferenceId(prj.getPrjId());
+					historyBean.setStatus("OSS Name Changed");
+					historyBean.setContents(contents);
+					historyBean.setReferenceDiv(CoConstDef.CD_DTL_COMMENT_IDENTIFICAITON_HIS);
+					commentService.registComment(historyBean);
+				}
+			}
+		}
+		
+		return ossNameVersionDiffMergeObject;
 	}
 }

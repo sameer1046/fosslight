@@ -624,7 +624,7 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 							// 어짜피 여기서 설정하는 라이선스 이름은 의미가 없음
 							if(bean.getComponentLicenseList() != null && bean.getComponentLicenseList().size() == 1 && bean.getComponentLicenseList().get(0) != null) {
 								bean.setLicenseName(bean.getComponentLicenseList().get(0).getLicenseName());
-							} else if(multiUIFlag) {
+							} else if(CoConstDef.LICENSE_DIV_MULTI.equals(ossBean.getLicenseDiv())) {
 								bean.setLicenseName(CommonFunction.makeLicenseExpressionIdentify(bean.getComponentLicenseList(), ","));
 							} else {
 								// TODO - 여기 수정하면 될거 같음.. multiUIFlag
@@ -2610,7 +2610,7 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 			
 			if(CoConstDef.FLAG_YES.equals(project.getCompleteYn())) {
 				_tempComment = avoidNull(CoCodeManager.getCodeExpString(CoConstDef.CD_MAIL_DEFAULT_CONTENTS, CoConstDef.CD_MAIL_TYPE_PROJECT_COMPLETED));
-				userComment = _tempComment + "<br />" + avoidNull(userComment);
+				userComment =  avoidNull(userComment) + "<br />" + _tempComment;
 			}
 			
 			// complete log 추가
@@ -2624,7 +2624,7 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 			updateProjectMaster(project);
 			
 			String _tempComment = avoidNull(CoCodeManager.getCodeExpString(CoConstDef.CD_MAIL_DEFAULT_CONTENTS, CoConstDef.CD_MAIL_TYPE_PROJECT_DROPPED));
-				userComment = _tempComment + "<br />" + avoidNull(userComment);
+				userComment = avoidNull(userComment) + "<br />" + _tempComment;
 			
 			// complete log 추가
 			commentDiv = CoConstDef.CD_DTL_COMMENT_PROJECT_HIS;
@@ -4041,7 +4041,7 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 					rtnBean.setObligationLicense(CoConstDef.CD_DTL_OBLIGATION_DISCLOSURE);
 					rtnBean.setPreObligationType(CoConstDef.CD_DTL_OBLIGATION_DISCLOSURE);
 				} else if(CoConstDef.CD_DTL_OBLIGATION_NOTICE.equals(temp.getObligationType())
-						&& CoConstDef.CD_DTL_OBLIGATION_DISCLOSURE.equals(rtnBean.getObligationType())){
+						&& ("").equals(avoidNull(rtnBean.getObligationType(), ""))){
 					rtnBean.setObligationType(CoConstDef.CD_DTL_OBLIGATION_NOTICE);
 					rtnBean.setObligationLicense(CoConstDef.CD_DTL_OBLIGATION_NOTICE);
 					rtnBean.setPreObligationType(CoConstDef.CD_DTL_OBLIGATION_NOTICE);
@@ -4359,8 +4359,8 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 						afterBomList
 								.stream()
 								.filter(afList -> 
-										(bfList.getOssName() + "||" + bfList.getOssVersion() + "||" + getLicenseNameSort(bfList.getLicenseName().trim().replaceAll(" ", "")))
-										.equalsIgnoreCase(afList.getOssName() + "||" + afList.getOssVersion() + "||" + getLicenseNameSort(afList.getLicenseName().trim().replaceAll(" ", "")))
+										(bfList.getOssName() + "||" + bfList.getOssVersion() + "||" + getLicenseNameSort(bfList.getLicenseName().trim()))
+										.equalsIgnoreCase(afList.getOssName() + "||" + afList.getOssVersion() + "||" + getLicenseNameSort(afList.getLicenseName().trim()))
 										).collect(Collectors.toList()).size() == 0
 						).collect(Collectors.toList());
 		
@@ -4370,8 +4370,8 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 						beforeBomList
 								.stream()
 								.filter(bfList -> 
-										(afList.getOssName() + "||" + afList.getOssVersion() + "||" + getLicenseNameSort(afList.getLicenseName().trim().replaceAll(" ", "")))
-										.equalsIgnoreCase(bfList.getOssName() + "||" + bfList.getOssVersion() + "||" + getLicenseNameSort(bfList.getLicenseName().trim().replaceAll(" ", "")))
+										(afList.getOssName() + "||" + afList.getOssVersion() + "||" + getLicenseNameSort(afList.getLicenseName().trim()))
+										.equalsIgnoreCase(bfList.getOssName() + "||" + bfList.getOssVersion() + "||" + getLicenseNameSort(bfList.getLicenseName().trim()))
 										).collect(Collectors.toList()).size() == 0
 						).collect(Collectors.toList());
 		
@@ -4395,7 +4395,7 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 				
 				if (flag.equals("list")) {
 					afterossname = changeStyle("add", afterossname);
-					afterlicense = changeStyle("add", getLicenseNameSort(afterlicense.trim().replaceAll(" ", "")));
+					afterlicense = changeStyle("add", getLicenseNameSort(afterlicense.trim()));
 				}
 				
 				addMap.put("status", "add");
@@ -4435,7 +4435,7 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 				
 				if (flag.equals("list")) {
 					beforeossname = changeStyle("delete", beforeossname);
-					beforelicense = changeStyle("delete", getLicenseNameSort(beforelicense.trim().replaceAll(" ", "")));
+					beforelicense = changeStyle("delete", getLicenseNameSort(beforelicense.trim()));
 				}
 				
 				deleteMap.put("status", "delete");
@@ -4470,7 +4470,7 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 				}else {
 					addBeforeBomVO.setOssVersion(beforeBomCheckVO.getOssName() + "("+ beforeBomCheckVO.getOssVersion() + ")");
 				}
-				addBeforeBomVO.setLicenseName(getLicenseNameSort(avoidNull(beforeBomCheckVO.getLicenseName(), "N/A").replaceAll(" ", "")));
+				addBeforeBomVO.setLicenseName(getLicenseNameSort(avoidNull(beforeBomCheckVO.getLicenseName().trim(), "N/A")));
 									
 				if (beforeBomResult.size() > 0) {
 					for (int j=0; j<beforeBomResult.size(); j++) {
@@ -4503,7 +4503,7 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 				}else {
 					addAfterBomVO.setOssVersion(afterBomCheckVO.getOssName() + "(" + avoidNull(afterBomCheckVO.getOssVersion(), "N/A") + ")");
 				}
-				addAfterBomVO.setLicenseName(getLicenseNameSort(avoidNull(afterBomCheckVO.getLicenseName().trim(), "N/A").replaceAll(" ", "")));
+				addAfterBomVO.setLicenseName(getLicenseNameSort(avoidNull(afterBomCheckVO.getLicenseName().trim(), "N/A")));
 				
 				if (afterBomResult.size() > 0) {
 					for (int j=0; j<afterBomResult.size(); j++) {
@@ -4604,7 +4604,7 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 			int cnt = 0;
 			
 			for (int i=0; i<count; i++) {
-				if (splitOssNameVersion[i].replaceAll(" ", "").equals(ossNameVersion2)) {
+				if (splitOssNameVersion[i].trim().equals(ossNameVersion2)) {
 					cnt++;
 				}
 			}

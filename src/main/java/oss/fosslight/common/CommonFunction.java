@@ -582,7 +582,8 @@ public class CommonFunction extends CoTopComponent {
 					
 					break;
 				case CoConstDef.CD_LICENSE_TYPE_CP:
-					if(!CoConstDef.CD_LICENSE_TYPE_WCP.equals(finalPermissive)) {
+					if(!CoConstDef.CD_LICENSE_TYPE_PMS.equals(finalPermissive)
+							&& !CoConstDef.CD_LICENSE_TYPE_WCP.equals(finalPermissive)) {
 						finalPermissive = CoConstDef.CD_LICENSE_TYPE_CP;
 						selectedIdx = idx;
 						permissiveListCP.add(selectedIdx);
@@ -590,7 +591,9 @@ public class CommonFunction extends CoTopComponent {
 					
 					break;
 				case CoConstDef.CD_LICENSE_TYPE_PF:
-					if(!CoConstDef.CD_LICENSE_TYPE_CP.equals(finalPermissive)) {
+					if(!CoConstDef.CD_LICENSE_TYPE_PMS.equals(finalPermissive)
+							&& !CoConstDef.CD_LICENSE_TYPE_WCP.equals(finalPermissive)
+							&& !CoConstDef.CD_LICENSE_TYPE_CP.equals(finalPermissive)) {
 						finalPermissive = CoConstDef.CD_LICENSE_TYPE_PF;
 						selectedIdx = idx;
 						permissiveListPF.add(selectedIdx);
@@ -655,31 +658,34 @@ public class CommonFunction extends CoTopComponent {
 		for(ProjectIdentification bean : andList) {
 			// 가장 Strong한 라이선스부터 case
 			switch (bean.getLicenseType()) {
-				case CoConstDef.CD_LICENSE_TYPE_PMS:
-					rtnVal = CoConstDef.CD_LICENSE_TYPE_PMS;
+				case CoConstDef.CD_LICENSE_TYPE_NA:
+					rtnVal = CoConstDef.CD_LICENSE_TYPE_NA;
 					
-					break;
-				case CoConstDef.CD_LICENSE_TYPE_WCP:
-					if(!CoConstDef.CD_LICENSE_TYPE_PMS.equals(rtnVal)) {
-						rtnVal = CoConstDef.CD_LICENSE_TYPE_WCP;
-					}
-					
-					break;
-				case CoConstDef.CD_LICENSE_TYPE_CP:
-					if(!CoConstDef.CD_LICENSE_TYPE_WCP.equals(rtnVal)) {
-						rtnVal = CoConstDef.CD_LICENSE_TYPE_CP;
-					}
-				
 					break;
 				case CoConstDef.CD_LICENSE_TYPE_PF:
-					if(!CoConstDef.CD_LICENSE_TYPE_CP.equals(rtnVal)) {
+					if(!CoConstDef.CD_LICENSE_TYPE_NA.equals(rtnVal)) {
 						rtnVal = CoConstDef.CD_LICENSE_TYPE_PF;
 					}
 					
 					break;
-				case CoConstDef.CD_LICENSE_TYPE_NA:
+				case CoConstDef.CD_LICENSE_TYPE_CP:
+					if(!CoConstDef.CD_LICENSE_TYPE_NA.equals(rtnVal)
+							&& !CoConstDef.CD_LICENSE_TYPE_PF.equals(rtnVal)) {
+						rtnVal = CoConstDef.CD_LICENSE_TYPE_CP;
+					}
+				
+					break;
+				case CoConstDef.CD_LICENSE_TYPE_WCP:
+					if(!CoConstDef.CD_LICENSE_TYPE_NA.equals(rtnVal)
+							&& !CoConstDef.CD_LICENSE_TYPE_PF.equals(rtnVal)
+							&& !CoConstDef.CD_LICENSE_TYPE_CP.equals(rtnVal)) {
+						rtnVal = CoConstDef.CD_LICENSE_TYPE_WCP;
+					}
+					
+					break;
+				case CoConstDef.CD_LICENSE_TYPE_PMS:
 					if(isEmpty(rtnVal)) {
-						rtnVal = CoConstDef.CD_LICENSE_TYPE_NA;
+						rtnVal = CoConstDef.CD_LICENSE_TYPE_PMS;
 					}
 					
 					break;
@@ -1975,16 +1981,27 @@ public class CommonFunction extends CoTopComponent {
 		
 		if(!isEmpty(CoCodeManager.CD_ROLE_OUT_LICENSE)) {
 			for(String license : avoidNull(licenseName).split(",")) {
-				result = false;
-				
 				for(String s : CoCodeManager.CD_ROLE_OUT_LICENSE.split("\\|")) {
 					if(s.trim().equalsIgnoreCase(license)) {
 						result = true;
-						
 						break;
 					}
 				}
 			}
+		}
+		
+		// license type이 NA가 아닌 라이선스가 포함되어 있거나, Unconfirmed license인 경우 false
+		if(result) {
+			for(String license : avoidNull(licenseName).split(",")) {
+				if(CoCodeManager.LICENSE_INFO_UPPER.containsKey(license.toUpperCase())) {
+					LicenseMaster licenseMaster = CoCodeManager.LICENSE_INFO_UPPER.get(license.toUpperCase());
+					if(!"NA".equalsIgnoreCase(licenseMaster.getLicenseType())) {
+						return false;
+					}
+				} else {
+					return false;
+				}
+			}	
 		}
 		
 		return result;

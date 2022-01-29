@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.2.28 (28/01/2022)
+## 🐛 Hotfixes
+
+- Fix the bug where OSS Type is not Dual and not version diff is displayed incorrectly @FOSSLight-dev (#393)
+
+## 🔧 Maintenance
+
+- Add the function to change the OSS Name of OSS with different versions @FOSSLight-dev (#395)
+- Reorder user comments before email default content @soimkim (#394)
+
+---
+
+## v1.2.27 (21/01/2022)
+## Changes
+## 🐛 Hotfixes
+
+- Fix bugs related to Auto ID and BOM Obligation. @FOSSLight-dev (#391)
+- Fix bugs in BOM Compare and Auto ID @FOSSLight-dev (#389)
+- Delete the arrow from the left menu @FOSSLight-dev (#388)
+
+## 🔧 Maintenance
+
+- Add a default value for server domain @FOSSLight-dev (#392)
+- Add a shortcut link when sending a license email @soimkim (#390)
+- Delete the arrow from the left menu @FOSSLight-dev (#388)
+
+---
+
 ## v1.2.26 (14/01/2022)
 ## Changes
 ## 🐛 Hotfixes
@@ -567,14 +595,3 @@
 - Move DB related files to db directory @soimkim (#5)
 - Update docker files @soimkim (#4)
 - Remove unnecessary files @soimkim (#1)
-
----
-
-## v1.0.1 (27/05/2021)
-## Changes
-* Set up automated deployment.
-
----
-
-## v1.0 (30/04/2021)
-Release FOSSLight v1.0 🎉
