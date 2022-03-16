@@ -283,6 +283,10 @@ public class OssMaster extends ComBean implements Serializable{
 	private String mergeOssVersion;
 	
 	private String differentOssVersionMergeFlag = "N";
+	
+	private String ossCopyFlag = "N";
+	
+	private String defaultSearchFlag;
 
 	/**
 	 * Instantiates a new oss master.
@@ -1939,4 +1943,21 @@ public class OssMaster extends ComBean implements Serializable{
 	public void setDifferentOssVersionMergeFlag(String differentOssVersionMergeFlag) {
 		this.differentOssVersionMergeFlag = differentOssVersionMergeFlag;
 	}
+
+	public String getOssCopyFlag() {
+		return ossCopyFlag;
+	}
+
+	public void setOssCopyFlag(String ossCopyFlag) {
+		this.ossCopyFlag = ossCopyFlag;
+	}
+
+	public String getDefaultSearchFlag() {
+		return defaultSearchFlag;
+	}
+
+	public void setDefaultSearchFlag(String defaultSearchFlag) {
+		this.defaultSearchFlag = defaultSearchFlag;
+	}
+	
 }

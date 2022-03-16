@@ -61,6 +61,7 @@ import oss.fosslight.service.HistoryService;
 import oss.fosslight.service.OssService;
 import oss.fosslight.service.PartnerService;
 import oss.fosslight.service.ProjectService;
+import oss.fosslight.service.SearchService;
 import oss.fosslight.service.SelfCheckService;
 import oss.fosslight.util.ExcelDownLoadUtil;
 import oss.fosslight.util.ExcelUtil;
@@ -87,6 +88,7 @@ public class OssController extends CoTopComponent{
 	@Autowired ProjectService projectService;
 	@Autowired PartnerService partnerService;
 	@Autowired AutoFillOssInfoService autoFillOssInfoService;
+	@Autowired SearchService searchService;
 	
 	private final String SESSION_KEY_SEARCH = "SESSION_KEY_OSS_LIST";
 	
@@ -96,8 +98,10 @@ public class OssController extends CoTopComponent{
 		
 		if(!CoConstDef.FLAG_YES.equals(req.getParameter("gnbF"))) {
 			deleteSession(SESSION_KEY_SEARCH);
-			
-			searchBean = new OssMaster();
+			searchBean = searchService.getOssSearchFilter(loginUserName());
+			if(searchBean == null) {
+				searchBean = new OssMaster();
+			}
 		} else if(getSessionObject(SESSION_KEY_SEARCH) != null) {
 			searchBean = (OssMaster) getSessionObject(SESSION_KEY_SEARCH);
 			
@@ -140,6 +144,15 @@ public class OssController extends CoTopComponent{
 			, HttpServletRequest req
 			, HttpServletResponse res
 			, Model model){
+		
+		Map<String, Object> map = null;
+		
+		if("Y".equals(req.getParameter("ignoreSearchFlag"))) {
+			map = new HashMap<>();
+			map.put("rows", new ArrayList<>());
+			return makeJsonResponseHeader(map);
+		}
+		
 		int page = Integer.parseInt(req.getParameter("page"));
 		int rows = Integer.parseInt(req.getParameter("rows"));
 		String sidx = req.getParameter("sidx");
@@ -168,8 +181,6 @@ public class OssController extends CoTopComponent{
 			ossMaster = (OssMaster) getSessionObject(SESSION_KEY_SEARCH);
 		}
 		
-		Map<String, Object> map = null;
-		ossMaster.setSearchFlag(CoConstDef.FLAG_YES);
 		ossMaster.setSearchFlag(CoConstDef.FLAG_YES); // 화면 검색일 경우 "Y" export시 "N"
 		
 		try {
@@ -202,7 +213,7 @@ public class OssController extends CoTopComponent{
 			model.addAttribute("downloadLocation", avoidNull(bean.getDownloadLocation()));
 			model.addAttribute("homepage", avoidNull(bean.getHomepage()));
 			
-			if(bean.getLicenseName() != null && bean.getLicenseName().contains(",")) {
+			if(!isEmpty(avoidNull(bean.getLicenseName()))) {
 				List<OssLicense> licenseList = new ArrayList<OssLicense>();
 				HashMap<String, Object> map = new HashMap<String, Object>();
 				int idx = 1;
@@ -233,8 +244,6 @@ public class OssController extends CoTopComponent{
 				
 				map.put("rows", licenseList);
 				model.addAttribute("list", toJson(map));
-			} else {
-				model.addAttribute("licenseName", avoidNull(bean.getLicenseName()));
 			}
 			
 			model.addAttribute("copyright", avoidNull(bean.getCopyright()));
@@ -425,6 +434,11 @@ public class OssController extends CoTopComponent{
 		
 		try{
 			History h = new History();
+			
+			if(("Y").equals(ossMaster.getOssCopyFlag())) {
+				ossMaster.setOssId(null);
+				isNew = true;
+			}
 			
 			// OSS 수정
 			if(!isNew){
@@ -661,10 +675,8 @@ public class OssController extends CoTopComponent{
 		if(isEmpty(ossMaster.getOssId())) {
 			OssMaster checkOssInfo = ossService.getOssInfo(ossMaster.getOssId(), ossMaster.getOssName(), false);
 			
-			if(checkOssInfo != null) {
-				if(CoConstDef.FLAG_YES.equals(checkOssInfo.getDeactivateFlag())) {
-					return makeJsonResponseHeader(false, "deactivate");
-				}
+			if(checkOssInfo != null && CoConstDef.FLAG_YES.equals(checkOssInfo.getDeactivateFlag())) {
+				return makeJsonResponseHeader(false, "deactivate");
 			} else {
 				// 신규 등록인 경우 nick name 체크(변경된 사항이 있는 경우, 삭제는 불가)
 				String[] _mergeNicknames = ossService.checkNickNameRegOss(ossMaster.getOssName(), ossMaster.getOssNicknames());
@@ -897,7 +909,11 @@ public class OssController extends CoTopComponent{
 		OssMaster orgMaster = null;
 		
 		if(!isEmpty(ossMaster.getOssName())) {
-			orgMaster = ossService.getLastModifiedOssInfoByName(ossMaster);
+			if(CoCodeManager.OSS_INFO_UPPER_NAMES.containsKey(ossMaster.getOssName().toUpperCase())) {
+				orgMaster = ossService.getLastModifiedOssInfoByName(ossMaster);
+			}else {
+				orgMaster = ossService.getSaveSesstionOssInfoByName(ossMaster);
+			}
 		}
 		
 		if(orgMaster != null && !isEmpty(orgMaster.getOssId())) {

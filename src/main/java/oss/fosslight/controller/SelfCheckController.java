@@ -52,6 +52,7 @@ import oss.fosslight.service.FileService;
 import oss.fosslight.service.HistoryService;
 import oss.fosslight.service.MailService;
 import oss.fosslight.service.ProjectService;
+import oss.fosslight.service.SearchService;
 import oss.fosslight.service.SelfCheckService;
 import oss.fosslight.service.T2UserService;
 import oss.fosslight.util.StringUtil;
@@ -79,6 +80,7 @@ public class SelfCheckController extends CoTopComponent {
 	@Autowired VerificationMapper verificationMapper;
 	@Autowired ProjectMapper projectMapper;
 	@Autowired CodeMapper codeMapper;
+	@Autowired SearchService searchService;
 	
 	private final String SESSION_KEY_SEARCH = "SESSION_KEY_SELFCHECK_LIST";
 	
@@ -98,7 +100,11 @@ public class SelfCheckController extends CoTopComponent {
 		
 		if(!CoConstDef.FLAG_YES.equals(req.getParameter("gnbF"))) {
 			deleteSession(SESSION_KEY_SEARCH);
-			searchBean = new Project();
+			
+			searchBean = searchService.getSelfCheckSearchFilter(loginUserName());
+			if(searchBean == null) {
+				searchBean = new Project();
+			}
 		} else if(getSessionObject(SESSION_KEY_SEARCH) != null) {
 			searchBean = (Project) getSessionObject(SESSION_KEY_SEARCH);
 		}
@@ -266,14 +272,17 @@ public class SelfCheckController extends CoTopComponent {
 			
 			T2CoValidationResult vr = pv.validate(new HashMap<>());
 			
+			// set self check obligation message
+			List<ProjectIdentification> mainDataList = CommonFunction.identificationUnclearObligationCheck((List<ProjectIdentification>) map.get("mainData"), vr.getErrorCodeMap(), vr.getWarningCodeMap());
+			
 			if (!vr.isValid()) {
 				Map<String, String> validMap = vr.getValidMessageMap();
 				map.put("validData", validMap);
 				map.replace("mainData", CommonFunction
-						.identificationSortByValidInfo((List<ProjectIdentification>) map.get("mainData"), validMap, vr.getDiffMessageMap(), vr.getInfoMessageMap(), true, true));
+						.identificationSortByValidInfo(mainDataList, validMap, vr.getDiffMessageMap(), vr.getInfoMessageMap(), true, true));
 			} else {
 				map.replace("mainData", CommonFunction
-						.identificationSortByValidInfo((List<ProjectIdentification>) map.get("mainData"), null, null, null, true, true));
+						.identificationSortByValidInfo(mainDataList, null, null, null, true, true));
 			}
 			
 			if(!vr.isDiff()){
@@ -404,7 +413,7 @@ public class SelfCheckController extends CoTopComponent {
 			project.setPrjId(prjId);
 			project.setSrcCsvFileId(csvFileId);
 			project.setCsvFile(delFile);
-			project.setCsvAddFileSeq(addFile);
+			project.setCsvFileSeq(addFile);
 			project.setIdentificationSubStatusSrc(identificationSubStatusSrc);
 			
 			Map<String, Object> remakeComponentsMap = CommonFunction.remakeMutiLicenseComponents(ossComponents, ossComponentsLicense);

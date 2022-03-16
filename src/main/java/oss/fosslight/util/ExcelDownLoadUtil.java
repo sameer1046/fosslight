@@ -1019,7 +1019,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 			for(int i = 0; i < projectList.size(); i++){
 				Project param = projectList.get(i);
 				Map<String, String> expandInfo = projectExpandInfo.get(param.getPrjId());
-				OssMaster nvdMaxScoreInfo = projectMapper.findIdentificationMaxNvdInfo(param.getPrjId());
+				OssMaster nvdMaxScoreInfo = projectMapper.findIdentificationMaxNvdInfo(param.getPrjId(), null);
 				String nvdMaxScore = "";
 				
 				if(nvdMaxScoreInfo != null) {
@@ -2921,7 +2921,7 @@ public class ExcelDownLoadUtil extends CoTopComponent {
 							params.add("NO");  // seq
 							params.add("Division"); // Division
 							params.add("Total"); // Total Cnt
-							params.add("Activor"); // Activor Cnt
+							params.add("Activator"); // Activator Cnt
 							
 							rows.add(params.toArray(new String[params.size()]));
 							

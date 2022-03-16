@@ -105,7 +105,7 @@ public class LicenseServiceImpl extends CoTopComponent implements LicenseService
 
 		if(licenseMaster.getRestrictions() != null) {
 			String restrictions = licenseMaster.getRestrictions();
-			
+						
 			if(!isEmpty(restrictions)){
 				String[] arrRestrictions = restrictions.split(",");
 				

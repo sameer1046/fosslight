@@ -19,8 +19,8 @@
 					</dd>
 					<dd class="lastAign">
 						<label>Created Date</label>
-						<input name="schStartDate" id="schStartDate" type="text" class="cal" title="Search Start Date" value="${searchBean.schStartDate}" maxlength="8" style="width:77px;"/> ~ 
-						<input name="schEndDate" id="schEndDate" type="text" class="cal" title="Search End Date" value="${searchBean.schEndDate}" maxlength="8" style="width:77px;"/> 
+						<input name="schStartDate" id="schStartDate" type="text" class="cal" title="Search Start Date" value="${searchBean.schStartDate}" maxlength="8" autocomplete="off" style="width:77px;"/> ~ 
+						<input name="schEndDate" id="schEndDate" type="text" class="cal" title="Search End Date" value="${searchBean.schEndDate}" maxlength="8" autocomplete="off" style="width:77px;"/> 
 					</dd>
 					<dd>
 						<label>Division</label>
@@ -82,9 +82,9 @@
 						</span>
 					</dd>
 					<c:if test="${!ct:isAdmin()}">
-					<dd class="centerAign">
-						<label class="vmiddle">View My Projects Only</label>
-						<input type="checkbox" id="checkbox3" name="publicYn" checked="checked"/>
+					<dd class="">
+						<label class="vmiddle" style="width: 50%;">View My Projects Only</label>
+						<input type="checkbox" id="checkbox3" name="publicYn" ${searchBean.publicYn eq 'N' ? 'checked="checked"' : '' }/>
 					</dd>
 					</c:if>
 				</dl>

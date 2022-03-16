@@ -173,7 +173,7 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 						// DIVISION
 						bean.setDivision(CoCodeManager.getCodeString(CoConstDef.CD_USER_DIVISION, bean.getDivision()));
 						
-						OssMaster nvdMaxScoreInfo = projectMapper.findIdentificationMaxNvdInfo(bean.getPrjId());
+						OssMaster nvdMaxScoreInfo = projectMapper.findIdentificationMaxNvdInfo(bean.getPrjId(), null);
 						
 						if(nvdMaxScoreInfo != null) {
 							bean.setCveId(nvdMaxScoreInfo.getCveId());
@@ -697,6 +697,12 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 						}
 
 						bean.setBatStrPlus(batPercentageStr);
+						
+						// Change bat grid result percentage (UI) Number only
+						if(!isEmpty(bean.getBatStringMatchPercentage())) {
+							bean.setBatStringMatchPercentageFloat(bean.getBatStringMatchPercentage().replace("%", "").trim());
+						}
+						
 					}
 					
 					// License Restriction 저장
@@ -1656,9 +1662,9 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 				}				
 			}
 			
-			if(project.getCsvAddFileSeq() != null) {
-				for (int i = 0; i < project.getCsvAddFileSeq().size(); i++) {
-					projectMapper.updateFileBySeq(project.getCsvAddFileSeq().get(i));
+			if(project.getCsvFileSeq() != null) {
+				for (int i = 0; i < project.getCsvFileSeq().size(); i++) {
+					projectMapper.updateFileBySeq(project.getCsvFileSeq().get(i));
 				}				
 			}
 		}
@@ -2600,6 +2606,8 @@ public class ProjectServiceImpl extends CoTopComponent implements ProjectService
 				// do nothing
 				mailType = CoConstDef.CD_MAIL_TYPE_PROJECT_IDENTIFICATION_CONFIRMED_ONLY;
 			} else {
+				String _tempComment = avoidNull(CoCodeManager.getCodeExpString(CoConstDef.CD_MAIL_DEFAULT_CONTENTS, CoConstDef.CD_MAIL_TYPE_PROJECT_IDENTIFICATION_CONF));
+				userComment = avoidNull(userComment) + "<br />" + _tempComment;
 				mailType = CoConstDef.CD_MAIL_TYPE_PROJECT_IDENTIFICATION_CONF;
 			}
 		} else if (!isEmpty(project.getCompleteYn())) {

@@ -68,7 +68,7 @@ var saveFlag = false;
 			}
 		});
 		
-		if(userRole == "ROLE_ADMIN" && '${detail.partnerId}' != ""){
+		if('${detail.partnerId}' != ""){
 			$("input[name=creatorNm]").val('${detail.creatorName }');
 		}
 		
@@ -121,6 +121,11 @@ var saveFlag = false;
 			$('dl[name=commentClone]').remove();
 			
 			$('select[name=userDivision]').trigger('change');
+			$('select[name=division]').trigger('change');
+			
+			$('select[name=division]').on("change", function(){
+				fn.changeDivision()
+			});
 			
 			//와쳐 추가 버튼
 			$('#addWatcher').on('click', function(){
@@ -300,8 +305,9 @@ var saveFlag = false;
 									for(var i = 0; i < result[1].length; i++){
 										var num = i+1;
 										var checkedTxt = "";
+										var sheetName = result[1][i].name.toUpperCase().trim();
 
-										if(result[1][i].name.toUpperCase().trim() == "OSS LIST"){
+										if(sheetName == "OSS LIST" || sheetName == "OPEN SOURCE SOFTWARE LIST"){
 											checkedTxt = "checked";
 										}
 										
@@ -594,6 +600,30 @@ var saveFlag = false;
 					alertify.error('<spring:message code="msg.common.valid2" />', 0);
 				}
 			});
+		},
+		changeDivision : function() {
+			var divisionCd = $("#division option:selected").val();
+			if("" != divisionCd) {
+				var postData = { "partnerId" : '${detail.partnerId}', "division" : divisionCd};
+				$.ajax({
+					url : '<c:url value="/partner/changeDivisionAjax"/>',
+					type : 'POST',
+					data : JSON.stringify(postData),
+					dataType : 'json',
+					contentType : 'application/json',
+					cache : false,
+					success: function(data) {
+						if(data.isValid == "false") {
+							alertify.error('<spring:message code="msg.common.valid2" />', 0);	
+						} else {
+							alertify.success('<spring:message code="msg.common.success" />');	
+						}
+					},
+					error: function(data){
+						alertify.error('<spring:message code="msg.common.valid2" />', 0);
+					}
+				});
+			}
 		},
 		save : function(){
 			if (fn.checkStatus()){

@@ -14,8 +14,10 @@
    			COUNT(*)
    		FROM 
    			LICENSE_MASTER						T1
-   			LEFT JOIN (SELECT LICENSE_ID, GROUP_CONCAT(WEBPAGE) AS WEBPAGE FROM LICENSE_WEBPAGE GROUP BY LICENSE_ID) T2 ON T1.LICENSE_ID = T2.LICENSE_ID
+   			LEFT OUTER JOIN T2_CODE_DTL 		T2 ON T1.LICENSE_TYPE = T2.CD_DTL_NO
+   			LEFT JOIN (SELECT LICENSE_ID, GROUP_CONCAT(WEBPAGE) AS WEBPAGE FROM LICENSE_WEBPAGE GROUP BY LICENSE_ID) T3 ON T1.LICENSE_ID = T3.LICENSE_ID
 		WHERE T1.USE_YN = 'Y'
+		  AND T2.CD_NO = '201'
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(licenseName)">
 			AND 
 			(
@@ -63,7 +65,7 @@
 			AND REPLACE(REPLACE(REPLACE(IFNULL(T1.DESCRIPTION, ''),'\r\n', ' '),'\n', ' '), ' ', '') LIKE CONCAT('%',REPLACE(REPLACE(REPLACE(#{description},'\r\n', ' '),'\n', ' '), ' ', ''),'%')
 		</if>
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(webpage)">
-			AND (T1.WEBPAGE LIKE CONCAT('%',REGEXP_REPLACE(#{webpage}, '_', '\\\\_'),'%') OR T2.WEBPAGE LIKE CONCAT('%',REGEXP_REPLACE(#{webpage}, '_', '\\\\_'),'%'))
+			AND (T1.WEBPAGE LIKE CONCAT('%',REGEXP_REPLACE(#{webpage}, '_', '\\\\_'),'%') OR T3.WEBPAGE LIKE CONCAT('%',REGEXP_REPLACE(#{webpage}, '_', '\\\\_'),'%'))
 		</if>
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(creator)">
 			AND T1.CREATOR LIKE CONCAT('%',#{creator},'%')
@@ -101,7 +103,7 @@
 		<if test="arrRestriction != null">
 			AND
 			<foreach collection="arrRestriction" item="item" open="(" close=")" separator="OR">
-				T1.RESTRICTION LIKE CONCAT('%',#{item},'%')
+				FIND_IN_SET(#{item}, T1.RESTRICTION)
 			</foreach>
 		</if>
    	</select>
@@ -218,7 +220,7 @@
 		<if test="arrRestriction != null">
 			AND
 			<foreach collection="arrRestriction" item="item" open="(" close=")" separator="OR">
-				T1.RESTRICTION LIKE CONCAT('%',#{item},'%')
+				FIND_IN_SET(#{item}, T1.RESTRICTION)
 			</foreach>
 		</if>
 		<if test="sortField eq 'licenseId'">

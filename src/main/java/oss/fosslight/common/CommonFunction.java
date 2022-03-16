@@ -28,7 +28,9 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.Scanner;
 import java.util.TimeZone;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -738,49 +740,51 @@ public class CommonFunction extends CoTopComponent {
 		String currentType = "";
 		boolean breakFlag = false;
 		
-		for(OssLicense bean : andList) {
-			// 가장 Strong한 라이선스부터 case
-			switch (bean.getLicenseType()) {
-				case CoConstDef.CD_LICENSE_TYPE_NA:
-					currentType = CoConstDef.CD_LICENSE_TYPE_NA;
-					rtnVal = bean;
-					breakFlag = true;
-					
-					break;
-				case CoConstDef.CD_LICENSE_TYPE_PF:
-					if(!CoConstDef.CD_LICENSE_TYPE_NA.equals(currentType)) {
-						currentType = CoConstDef.CD_LICENSE_TYPE_PF;
+		if(andList != null) {
+			for(OssLicense bean : andList) {
+				// 가장 Strong한 라이선스부터 case
+				switch (bean.getLicenseType()) {
+					case CoConstDef.CD_LICENSE_TYPE_NA:
+						currentType = CoConstDef.CD_LICENSE_TYPE_NA;
 						rtnVal = bean;
-					}
-					
+						breakFlag = true;
+						
+						break;
+					case CoConstDef.CD_LICENSE_TYPE_PF:
+						if(!CoConstDef.CD_LICENSE_TYPE_NA.equals(currentType)) {
+							currentType = CoConstDef.CD_LICENSE_TYPE_PF;
+							rtnVal = bean;
+						}
+						
+						break;
+					case CoConstDef.CD_LICENSE_TYPE_CP:
+						if(!CoConstDef.CD_LICENSE_TYPE_PF.equals(currentType)) {
+							currentType = CoConstDef.CD_LICENSE_TYPE_CP;
+							rtnVal = bean;
+						}
+						
+						break;
+					case CoConstDef.CD_LICENSE_TYPE_WCP:
+						if(!CoConstDef.CD_LICENSE_TYPE_CP.equals(currentType)) {
+							currentType = CoConstDef.CD_LICENSE_TYPE_WCP;
+							rtnVal = bean;
+						}
+						
+						break;
+					case CoConstDef.CD_LICENSE_TYPE_PMS:
+						if(isEmpty(currentType)) {
+							currentType = CoConstDef.CD_LICENSE_TYPE_PMS;
+							rtnVal = bean;
+						}
+						
+						break;
+					default:
+						break;
+				}
+				
+				if(breakFlag) {
 					break;
-				case CoConstDef.CD_LICENSE_TYPE_CP:
-					if(!CoConstDef.CD_LICENSE_TYPE_PF.equals(currentType)) {
-						currentType = CoConstDef.CD_LICENSE_TYPE_CP;
-						rtnVal = bean;
-					}
-					
-					break;
-				case CoConstDef.CD_LICENSE_TYPE_WCP:
-					if(!CoConstDef.CD_LICENSE_TYPE_CP.equals(currentType)) {
-						currentType = CoConstDef.CD_LICENSE_TYPE_WCP;
-						rtnVal = bean;
-					}
-					
-					break;
-				case CoConstDef.CD_LICENSE_TYPE_PMS:
-					if(isEmpty(currentType)) {
-						currentType = CoConstDef.CD_LICENSE_TYPE_PMS;
-						rtnVal = bean;
-					}
-					
-					break;
-				default:
-					break;
-			}
-			
-			if(breakFlag) {
-				break;
+				}
 			}
 		}
 		
@@ -1458,12 +1462,14 @@ public class CommonFunction extends CoTopComponent {
 						_list.add(errKey.substring(0, errKey.indexOf(".")).toUpperCase());
 						errorMap.put(_key, _list);
 					}
-					
+					/*
 					if(hideObligation) {
 						if(hideObligationColumns.contains(errKey.substring(0, errKey.indexOf(".")).toUpperCase())) {
-							hideObligationIdList.put(_key, validMap.get(errKey));
+//							hideObligationIdList.put(_key, validMap.get(errKey));
+							hideObligationIdList.put(_key, getMessage("msg.project.obligation.unclear"));
 						}
 					}
+					*/
 				}
 			}			
 		}
@@ -1474,12 +1480,14 @@ public class CommonFunction extends CoTopComponent {
 			for(String errKey : validDiffMap.keySet()) {
 				if(errKey.indexOf(".") > -1) {
 					String _key = errKey.substring(errKey.indexOf(".") + 1, errKey.length());
-					
+					/*
 					if(hideObligation) {
 						if(hideObligationColumns.contains(errKey.substring(0, errKey.indexOf(".")).toUpperCase())) {
-							hideObligationIdList.put(_key, validDiffMap.get(errKey));
+//							hideObligationIdList.put(_key, validDiffMap.get(errKey));
+							hideObligationIdList.put(_key, getMessage("msg.project.obligation.unclear"));
 						}
 					}
+					*/
 					
 					if(warningMap.containsKey(_key)) {
 						List<String> _list = warningMap.get(_key);
@@ -1502,7 +1510,8 @@ public class CommonFunction extends CoTopComponent {
 					
 					if(hideObligation) {
 						if(hideObligationColumns.contains(errKey.substring(0, errKey.indexOf(".")).toUpperCase())) {
-							hideObligationIdList.put(_key, validInfoMap.get(errKey));
+//							hideObligationIdList.put(_key, validInfoMap.get(errKey));
+							hideObligationIdList.put(_key, getMessage("msg.project.obligation.unclear"));
 						}
 					}
 					
@@ -1548,7 +1557,7 @@ public class CommonFunction extends CoTopComponent {
 		String currentGroup = "";
 		for(ProjectIdentification bean : list) {
 			
-			// self check의 겨웅에 한함
+			// self check case only
 			if(hideObligation) {
 				if(hideObligationIdList.containsKey(bean.getGridId())) {
 					bean.setObligationGrayFlag(CoConstDef.FLAG_YES);
@@ -2689,9 +2698,14 @@ public class CommonFunction extends CoTopComponent {
 		
 		if(validMessageMap != null) {
 			for(String key : validMessageMap.keySet()) {
+				if("isValid".equalsIgnoreCase(key)) {
+					continue;
+				}
+				String msg = removeLineSeparator(validMessageMap.get(key));
 				if(key.indexOf(".") > -1) {
-					String msg = removeLineSeparator(validMessageMap.get(key));
-					rtnStr += "<br />" + key.substring(key.indexOf(".") +1, key.length()) + " : " + msg;
+					rtnStr += "<br />" + key.substring(0, key.indexOf(".")) + " : " + msg;
+				} else {
+					rtnStr += "<br />" + key + " : " + msg;
 				}
 			}
 		}
@@ -3566,6 +3580,10 @@ public class CommonFunction extends CoTopComponent {
 							
 							newestOssInfo.setOssNickname(newestMergeNickName);
 							totalAnalysis.setOssNickname(newestMergeNickName);
+							
+							askalono.setOssNickname(newestMergeNickName);
+							scancode.setOssNickname(newestMergeNickName);
+							userData.setOssNickname(newestMergeNickName);
 						} else {
 							totalNewestOssInfo = ossService.getNewestOssInfo(totalAnalysis); // 사용자 정보의 ossName기준 최신 등록정보
 
@@ -3576,6 +3594,10 @@ public class CommonFunction extends CoTopComponent {
 							
 							totalNewestOssInfo.setOssNickname(totalNewestMergeNickName);
 							totalAnalysis.setOssNickname(totalNewestMergeNickName);
+							
+							askalono.setOssNickname(totalNewestMergeNickName);
+							scancode.setOssNickname(totalNewestMergeNickName);
+							userData.setOssNickname(totalNewestMergeNickName);
 						}
 					} catch (Exception newestException) {
 						log.error(newestException.getMessage());
@@ -3608,6 +3630,10 @@ public class CommonFunction extends CoTopComponent {
 						
 						totalNewestOssInfo.setOssNickname(totalNewestMergeNickName);
 						totalAnalysis.setOssNickname(totalNewestMergeNickName);
+						
+						askalono.setOssNickname(totalNewestMergeNickName);
+						scancode.setOssNickname(totalNewestMergeNickName);
+						userData.setOssNickname(totalNewestMergeNickName);
 					}
 					
 					askalono.setGridId(""+gridSeq++);
@@ -3677,13 +3703,41 @@ public class CommonFunction extends CoTopComponent {
 
 	public static ArrayList<Object> checkCsvFileLimit(List<UploadFile> list) {
 		ArrayList<Object> result = new ArrayList<Object>();
-
+		boolean nextCheck = false;
+		
 		for(UploadFile f : list) {
 			if(f.getSize() > CoConstDef.CD_CSV_UPLOAD_FILE_SIZE_LIMIT && f.getFileExt().contains("csv")){
 				result.add("FILE_SIZE_LIMIT_OVER");
 				result.add("The file exceeded 5MB.<br>Please delete the blank row or unnecessary data, and then upload it.");
-
+				nextCheck = true;
 				break;
+			}
+			
+			if(!nextCheck) {
+				boolean tabGubnBoolean = false;
+				String commaData = "";
+				Scanner sc = null;
+				
+				try {
+					sc = new Scanner(new FileInputStream(new File(f.getFilePath() + "/" + f.getFileName())));
+					while(sc.hasNext()) {
+						String readLine = sc.nextLine();
+						if(!isEmpty(readLine) && !readLine.contains("\t")) {
+							tabGubnBoolean = true;
+							break;
+						}
+					}
+				} catch (Exception e) {
+					log.info(e.getMessage(), e);
+				} finally {
+					sc.close();
+					
+					if(tabGubnBoolean) {
+						result.add("TAB_GUBN_ERROR");
+						result.add(commaData);
+						break;
+					}
+				}
 			}
 		}
 
@@ -4177,4 +4231,109 @@ public class CommonFunction extends CoTopComponent {
 		
 		return ossComponents;
 	}
+
+	/**
+	 * Set Unclear Obligation Flag (Self-Check)
+	 * @param list
+	 * @param warningCodeMap 
+	 * @param errorCodeMap 
+	 * @return
+	 */
+	public static List<ProjectIdentification> identificationUnclearObligationCheck(List<ProjectIdentification> list, Map<String, String> errorCodeMap, Map<String, String> warningCodeMap) {
+		List<String> UNCLEAR_OBLIGATION_CODE_LIST = Arrays.asList(new String[] {
+				"LICENSE_NAME.REQUIRED" ,"LICENSE_NAME.UNCONFIRMED", "LICENSE_NAME.INCLUDE_MULTI_OPERATE", "LICENSE_NAME.NOLICENSE", "LICENSE_NAME.INCLUDE_DUAL_OPERATE"
+				, "OSS_NAME.REQUIRED", "OSS_NAME.UNCONFIRMED", "OSS_VERSION.UNCONFIRMED", "OSS_NAME.DEACTIVATED"
+		}) ;
+		
+		List<String> unclearObligationList = new ArrayList<>();
+		
+		if(errorCodeMap != null) {
+			for(String key : errorCodeMap.keySet()) {
+				if(key.indexOf(".") > -1 && UNCLEAR_OBLIGATION_CODE_LIST.contains(errorCodeMap.get(key))) {
+					unclearObligationList.add(key.substring(key.indexOf(".") + 1, key.length()));
+				}
+			}
+		}
+		if(warningCodeMap != null) {
+			for(String key : warningCodeMap.keySet()) {
+				if(key.indexOf(".") > -1 && UNCLEAR_OBLIGATION_CODE_LIST.contains(warningCodeMap.get(key))) {
+					unclearObligationList.add(key.substring(key.indexOf(".") + 1, key.length()));
+				}
+			}
+		}
+		
+		if(list != null) {
+			for(ProjectIdentification bean : list) {
+				if("-".equals(bean.getOssName()) && isEmpty(bean.getObligationType()) && !checkIncludeUnconfirmedLicense(bean.getComponentLicenseList())) {
+					String obligationType = CommonFunction.getObligationTypeWithSelectedLicense(bean);
+					if(!isEmpty(obligationType)) {
+						bean.setObligationType(obligationType);
+						continue;
+					}
+				}
+				
+				// Check unconfirmed license, the actual message is (Declared : ~~), so check again registered license.
+				if(unclearObligationList.contains(bean.getGridId())
+						|| (!isEmpty(bean.getObligationType()) && (checkIncludeUnconfirmedLicense(bean.getComponentLicenseList()) || checkIncludeNotDeclaredLicense(bean.getOssName(), bean.getOssVersion(), bean.getComponentLicenseList())))) {
+					bean.setObligationGrayFlag(CoConstDef.FLAG_YES);
+					bean.setObligationMsg(getMessage("msg.project.obligation.unclear"));
+				}
+			}
+		}
+		return list;
+	}
+
+	private static boolean checkIncludeNotDeclaredLicense(String ossName, String ossVer,
+			List<ProjectIdentification> licenseList) {
+		
+		List<String> licenseNameList = getAllAvailableLicenseUpperCaseName(ossName, ossVer);
+		for(ProjectIdentification license : licenseList) {
+			System.out.println(license.getLicenseName());
+			if(!licenseNameList.contains(license.getLicenseName().toUpperCase())) {
+				System.out.println();
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static List<String> getAllAvailableLicenseUpperCaseName(String ossName, String ossVer) {
+		String key = (avoidNull(ossName).trim() + "_" + avoidNull(ossVer).trim()).toUpperCase();
+		List<String> licenseNameList = new ArrayList<>();
+		if(CoCodeManager.OSS_INFO_UPPER.containsKey(key)) {
+			OssMaster bean = CoCodeManager.OSS_INFO_UPPER.get(key);
+			for(OssLicense _temp : Optional.ofNullable(bean.getOssLicenses()).orElse(new ArrayList<>())) {
+				licenseNameList.add(_temp.getLicenseName().toUpperCase());
+				LicenseMaster _license = CoCodeManager.LICENSE_INFO_BY_ID.get(_temp.getLicenseId());
+				if(_license != null) {
+					for(String _nick : Optional.ofNullable(_license.getLicenseNicknameList()).orElse(new ArrayList<>())) {
+						licenseNameList.add(_nick.toUpperCase());
+					}
+				}
+			}
+			
+			for(String _temp : Optional.ofNullable(bean.getDetectedLicenses()).orElse(new ArrayList<>())) {
+				licenseNameList.add(_temp.toUpperCase());
+				LicenseMaster _license = CoCodeManager.LICENSE_INFO_UPPER.get(_temp.toUpperCase());
+				if(_license != null) {
+					for(String _nick : Optional.ofNullable(_license.getLicenseNicknameList()).orElse(new ArrayList<>())) {
+						licenseNameList.add(_nick.toUpperCase());
+					}
+				}
+			}
+		}
+		return licenseNameList;
+	}
+
+	private static boolean checkIncludeUnconfirmedLicense(List<ProjectIdentification> licenseList) {
+		if(licenseList != null) {
+			for(ProjectIdentification bean : licenseList) {
+				if(!isEmpty(bean.getLicenseName()) && !CoCodeManager.LICENSE_INFO_UPPER.containsKey(bean.getLicenseName().toUpperCase())) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
 }

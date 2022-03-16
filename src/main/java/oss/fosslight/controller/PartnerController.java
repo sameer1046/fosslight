@@ -59,6 +59,7 @@ import oss.fosslight.service.FileService;
 import oss.fosslight.service.HistoryService;
 import oss.fosslight.service.PartnerService;
 import oss.fosslight.service.ProjectService;
+import oss.fosslight.service.SearchService;
 import oss.fosslight.service.T2UserService;
 import oss.fosslight.util.ExcelUtil;
 import oss.fosslight.validation.T2CoValidationConfig;
@@ -79,6 +80,7 @@ public class PartnerController extends CoTopComponent{
 	@Autowired PartnerMapper partnerMapper;
 	@Autowired FileMapper fileMapper;
 	@Autowired ProjectMapper projectMapper;
+	@Autowired SearchService searchService;
 	
 	/** The session key search. */
 	private final String SESSION_KEY_SEARCH = "SESSION_KEY_PARTNER_LIST";
@@ -130,7 +132,10 @@ public class PartnerController extends CoTopComponent{
 			if(!CoConstDef.FLAG_YES.equals(req.getParameter("gnbF"))) {
 				deleteSession(SESSION_KEY_SEARCH);
 				
-				searchBean = new PartnerMaster();
+				searchBean = searchService.getPartnerSearchFilter(loginUserName());
+				if(searchBean == null) {
+					searchBean = new PartnerMaster();
+				}
 			} else if(getSessionObject(SESSION_KEY_SEARCH) != null) {
 				searchBean = (PartnerMaster) getSessionObject(SESSION_KEY_SEARCH);
 			}	
@@ -567,6 +572,25 @@ public class PartnerController extends CoTopComponent{
 		resMap.put("resCd", resCd);
 		
 		return makeJsonResponseHeader(resMap);
+	}
+	
+	@PostMapping(value=PARTNER.CHANGE_DIVISION_AJAX)
+	public @ResponseBody ResponseEntity<Object> saveBasicInfoOnConfirmAjax(
+			@RequestBody HashMap<String, Object> map
+			, HttpServletRequest req
+			, HttpServletResponse res
+			, Model model){
+		
+		String partnerId = (String)map.get("partnerId");
+		String division = (String)map.get("division");
+		try {
+			partnerService.updateDivision(partnerId, division);
+		} catch (Exception e) {
+			log.error(e.getMessage(), e);
+			return makeJsonResponseHeader(false, e.getMessage());
+		}
+		
+		return makeJsonResponseHeader();
 	}
 	
 	@PostMapping(value=PARTNER.DEL_AJAX)

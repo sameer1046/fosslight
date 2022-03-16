@@ -68,6 +68,7 @@ import oss.fosslight.service.FileService;
 import oss.fosslight.service.HistoryService;
 import oss.fosslight.service.PartnerService;
 import oss.fosslight.service.ProjectService;
+import oss.fosslight.service.SearchService;
 import oss.fosslight.service.T2UserService;
 import oss.fosslight.service.VerificationService;
 import oss.fosslight.util.ExcelUtil;
@@ -102,6 +103,7 @@ public class ProjectController extends CoTopComponent {
 	@Autowired CodeMapper codeMapper;
 	
 	@Autowired ResponseService responseService;
+	@Autowired SearchService searchService;
 	
 	/** The env. */
 	@Resource
@@ -159,7 +161,10 @@ public class ProjectController extends CoTopComponent {
 			if (!CoConstDef.FLAG_YES.equals(req.getParameter("gnbF"))) {
 				deleteSession(SESSION_KEY_SEARCH);
 				
-				searchBean = new Project();
+				searchBean = searchService.getProjectSearchFilter(loginUserName());
+				if(searchBean == null) {
+					searchBean = new Project();
+				}
 			} else if (getSessionObject(SESSION_KEY_SEARCH) != null) {
 				searchBean = (Project) getSessionObject(SESSION_KEY_SEARCH);
 			}
@@ -1129,12 +1134,12 @@ public class ProjectController extends CoTopComponent {
 		}
 		
 		lastResult.put("isAdd", flag);
-		
-		if(!isEmpty(project.getUserComment()) && !isEmpty(project.getPrjId())) {
+		String userComment = project.getUserComment();
+		if(!isEmpty(userComment) && !isEmpty(project.getPrjId())) {
 			CommentsHistory commentsHistory = new CommentsHistory();
 			commentsHistory.setReferenceDiv(CoConstDef.CD_DTL_COMMENT_PROJECT_HIS);
 			commentsHistory.setReferenceId(project.getPrjId());
-			commentsHistory.setContents(project.getUserComment());
+			commentsHistory.setContents(userComment);
 			
 			commentService.registComment(commentsHistory);
 		}
@@ -1146,7 +1151,12 @@ public class ProjectController extends CoTopComponent {
 				mailBean.setParamPrjId(project.getPrjId());
 				mailBean.setCompareDataBefore(beforeBean);
 				mailBean.setCompareDataAfter(afterBean);
-				mailBean.setComment(project.getUserComment());
+
+				if ("true".equals(copy)) {
+					String _tempComment = avoidNull(CoCodeManager.getCodeExpString(CoConstDef.CD_MAIL_DEFAULT_CONTENTS, CoConstDef.CD_MAIL_TYPE_PROJECT_COPIED));
+					userComment = avoidNull(userComment) + "<br />" + _tempComment;
+				}
+				mailBean.setComment(userComment);
 				
 				CoMailManager.getInstance().sendMail(mailBean);
 				
@@ -1173,7 +1183,10 @@ public class ProjectController extends CoTopComponent {
 			try {
 				CoMail mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_CREATED);
 				mailBean.setParamPrjId(project.getPrjId());
-				mailBean.setComment(project.getUserComment());
+
+				String _tempComment = avoidNull(CoCodeManager.getCodeExpString(CoConstDef.CD_MAIL_DEFAULT_CONTENTS, CoConstDef.CD_MAIL_TYPE_PROJECT_CREATED));
+				userComment = avoidNull(userComment) + "<br />" + _tempComment;
+				mailBean.setComment(userComment);
 				
 				CoMailManager.getInstance().sendMail(mailBean);
 			} catch (Exception e) {
@@ -1759,7 +1772,7 @@ public class ProjectController extends CoTopComponent {
 			project.setPrjId(prjId);
 			project.setSrcCsvFileId(csvFileId);
 			project.setCsvFile(delFile);
-			project.setCsvAddFileSeq(addFile);
+			project.setCsvFileSeq(addFile);
 			project.setIdentificationSubStatusSrc(identificationSubStatusSrc);
 			
 			Map<String, Object> remakeComponentsMap = CommonFunction.remakeMutiLicenseComponents(ossComponents, ossComponentsLicense);

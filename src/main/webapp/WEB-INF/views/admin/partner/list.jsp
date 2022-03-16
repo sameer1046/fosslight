@@ -39,13 +39,13 @@
 					<dd style="width:100%;">
 						<label style="width:100px;">Status</label>
 						<span class='checkSet'>
-						${ct:genCommonCheckbox(ct:getConstDef("CD_IDENTIFICATION_STATUS"), "status", false)}
+						${ct:genCommonCheckbox(ct:getConstDef("CD_IDENTIFICATION_STATUS"), "status", searchBean.status, false)}
             			</span>
 					</dd>
 					<dd class="">
 						<label style="width:100px;">Created Date</label>
-						<input type="text" class="cal" name="createdDate1" id="createdDate1" title="Search Start Date" value="${searchBean.createdDate1}" style="width:70px;" maxlength="8"/> ~ 
-						<input type="text" class="cal" name="createdDate2" id="createdDate2" title="Search End Date" value="${searchBean.createdDate2}" style="width:70px;" maxlength="8"/> 			
+						<input type="text" class="cal" name="createdDate1" id="createdDate1" title="Search Start Date" value="${searchBean.createdDate1}" style="width:70px;" maxlength="8" autocomplete="off"/> ~ 
+						<input type="text" class="cal" name="createdDate2" id="createdDate2" title="Search End Date" value="${searchBean.createdDate2}" style="width:70px;" maxlength="8" autocomplete="off"/> 			
 					</dd>
 					<dd class="centerAign">
 						<label>Creator</label>
@@ -56,9 +56,9 @@
 						<input type="text" name="reviewer" class="autoComReviewer" value="${searchBean.reviewer}"/>
 					</dd>
 					<c:if test="${!ct:isAdmin()}">
-					<dd class="" >
-						<label style="width:100px;">View My 3rd Parties Only</label>
-						<input type="checkbox" id="checkbox3" name="publicYn" checked="checked"/>
+					<dd class="lastAign" >
+						<label style="width:150px;">View My 3rd Parties Only</label>
+						<input type="checkbox" id="checkbox3" name="publicYn" ${searchBean.publicYn eq 'N' ? 'checked="checked"' : '' }/>
 					</dd>
 					</c:if>
 				</dl>

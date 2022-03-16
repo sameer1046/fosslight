@@ -389,6 +389,7 @@ public final class Url {
 		
 		public static final String LIST_AJAX = PATH + "/listAjax";
 		public static final String SAVE_AJAX = PATH + "/saveAjax";
+		public static final String CHANGE_DIVISION_AJAX = PATH + "/changeDivisionAjax";
 		public static final String DEL_AJAX = PATH + "/delAjax";
 		
 		public static final String AUTOCOMPLETE_CONF_NM_AJAX = PATH + "/autoCompleteConfNmAjax";
@@ -452,6 +453,7 @@ public final class Url {
 		public static final String AUTOCOMPLETE_CREATOR_DIVISION_AJAX = PATH + "/autoCompleteCreatorDivisionAjax";
 		
 		public static final String CHANGE_PASSWORD = PATH + "/changePassword";
+		public static final String UPDATE_USERNAME_DIVISION = PATH + "/updateUserNameAndDivision";
 		
 		public static final String TOKEN_PROC = PATH + "/tokenProc/{procType}";
 	}
@@ -542,6 +544,8 @@ public final class Url {
 		
 		public static final String PAGE = PATH + "/external";
 		public static final String PAGE_JSP = TILES_ROOT + PATH + "/external";
+		
+		public static final String REQUEST_FL_SCAN = PATH + "/request-fl-scan";
 	}
 	
 	public static final class CODE {
@@ -590,7 +594,11 @@ public final class Url {
 		public static final String EDIT_JSP = TILES_ROOT + PATH + "/edit";
 		
 		public static final String SAVE_AJAX = PATH + "/saveAjax";
-		public static final String SAVE_DEFAULT_LOCALE_AJAX = PATH + "/saveDefaultLocaleAjax";
+
+		public static final String VIEW_SEARCH_CONDITION_AJAX = PATH + "/loadDefaultSearchCondition";
+		public static final String VIEW_SEARCH_CONDITION_JSP = TILES_AJAX_ROOT + PATH + "/searchConditionArea";
+		
+		public static final String UPDATE_SEARCH_CONDITION_AJAX = PATH + "/updateDefaultSearchCondition";
 	}
 	
 	public static final class SENT_MAIL {
