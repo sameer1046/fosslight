@@ -52,14 +52,7 @@ import oss.fosslight.common.ColumnMissingException;
 import oss.fosslight.common.ColumnNameDuplicateException;
 import oss.fosslight.common.CommonFunction;
 import oss.fosslight.config.AppConstBean;
-import oss.fosslight.domain.LicenseMaster;
-import oss.fosslight.domain.OssAnalysis;
-import oss.fosslight.domain.OssComponents;
-import oss.fosslight.domain.OssComponentsLicense;
-import oss.fosslight.domain.Project;
-import oss.fosslight.domain.ProjectIdentification;
-import oss.fosslight.domain.T2File;
-import oss.fosslight.domain.UploadFile;
+import oss.fosslight.domain.*;
 import oss.fosslight.repository.CodeMapper;
 import oss.fosslight.repository.ProjectMapper;
 import oss.fosslight.service.FileService;
@@ -2363,7 +2356,7 @@ public class ExcelUtil extends CoTopComponent {
 		
 		return result;
 	}
-	
+
 	public static Map<String, Object> getAnalysisResultList(Map<String, Object> map) {
 		String analysisResultListPath = (String) map.get("analysisResultListPath");
 		Map<String, Object> readData = new HashMap<>();
@@ -2418,7 +2411,7 @@ public class ExcelUtil extends CoTopComponent {
 		
 		return readData;
 	}
-	
+
 	public static Map<String, Object> readAnalysisList(List<String[]>  csvDataList, List<OssAnalysis> analysisList) {		
 		int gridIdCol = -1;
 		int resultCol = -1;
@@ -2676,5 +2669,169 @@ public class ExcelUtil extends CoTopComponent {
 		result.put("analysisList", analysisList);
 		
 		return result;
+	}
+
+	public static OssMaster getOssDataByColumn(Iterator<Cell> cellIterator) {
+		OssMaster ossMaster = new OssMaster();
+		int colIndex = 0;
+		for (; cellIterator.hasNext(); colIndex++) {
+			Cell cell = (Cell) cellIterator.next();
+			String value = getCellData(cell);
+			if (colIndex == 0) {
+				if (value == null || value.trim().isEmpty()) {
+					log.debug("OSS Name must not be null.");
+					return null;
+				} else {
+					ossMaster.setOssName(value);
+				}
+			} else if (colIndex == 1) {
+				if (value == null || value.trim().isEmpty()) continue;
+				String[] nicknames = StringUtil.delimitedStringToStringArray(value, ",");
+				ossMaster.setOssNicknames(nicknames);
+			} else if (colIndex == 2) {
+				if (value == null || value.trim().isEmpty()) continue;
+				ossMaster.setOssVersion(value);
+			} else if (colIndex == 3) {
+				if (value == null || value.trim().isEmpty()) {
+					log.debug("Declared License must not be null.");
+					return null;
+				}
+				ossMaster.setDeclaredLicense(value);
+			} else if (colIndex == 4) {
+				if (value == null || value.trim().isEmpty()) continue;
+				ossMaster.setDetectedLicense(value);
+			} else if (colIndex == 5) {
+				if (value == null || value.trim().isEmpty()) continue;
+				ossMaster.setCopyright(value);
+				ossMaster.setOssCopyright(value);
+			} else if (colIndex == 6) {
+				if (value == null || value.trim().isEmpty()) continue;
+				String homepage = value.replaceAll("(\r\n|\r|\n|\n\r)", "");
+				ossMaster.setHomepage(homepage);
+			} else if (colIndex == 7) {
+				if (value == null || value.trim().isEmpty()) continue;
+				String location = value.replaceAll("(\r\n|\r|\n|\n\r)", "");
+				ossMaster.setDownloadLocation(location);
+			} else if (colIndex == 8) {
+				if (value == null || value.trim().isEmpty()) continue;
+				ossMaster.setSummaryDescription(value);
+			} else if (colIndex == 9) {
+				if (value == null || value.trim().isEmpty()) continue;
+				ossMaster.setAttribution(value);
+			} else if (colIndex == 10) {
+				if (value == null || value.trim().isEmpty()) continue;
+				ossMaster.setComment(value);
+			}
+		}
+		return ossMaster;
+	}
+
+	public static boolean checkHeaderColumnValidate(Iterator<Cell> cellIterator) {
+		String[] definedColData = new String[] {"OSS NAME", "NICKNAME", "VERSION", "DECLARED LICENSE", "DETECTED LICENSE", "COPYRIGHT", "HOMEPAGE",
+				"DOWNLOAD URL", "SUMMARY DESCRIPTION", "ATTRIBUTION", "COMMENT"};
+		boolean allColumnsExist = true;
+
+		List<String> firstRowColData = new ArrayList<>();
+		while (cellIterator.hasNext()) {
+			Cell cell = (Cell) cellIterator.next();
+			firstRowColData.add(getCellData(cell));
+		}
+
+		for (int cIdx = 0; cIdx < definedColData.length; cIdx++) {
+			String colData = firstRowColData.get(cIdx);
+			if (colData != null && definedColData[cIdx].equals(colData.toUpperCase())){
+				continue;
+			} else {
+				allColumnsExist = false;
+				break;
+			}
+		}
+		return allColumnsExist;
+	}
+
+	public static List<OssMaster> readOssList(MultipartHttpServletRequest req, String excelLocalPath) throws InvalidFormatException, IOException {
+		Iterator<String> fileNames = req.getFileNames();
+		List<OssMaster> ossMasterList = new ArrayList<>();
+
+		while (fileNames.hasNext()) {
+
+			MultipartFile multipart = req.getFile(fileNames.next());
+			String fileName = multipart.getOriginalFilename();
+			String[] fileNameArray = StringUtil.split(fileName, File.separator);
+			fileName = fileNameArray[fileNameArray.length - 1];
+			File file = new File( "."+excelLocalPath +fileName);
+			FileUtil.transferTo(multipart, file);
+			HSSFWorkbook wbHSSF = null;
+			XSSFWorkbook wbXSSF = null;
+			String[] ext = StringUtil.split(fileName, ".");
+			String extType = ext[ext.length - 1];
+			String codeExt[] = StringUtil.split(codeMapper.selectExtType("11"), ","); // The codeExt array contains the allowed extension types.
+			int count = 0;
+
+			for (int i = 0; i < codeExt.length; i++) {
+				if (codeExt[i].equalsIgnoreCase(extType)) {
+					count++;
+				}
+			}
+
+			if (count != 1) {
+				return null;
+			} else if ("xls".equals(extType) || "XLS".equals(extType)) {
+				try {
+					wbHSSF = new HSSFWorkbook(new FileInputStream(file));
+					HSSFSheet sheet = wbHSSF.getSheetAt(0);
+					int rowSize = sheet.getPhysicalNumberOfRows();
+					for (int rowIndex = 0; rowIndex < rowSize; rowIndex++) {
+						HSSFRow row = sheet.getRow(rowIndex);
+						if (rowIndex == 0) {
+							boolean validHeader = checkHeaderColumnValidate(row.cellIterator());
+							if (!validHeader){
+								log.info("The order and content of header columns must match.");
+								return null;
+							}
+						} else {
+							OssMaster ossMaster = getOssDataByColumn(row.cellIterator());
+							if (ossMaster != null)
+								ossMasterList.add(ossMaster);
+						}
+					}
+				} catch (IOException e) {
+					log.error(e.getMessage(), e);
+				} finally {
+					try {
+						wbHSSF.close();
+					} catch (Exception e) {
+					}
+				}
+			} else if ("xlsx".equals(extType) || "XLSX".equals(extType)) {
+				try {
+					wbXSSF = new XSSFWorkbook(new FileInputStream(file));
+					XSSFSheet sheet = wbXSSF.getSheetAt(0);
+					int rowSize = sheet.getPhysicalNumberOfRows();
+					for (int rowIndex = 0; rowIndex < rowSize; rowIndex++) {
+						XSSFRow row = sheet.getRow(rowIndex);
+						if (rowIndex == 0) {
+							boolean validHeader = checkHeaderColumnValidate(row.cellIterator());
+							if (!validHeader) {
+								log.info("The order and content of header columns must match.");
+								return null;
+							}
+						} else {
+							OssMaster ossMaster = getOssDataByColumn(row.cellIterator());
+							if (ossMaster != null)
+								ossMasterList.add(ossMaster);
+						}
+					}
+				} catch (IOException e) {
+					log.error(e.getMessage(), e);
+				} finally {
+					try {
+						wbXSSF.close();
+					} catch (Exception e2) {
+					}
+				}
+			}
+		}
+		return ossMasterList;
 	}
 }

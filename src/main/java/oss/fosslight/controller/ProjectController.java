@@ -74,6 +74,7 @@ import oss.fosslight.service.VerificationService;
 import oss.fosslight.util.ExcelUtil;
 import oss.fosslight.util.OssComponentUtil;
 import oss.fosslight.util.StringUtil;
+import oss.fosslight.util.YamlUtil;
 import oss.fosslight.validation.T2CoValidationResult;
 import oss.fosslight.validation.custom.T2CoProjectValidator;
 
@@ -3243,10 +3244,33 @@ public class ProjectController extends CoTopComponent {
 
 		project = projectService.getProjectDetail(project);
 		
-		String comemnt = "Copied from [PRJ-" + prjId + "] " + project.getPrjName();
+		String comemnt = "";
+		String identificationStatus = project.getIdentificationStatus();
+		String verificationStatus = project.getVerificationStatus();
 		
-		if (!isEmpty(project.getPrjVersion())) {
-			comemnt += "_" + project.getPrjVersion();
+		project.setPrjName(project.getPrjName() + "_Copied");
+		
+		if(CoConstDef.CD_DTL_IDENTIFICATION_STATUS_CONFIRM.equals(identificationStatus)) {
+			T2Users user = new T2Users();
+			user.setUserId(loginUserName());
+			
+			project.setIdentificationStatusConfFlag(CoConstDef.FLAG_YES);
+			project.setPrjVersion(avoidNull(project.getPrjVersion(), "").equals("") ? avoidNull(project.getPrjVersion()) : project.getPrjVersion() + "_Copied");
+			project.setPriority(CoConstDef.CD_PRIORITY_P2);
+			project.setReviewerName("");
+			project.setPrjUserName(userService.getUser(user).getUserName());
+			
+			comemnt = "Copy with confirm status from [PRJ-" + prjId + "] " + project.getPrjName();
+			
+			if(CoConstDef.CD_DTL_IDENTIFICATION_STATUS_CONFIRM.equals(verificationStatus)) {
+				project.setVerificationStatusConfFlag(CoConstDef.FLAG_YES);
+			}
+		}else {
+			comemnt = "Copied from [PRJ-" + prjId + "] " + project.getPrjName();
+			
+			if (!isEmpty(project.getPrjVersion())) {
+				comemnt += "_" + project.getPrjVersion();
+			}
 		}
 		
 		project.setComment(comemnt);
@@ -3818,6 +3842,25 @@ public class ProjectController extends CoTopComponent {
 		map.put("viewOnlyFlag", avoidNull(prjBean.getViewOnlyFlag(), CoConstDef.FLAG_NO));
 		
 		return makeJsonResponseHeader(map);
+	}
+	
+	@PostMapping(value=PROJECT.MAKE_YAML)
+	public @ResponseBody ResponseEntity<Object> makeYaml(
+			@RequestBody Project project
+			, @PathVariable String code
+			, HttpServletRequest req
+			, HttpServletResponse res
+			, Model model){
+		String yamlFileId = "";
+		
+		try {
+			// identification Tab Code / partnerName 필수 값.
+			yamlFileId = YamlUtil.makeYaml(code, toJson(project));
+		} catch (Exception e) {
+			log.error(e.getMessage(), e);
+		}		
+		
+		return makeJsonResponseHeader(yamlFileId);
 	}
 	
 	public void updateProjectNotification(Project project, Map<String, Object> resultMap) {

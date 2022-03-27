@@ -369,7 +369,7 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 			
 			String fileName = CommonFunction.getNoticeFileName(project.getPrjId(), project.getPrjName(), project.getPrjVersion(), CommonFunction.getCurrentDateTime("yyMMdd"), "html");
 			
-			if(oss.fosslight.util.FileUtil.writhFile(filePath, fileName, contents)) {
+			if(oss.fosslight.util.FileUtil.writeFile(filePath, fileName, contents)) {
 				// 파일 등록
 				String FileSeq = fileService.registFileWithFileName(filePath, fileName);
 				
@@ -987,19 +987,19 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 			
 			// 서버 디렉토리를 replace한 내용으로 새로운 파일로 다시 쓴다.
 			if(!isEmpty(exceptFileContent)) {
-				log.info("VERIFY writhFile exceptFileContent file START -----------------");
+				log.info("VERIFY writeFile exceptFileContent file START -----------------");
 				
-				FileUtil.writhFile(VERIFY_PATH_OUTPUT +"/" + prjId, CoConstDef.PACKAGING_VERIFY_FILENAME_PROPRIETARY, exceptFileContent.replaceAll(VERIFY_PATH_DECOMP +"/" + prjId +"/", ""));
+				FileUtil.writeFile(VERIFY_PATH_OUTPUT +"/" + prjId, CoConstDef.PACKAGING_VERIFY_FILENAME_PROPRIETARY, exceptFileContent.replaceAll(VERIFY_PATH_DECOMP +"/" + prjId +"/", ""));
 				
-				log.info("VERIFY writhFile exceptFileContent file END -----------------");
+				log.info("VERIFY writeFile exceptFileContent file END -----------------");
 			}
 			
 			if(!isEmpty(verify_chk_list)) {
-				log.info("VERIFY writhFile verify_chk_list file START -----------------");
+				log.info("VERIFY writeFile verify_chk_list file START -----------------");
 				
-				FileUtil.writhFile(VERIFY_PATH_OUTPUT +"/" + prjId, CoConstDef.PACKAGING_VERIFY_FILENAME_FILE_LIST, verify_chk_list.replaceAll(VERIFY_PATH_DECOMP +"/" + prjId +"/", ""));
+				FileUtil.writeFile(VERIFY_PATH_OUTPUT +"/" + prjId, CoConstDef.PACKAGING_VERIFY_FILENAME_FILE_LIST, verify_chk_list.replaceAll(VERIFY_PATH_DECOMP +"/" + prjId +"/", ""));
 				
-				log.info("VERIFY writhFile verify_chk_list file END -----------------");
+				log.info("VERIFY writeFile verify_chk_list file END -----------------");
 			}
 			
 			resCd="10";
@@ -1133,8 +1133,12 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 	
 	@Override
 	@Transactional
-	public void updateStatusWithConfirm(Project project, OssNotice ossNotice) throws Exception {
-		updateProjectStatus(project);
+	public void updateStatusWithConfirm(Project project, OssNotice ossNotice, boolean copyConfirmFlag) throws Exception {
+		if(copyConfirmFlag) {
+			projectMapper.updateConfirmCopyVerificationDestributionStatus(project);
+		}else {
+			updateProjectStatus(project);
+		}
 		
 		boolean makeZipFile = false;
 		String spdxComment = "";
@@ -1565,7 +1569,7 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 			}
 		}
 
-		if(FileUtil.writhFile(filePath, fileName, contents)) {
+		if(FileUtil.writeFile(filePath, fileName, contents)) {
 			// 파일 등록
 			fileId = fileService.registFileDownload(filePath, fileName, fileName);
 		}
@@ -1737,8 +1741,15 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 		for(OssComponents bean : ossComponentList) {
 			OssComponents oc = verificationMapper.checkOssNickName2(bean);
 			if(oc != null) {
-				if(isEmpty(bean.getCopyrightText())) {
-					bean.setCopyrightText(CoCodeManager.OSS_INFO_BY_ID.get(oc.getOssId()).getCopyright());
+				String copyright = CoCodeManager.OSS_INFO_BY_ID.get(oc.getOssId()).getCopyright();
+				String homepage = CoCodeManager.OSS_INFO_BY_ID.get(oc.getOssId()).getHomepage();
+				
+				if(isEmpty(bean.getCopyrightText()) && !isEmpty(copyright)) {
+					bean.setCopyrightText(copyright);
+				}
+				
+				if(isEmpty(bean.getHomepage()) && !isEmpty(homepage)) {
+					bean.setHomepage(homepage);
 				}
 			}
 			
@@ -2391,5 +2402,29 @@ public class VerificationServiceImpl extends CoTopComponent implements Verificat
 		}
 		
 		return bitFlag;
+	}
+	
+	@Override
+	public void registOssNoticeConfirmStatus(OssNotice ossNotice) {
+		try{
+			Project project = new Project();
+			project.setPrjId(ossNotice.getPrjId());
+			project = projectMapper.selectProjectMaster(project);
+			
+			// android project는 notice를 사용하지 않음.
+			if(!CoConstDef.CD_NOTICE_TYPE_PLATFORM_GENERATED.equalsIgnoreCase(project.getNoticeType())) {
+				if(CoConstDef.FLAG_YES.equals(ossNotice.getEditNoticeYn())){
+					verificationMapper.insertOssNotice(ossNotice);
+				}else if(CoConstDef.FLAG_NO.equals(ossNotice.getEditNoticeYn())){
+					verificationMapper.updateOssNotice(ossNotice);
+				}
+			}
+			
+			if(isEmpty(project.getVerificationStatus())){
+				verificationMapper.updateVerificationStatusProgress(ossNotice);
+			}
+		}catch(Exception e){
+			log.error(e.getMessage(), e);
+		}
 	}
 }
