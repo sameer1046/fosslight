@@ -215,7 +215,7 @@
 				}else{
 					alertify.confirm(confirmMsg, function (e) {
 						if (e) {
-							fn.saveSubmit(true);
+							fn.saveSubmit();
 						} else {
 							return false;
 						}
@@ -224,7 +224,7 @@
 			});
 
 			$("#popCopyConfirmSave").click(function(){
-				fn.saveSubmit(true);
+				fn.saveSubmit();
 				$('input:radio[name="confirmStatusCopyRadio"]').prop("checked", false);
 				$("#copyConfirmPopup").hide();
 			});
@@ -430,6 +430,17 @@
 				}
 			});
 			
+			$("#securityTab").click(function(){
+				var prjId = $('input[name=prjId]').val();
+				var idx = getTabIndex(prjId+"_Security");
+				
+				if(idx != ""){
+					changeTabInFrame(idx);
+				}else{
+					createTabInFrame(prjId+'_Security', '#<c:url value="/project/security/'+prjId+'"/>');
+				}
+			});
+			
 			commonAjax.getCreatorDivisionTags().success(function(data, status, headers, config){
 				data.forEach(function(obj,index){
 					arr[index] = obj.userId+":"+obj.userName;
@@ -530,7 +541,7 @@
 	var fn = {
 		editComment : function() {
 			initCKEditorToolbar("editor");
-			fn.saveSubmit(false);
+			fn.saveSubmit();
 		},
 		copy : function(){
 			var prjId = $('input[name=prjId]').val();
@@ -542,7 +553,7 @@
 		// 왓쳐 엘리먼트 그리기
 		addHtml : function(target, str, division, userId){
 			var rlt = division+((userId!="") ? "/"+userId : "");
-			var html  = '<span><input class="watcherTags" type="text" name="watchers" value="'+rlt+'" style="display: none;"/>';
+			var html  = '<span id="'+userId+'"><input class="watcherTags" type="text" name="watchers" value="'+rlt+'" style="display: none;"/>';
 			html += '<strong>'+str+'</strong>';
 			if('${project.viewOnlyFlag}' != "Y") {
 				html += '<input type="button" value="Delete" class="smallDelete" onclick="fn.removeWatcher(\'' + division + '\',\'' + userId + '\');" /></span>';
@@ -569,6 +580,14 @@
 				contentType : 'application/json',
 				success: function(resultData){
 					if(resultData.isValid == "true") {
+						if (resultData.addWatcher !== undefined){
+							var userId = resultData.addWatcher.split("/")[1];
+							var watcher = $("#"+userId).find('input[name=watchers]').val();
+							if (watcher !== undefined && watcher != resultData.addWatcher){
+								$("#"+userId).remove();
+							}
+						}
+						
 						alertify.success('<spring:message code="msg.common.success" />');
 					}
 				},
@@ -804,7 +823,7 @@
 				});
 			},
 			// 저장
-			saveSubmit : function(reload){
+			saveSubmit : function(){
 				var prjName = $('input[name=prjName]').val().trim().replace(/[ ]+/g, " "); // ASCII 160 convert -> ASCII 32
 				$('input[name=prjName]').val(prjName);
 				$('input[name=prjVersion]').val($('input[name=prjVersion]').val().trim());
@@ -876,12 +895,7 @@
 					dataType: "json",
 					cache : false,
 					success: function(data) {
-						if(reload) {
-							fn.onRegistSuccess(data);
-						}
-						else {
-							alertify.success('<spring:message code="msg.common.success" />');
-						}
+						fn.onRegistSuccess(data);
 					},
 					error : fn.onError
 				}).submit();
@@ -904,6 +918,11 @@
 			saveModelSubmit : function(){
 				var rows = fn.getModelGridRows('#_modelList');
 				$('input[name=prjModelJson]').val(JSON.stringify(rows));
+				
+				//disabled일경우 제거
+				if($("input[name=distributeTarget]").is(":disabled")){
+					$("input[name=distributeTarget]").removeAttr("disabled");
+				}
 				
 				$("#projectForm").ajaxForm({
 					url : '<c:url value="/project/saveModelAjax"/>',
@@ -1002,9 +1021,6 @@
 												activeTabInFrameList("PROJECT");
 											}
 										);
-									} else {
-										deleteTabInFrame('#<c:url value="/project/edit/'+prjId+'"/>');
-										activeTabInFrameList("PROJECT");
 									}
 								}
 							});	
@@ -1657,6 +1673,7 @@
 		modelValues:'',
 		detail : ${empty detail ? 'null':detail},
 		copy : ${empty copy ? 'null' :copy},
+		createThird : ${empty createThird ? 'null':createThird},
 		init : function(){
 			if(data.detail){
 				$('input[name=prjId]').val(data.detail.prjId);
@@ -1803,6 +1820,10 @@
 						$(this).trigger('click');
 					}
 				});
+			} else if(data.createThird) {
+				$('#editor').css("width", $(".miCase").width());
+				$('#editor').html(data.createThird);
+				$('textarea[name=comment]').val(data.createThird);
 			} else {
 				$("#complete").hide(); 
 				$("#copy").hide();
@@ -1916,20 +1937,39 @@
 					{name: 'releaseDate', index: 'releaseDate', align: 'center', width:100, editable:true, sorttype:'date',
 						editoptions:{maxlength:8, dataEvents:[
 							{
-								type: 'keyup',
+								type: 'focusout',
 								fn: function(e) {
 									var result = $(this).val();
 									gDateKeyup = true;
 									
 									if(/\d+/.test(result)) {
 										result = result.match(/\d+/g).join("");
-										$(this).val(result);
+										if (result.length == 8){
+											// 날짜 형식 체크
+											var date_pattern = /^\d{4}(0[1-9]|1[012])(0[1-9]|[12][0-9]|3[0-1])$/;
+											if (!date_pattern.test(result)){
+												alertify.error('<spring:message code="msg.common.valid" />', 0);
+												$(this).val("");
+											} else {
+												// 해당 월 말일 체크
+												var checkLastDate = new Date(result.substring(0,4), result.substring(4,6), 0);
+												if (parseInt(result.substring(6,8)) > parseInt(checkLastDate.getDate())){
+													alertify.error('<spring:message code="msg.common.valid" />', 0);
+													$(this).val("");
+												} else {
+													$(this).val(result);
+												}
+											}
+										} else {
+											alertify.error('<spring:message code="msg.common.valid" />', 0);
+											$(this).val("");
+										}
 									} else {
 										$(this).val("");
 									}
 								}
 							},
-                            {  
+/*                          {  
 	                           type: 'blur',
                                fn: function(e) {
 	                               var date_pattern = /^(19|20)\d{2}(0[1-9]|1[012])(0[1-9]|[12][0-9]|3[0-1])$/; 
@@ -1942,7 +1982,7 @@
 	                            	   gDateKeyup = false;
 	                               }
                                }
-                            }
+                            } */
 						]}
    					},
 					{name: 'modifier', index: 'modifier', align: 'center', width:80, editable:false, hidden:true},

@@ -55,9 +55,9 @@ public class SchedulerWorkerTask extends CoTopComponent {
 		String fileNm = "internalLicense.zip";
 		Path copyPath = Paths.get(internalUrlDirPath);
 		
-		if(!new File(internalUrlDirPath+"/"+fileNm).exists()) {
+		if (!new File(internalUrlDirPath+"/"+fileNm).exists()) {
 			try (InputStream is = new ClassPathResource("/template/"+fileNm).getInputStream()) {
-				if(!Files.exists(copyPath)) {
+				if (!Files.exists(copyPath)) {
 					Files.createDirectories(copyPath);
 				}
 				
@@ -72,14 +72,14 @@ public class SchedulerWorkerTask extends CoTopComponent {
 	}
 	
 	// 새벽 12시 스케줄 - CPE Dictionary, CVE Update Data Sync 
-	@Scheduled(cron="0 0 1 * * ?")
+	@Scheduled(cron="${nvd.scheduled.cron.value}")
 //	@Scheduled(fixedDelay=1000)
 	public void nvdDataIfJob() {
 		String resCd = "";
 		try {
 			resCd = nvdService.executeNvdDataSync();
 			
-			if(resCd == "00") {
+			if (resCd == "00") {
 				vulnerabilityService.doSyncOSSNvdInfo();
 				log.info("nvdDataIfJob end");
 			} else {

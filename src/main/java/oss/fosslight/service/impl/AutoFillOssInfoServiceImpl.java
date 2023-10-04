@@ -5,6 +5,7 @@
 
 package oss.fosslight.service.impl;
 
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -12,6 +13,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
@@ -32,6 +34,7 @@ import oss.fosslight.common.CommonFunction;
 import oss.fosslight.common.DependencyType;
 import oss.fosslight.common.ExternalLicenseServiceType;
 import oss.fosslight.domain.CommentsHistory;
+import oss.fosslight.domain.LicenseMaster;
 import oss.fosslight.domain.OssComponents;
 import oss.fosslight.domain.OssComponentsLicense;
 import oss.fosslight.domain.ProjectIdentification;
@@ -66,27 +69,15 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 		List<ProjectIdentification> resultData = new ArrayList<ProjectIdentification>();
 		Map<String, Object> ruleMap = T2CoValidationConfig.getInstance().getRuleAllMap();
 
-		if(validMap != null) {
-			for(String key : validMap.keySet()) {
-				if(key.toUpperCase().startsWith("LICENSENAME")
+		if (validMap != null) {
+			for (String key : validMap.keySet()) {
+				if (key.toUpperCase().startsWith("LICENSENAME")
 						&& (validMap.get(key).equals(ruleMap.get("LICENSE_NAME.UNCONFIRMED.MSG"))
 						|| validMap.get(key).equals(ruleMap.get("LICENSE_NAME.REQUIRED.MSG"))
 						|| validMap.get(key).equals(ruleMap.get("LICENSE_NAME.NOLICENSE.MSG"))
+						|| validMap.get(key).equals(ruleMap.get("LICENSE_NAME.INCLUDE_MULTI_OPERATE.MSG"))
+						|| validMap.get(key).equals(ruleMap.get("LICENSE_NAME.INCLUDE_DUAL_OPERATE.MSG"))
 						|| validMap.get(key).startsWith("Declared"))) {
-					resultData.addAll((List<ProjectIdentification>) componentData
-							.stream()
-							.filter(e -> key.split("\\.")[1].equals(e.getComponentId())) // 동일한 componentId을 filter
-							.collect(Collectors.toList()));
-				}
-
-				if(key.toUpperCase().startsWith("OSSVERSION") && validMap.get(key).equals(ruleMap.get("OSS_VERSION.UNCONFIRMED.MSG"))) {
-					resultData.addAll((List<ProjectIdentification>) componentData
-							.stream()
-							.filter(e -> key.split("\\.")[1].equals(e.getComponentId())) // 동일한 componentId을 filter
-							.collect(Collectors.toList()));
-				}
-
-				if(key.toUpperCase().startsWith("OSSNAME") && validMap.get(key).equals(ruleMap.get("OSS_NAME.UNCONFIRMED.MSG"))) {
 					resultData.addAll((List<ProjectIdentification>) componentData
 							.stream()
 							.filter(e -> key.split("\\.")[1].equals(e.getComponentId())) // 동일한 componentId을 filter
@@ -95,37 +86,16 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 			}
 		}
 
-		if(diffMap != null) {
-			for(String key : diffMap.keySet()) {
-				if(key.toUpperCase().startsWith("LICENSENAME") && 
+		if (diffMap != null) {
+			for (String key : diffMap.keySet()) {
+				if (key.toUpperCase().startsWith("LICENSENAME") && 
 						(diffMap.get(key).equals(ruleMap.get("LICENSE_NAME.UNCONFIRMED.MSG"))
-								|| diffMap.get(key).startsWith("Declared"))) {
+								|| diffMap.get(key).startsWith("Declared")
+								|| diffMap.get(key).startsWith("Recommended"))) {
 					resultData.addAll((List<ProjectIdentification>) componentData
 							.stream()
 							.filter(e -> key.split("\\.")[1].equals(e.getComponentId())) // 동일한 componentId을 filter
 							.collect(Collectors.toList()));
-				}
-
-				if(key.toUpperCase().startsWith("OSSVERSION") && diffMap.get(key).equals(ruleMap.get("OSS_VERSION.UNCONFIRMED.MSG"))) {
-					resultData.addAll((List<ProjectIdentification>) componentData
-							.stream()
-							.filter(e -> key.split("\\.")[1].equals(e.getComponentId())) // 동일한 componentId을 filter
-							.collect(Collectors.toList()));
-				}
-
-				if(key.toUpperCase().startsWith("DOWNLOADLOCATION") && diffMap.get(key).equals(ruleMap.get("DOWNLOAD_LOCATION.DIFFERENT.MSG"))) {
-					int duplicateRow = (int) resultData
-							.stream()
-							.filter(e -> key.split("\\.")[1].equals(e.getComponentId())) // 동일한 componentId을 filter
-							.collect(Collectors.toList())
-							.size();
-
-					if(duplicateRow == 0) {
-						resultData.addAll((List<ProjectIdentification>) componentData
-								.stream()
-								.filter(e -> key.split("\\.")[1].equals(e.getComponentId())) // 동일한 componentId을 filter
-								.collect(Collectors.toList()));
-					}
 				}
 			}
 		}
@@ -133,6 +103,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 		return resultData;
 	}
 
+	@SuppressWarnings("unused")
 	@Override
 	public Map<String, Object> checkOssLicense(List<ProjectIdentification> ossList){
 		Map<String, Object> resMap = new HashMap<>();
@@ -167,123 +138,129 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 			errors.add(e.getStatusText());
 		}
 
-		for(ProjectIdentification oss : ossList) {
+		List<String> checkedLicenseList;
+		
+		for (ProjectIdentification oss : ossList) {
+			checkedLicenseList = null;
+			
 			List<ProjectIdentification> prjOssLicenses;
 			String downloadLocation = oss.getDownloadLocation();
 			String ossVersion = oss.getOssVersion();
 			String currentLicense = getLicenseNameSort(oss.getLicenseName());
 			String checkedLicense = "";
-
+			String checkedLicense1 = "";
+			String checkedLicense2 = "";
+			String checkedLicense3 = "";
+			
 			// Search Priority 1. find by oss name and oss version
 			prjOssLicenses = projectMapper.getOssFindByNameAndVersion(oss);
-			checkedLicense = combineOssLicenses(prjOssLicenses, currentLicense);
+			checkedLicense1 = combineOssLicenses(prjOssLicenses, currentLicense);
 
-			if (!checkedLicense.isEmpty()) {
-				if(!currentLicense.equals(checkedLicense)) {
-					String evidence = getMessage("check.evidence.exist.nameAndVersion");
-					oss.setCheckOssList("Y");
-					oss.setCheckLicense(checkedLicense);
-					oss.setCheckedEvidence(evidence);
-					oss.setCheckedEvidenceType("DB");
-					result.add(oss);
+			if (!downloadLocation.isEmpty()) {
+				oss.setDownloadLocation(URLDecoder.decode(oss.getDownloadLocation()));
+				if (oss.getDownloadLocation().contains(";")) {
+					oss.setDownloadLocation(oss.getDownloadLocation().split(";")[0]);
 				}
-				continue;
-			}
-
-			if(downloadLocation.isEmpty()) {
-				continue;
-			}
-
-			if(oss.getDownloadLocation().contains(";")) {
-				oss.setDownloadLocation(oss.getDownloadLocation().split(";")[0]);
-			}
-			
-			if(oss.getDownloadLocation().startsWith("git@")){
-				oss.setDownloadLocation(oss.getDownloadLocation().split("@")[1]);
-			}
-			
-			if(oss.getDownloadLocation().startsWith("http://") 
-					|| oss.getDownloadLocation().startsWith("https://")
-					|| oss.getDownloadLocation().startsWith("git://")
-					|| oss.getDownloadLocation().startsWith("ftp://")
-					|| oss.getDownloadLocation().startsWith("svn://")) {
-				oss.setDownloadLocation(oss.getDownloadLocation().split("//")[1]);
-			}
-			
-			if(oss.getDownloadLocation().startsWith("www.")) {
-				oss.setDownloadLocation(oss.getDownloadLocation().substring(5, oss.getDownloadLocation().length()));
-			}
-			
-			if(oss.getDownloadLocation().contains(".git")) {
-				if(oss.getDownloadLocation().endsWith(".git")) {
-					oss.setDownloadLocation(oss.getDownloadLocation().substring(0, oss.getDownloadLocation().length()-4));
-				} else {
-					if(oss.getDownloadLocation().contains("#")) {
-						oss.setDownloadLocation(oss.getDownloadLocation().substring(0, oss.getDownloadLocation().indexOf("#")));
+				
+				if (oss.getDownloadLocation().startsWith("git@")){
+					oss.setDownloadLocation(oss.getDownloadLocation().split("@")[1]);
+				}
+				
+				if (oss.getDownloadLocation().startsWith("http://") 
+						|| oss.getDownloadLocation().startsWith("https://")
+						|| oss.getDownloadLocation().startsWith("git://")
+						|| oss.getDownloadLocation().startsWith("ftp://")
+						|| oss.getDownloadLocation().startsWith("svn://")) {
+					oss.setDownloadLocation(oss.getDownloadLocation().split("//")[1]);
+				}
+				
+				if (oss.getDownloadLocation().startsWith("www.")) {
+					oss.setDownloadLocation(oss.getDownloadLocation().substring(5, oss.getDownloadLocation().length()));
+				}
+				
+				if (oss.getDownloadLocation().contains(".git")) {
+					if (oss.getDownloadLocation().endsWith(".git")) {
 						oss.setDownloadLocation(oss.getDownloadLocation().substring(0, oss.getDownloadLocation().length()-4));
+					} else {
+						if (oss.getDownloadLocation().contains("#")) {
+							oss.setDownloadLocation(oss.getDownloadLocation().substring(0, oss.getDownloadLocation().indexOf("#")));
+							oss.setDownloadLocation(oss.getDownloadLocation().substring(0, oss.getDownloadLocation().length()-4));
+						}
 					}
 				}
-			}
-			
-			String[] downloadlocationUrlSplit = oss.getDownloadLocation().split("/");
-			if(downloadlocationUrlSplit[downloadlocationUrlSplit.length-1].indexOf("#") > -1) {
-				oss.setDownloadLocation(oss.getDownloadLocation().substring(0, oss.getDownloadLocation().indexOf("#")));
-			}
-			
-			// Search Priority 2. find by oss download location and version
-			prjOssLicenses = projectMapper.getOssFindByVersionAndDownloadLocation(oss);
-			checkedLicense = combineOssLicenses(prjOssLicenses, currentLicense);
-
-			if (!checkedLicense.isEmpty()) {
-				if(!currentLicense.equals(checkedLicense)) {
-					String evidence = getMessage("check.evidence.exist.downloadLocationAndVersion");
-					oss.setCheckOssList("Y");
-					oss.setCheckLicense(checkedLicense);
-					oss.setCheckedEvidence(evidence);
-					oss.setCheckedEvidenceType("DB");
-					oss.setDownloadLocation(downloadLocation);
-					result.add(oss);
+				
+				String[] downloadlocationUrlSplit = oss.getDownloadLocation().split("/");
+				if (downloadlocationUrlSplit[downloadlocationUrlSplit.length-1].indexOf("#") > -1) {
+					oss.setDownloadLocation(oss.getDownloadLocation().substring(0, oss.getDownloadLocation().indexOf("#")));
 				}
-				continue;
-			}
-			
-			// Search Priority 3. find by oss download location
-			prjOssLicenses = projectMapper.getOssFindByDownloadLocation(oss).stream()
-					.filter(CommonFunction.distinctByKeys(
-							ProjectIdentification::getOssName,
-							ProjectIdentification::getLicenseName
-					))
-					.collect(Collectors.toList());
-			checkedLicense = combineOssLicenses(prjOssLicenses, currentLicense);
+				
+				// Search Priority 2. find by oss download location and version
+				prjOssLicenses = projectMapper.getOssFindByVersionAndDownloadLocation(oss);
+				checkedLicense2 = combineOssLicenses(prjOssLicenses, currentLicense);
 
-			if (!checkedLicense.isEmpty() && !isEachOssVersionDiff(prjOssLicenses)) {
-				if(!currentLicense.equals(checkedLicense)) {
-					String evidence = getMessage("check.evidence.exist.downloadLocation");
-					oss.setCheckOssList("Y");
-					oss.setCheckLicense(checkedLicense);
-					oss.setCheckedEvidence(evidence);
-					oss.setCheckedEvidenceType("DB");
-					oss.setDownloadLocation(downloadLocation);
-					result.add(oss);
-				}
-				continue;
+				// Search Priority 3. find by oss download location
+				prjOssLicenses = projectMapper.getOssFindByDownloadLocation(oss).stream()
+						.filter(CommonFunction.distinctByKeys(
+								ProjectIdentification::getOssName,
+								ProjectIdentification::getLicenseName
+						))
+						.collect(Collectors.toList());
+				checkedLicense3 = combineOssLicenses(prjOssLicenses, currentLicense);
 			}
 
 			oss.setDownloadLocation(downloadLocation);
 			
+			if (!isEmpty(checkedLicense1)) {
+				if (!currentLicense.equals(checkedLicense1)) {
+					String evidence = getMessage("check.evidence.exist.nameAndVersion");
+					oss.setCheckOssList("Y");
+					oss.setCheckLicense(checkedLicense1);
+					oss.setCheckedEvidence(evidence);
+					oss.setCheckedEvidenceType("DB");
+					result.add(oss);
+				}
+				continue;
+			}
+			
+			if (!isEmpty(checkedLicense2)) {
+				if (!currentLicense.equals(checkedLicense2)) {
+					String evidence = getMessage("check.evidence.exist.downloadLocationAndVersion");
+					oss.setCheckOssList("Y");
+					oss.setCheckLicense(checkedLicense2);
+					oss.setCheckedEvidence(evidence);
+					oss.setCheckedEvidenceType("DB");
+					oss.setDownloadLocation(downloadLocation);
+					result.add(oss);
+				}
+				continue;
+			}
+			
+			if (!isEmpty(checkedLicense3)) {
+				if (!currentLicense.equals(checkedLicense3)) {
+					String evidence = getMessage("check.evidence.exist.downloadLocation");
+					oss.setCheckOssList("Y");
+					oss.setCheckLicense(checkedLicense3);
+					oss.setCheckedEvidence(evidence);
+					oss.setCheckedEvidenceType("DB");
+					oss.setDownloadLocation(downloadLocation);
+					result.add(oss);
+				}
+				continue;
+			}
+
 			// Search Priority 4. find by Clearly Defined And Github API
 			DependencyType dependencyType = DependencyType.downloadLocationToType(downloadLocation);
 
-			if(dependencyType.equals(DependencyType.UNSUPPORTED) || !isExternalServiceEnable()) {
+			if (dependencyType.equals(DependencyType.UNSUPPORTED) || !isExternalServiceEnable()) {
 				continue;
 			}
 
 			// Search Priority 4-1. Github API : empty oss version and download location
-			if(ossVersion.isEmpty() && ExternalLicenseServiceType.GITHUB.hasDependencyType(dependencyType) && isGitHubApiHealth) {
+			if (ossVersion.isEmpty() && ExternalLicenseServiceType.GITHUB.hasDependencyType(dependencyType) && isGitHubApiHealth) {
 				Matcher matcher = dependencyType.getPattern().matcher(downloadLocation);
 				String owner = "", repo = "";
 
-				while(matcher.find()) {
+				while (matcher.find()) {
 					owner = matcher.group(3);
 					repo = matcher.group(4);
 				}
@@ -291,7 +268,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 				String requestUri = ExternalLicenseServiceType.githubLicenseRequestUri(owner, repo);
 				checkedLicense = avoidNull(requestGithubLicenseApi(requestUri));
 
-				if(!currentLicense.equals(checkedLicense) && !checkedLicense.equals("NOASSERTION") && !checkedLicense.equals("NONE") && !checkedLicense.isEmpty()) {
+				if (!currentLicense.equals(checkedLicense) && !checkedLicense.equals("NOASSERTION") && !checkedLicense.equals("NONE") && !checkedLicense.isEmpty()) {
 					String evidence = getMessage("check.evidence.github.downloadLocation");
 					oss.setCheckOssList("Y");
 					oss.setCheckLicense(checkedLicense);
@@ -303,15 +280,15 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 			}
 
 			// Search Priority 4-2. Clearly Defined : oss version and download location
-			if(!ossVersion.isEmpty() && ExternalLicenseServiceType.CLEARLY_DEFINED.hasDependencyType(dependencyType) && isClearlyDefinedApiHealth) {
+			if (!ossVersion.isEmpty() && ExternalLicenseServiceType.CLEARLY_DEFINED.hasDependencyType(dependencyType) && isClearlyDefinedApiHealth) {
 				Matcher matcher = dependencyType.getPattern().matcher(downloadLocation);
 				String type = dependencyType.getType();
 				String provider = dependencyType.getProvider();
 				String revision = ossVersion;
 				String namespace = "", name = "";
 
-				while(matcher.find()) {
-					if(dependencyType.equals(DependencyType.MAVEN_CENTRAL) || dependencyType.equals(DependencyType.MAVEN_GOOGLE)) {
+				while (matcher.find()) {
+					if (dependencyType.equals(DependencyType.MAVEN_CENTRAL) || dependencyType.equals(DependencyType.MAVEN_GOOGLE)) {
 						namespace = matcher.group(3);
 						name = matcher.group(4);
 					} else {
@@ -323,7 +300,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 				String requestUri = ExternalLicenseServiceType.clearlyDefinedLicenseRequestUri(type, provider, namespace, name, revision);
 				checkedLicense = avoidNull(requestClearlyDefinedLicenseApi(requestUri));
 
-				if(!currentLicense.equals(checkedLicense) && !checkedLicense.equals("NOASSERTION") && !checkedLicense.equals("NONE") && !checkedLicense.isEmpty()) {
+				if (!currentLicense.equals(checkedLicense) && !checkedLicense.equals("NOASSERTION") && !checkedLicense.equals("NONE") && !checkedLicense.isEmpty()) {
 					String evidence = getMessage("check.evidence.clearlyDefined.downloadLocationAndVersion");
 					oss.setCheckOssList("Y");
 					oss.setCheckLicense(checkedLicense);
@@ -354,7 +331,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 				.collect(Collectors.toList());
 		
 		// oss name, oss version, oss license와 checked license가 unique하지 않다면 중복된 data의 downloadlocation을 전부 합쳐서 출력함. 
-		for(ProjectIdentification p : sortedData) {
+		for (ProjectIdentification p : sortedData) {
 			String downloadLocation = result.stream()
 					.filter(e -> e.getOssName().equals(p.getOssName()))
 					.filter(e -> e.getOssVersion().equals(p.getOssVersion()))
@@ -378,7 +355,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 
 		resMap.put("checkedData", sortedData);
 
-		if(errors.size() > 0) {
+		if (errors.size() > 0) {
 			resMap.put("error", getMessage("external.service.connect.fail", new Object[]{errors}));
 		}
 
@@ -434,7 +411,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 	}
 
 	private Boolean isExternalServiceEnable() {
-		return CoCodeManager.getCodeExpString(CoConstDef.CD_SYSTEM_SETTING, CoConstDef.CD_EXTERNAL_SERVICE_USED_FLAG).equals("Y");
+		return "Y".equalsIgnoreCase(CommonFunction.getProperty("external.service.useflag"));
 	}
 
 	private boolean isGitHubApiHealth() throws HttpServerErrorException {
@@ -442,7 +419,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 			requestGithubLicense("https://api.github.com/").block();
 		} catch(HttpServerErrorException e) {
 			String message = "GitHub ";
-			if(e.getStatusCode().equals(HttpStatus.UNAUTHORIZED)) {
+			if (e.getStatusCode().equals(HttpStatus.UNAUTHORIZED)) {
 				message += getMessage("api.token.invalid");
 				throw new HttpServerErrorException(e.getStatusCode(), message);
 			}
@@ -480,10 +457,11 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 	private String combineOssLicenses(List<ProjectIdentification> prjOssMasters, String currentLicense) {
 		String checkLicense = "";
 		List<ProjectIdentification> licenses;
+		prjOssMasters = prjOssMasters.stream().filter(CommonFunction.distinctByKey(p -> p.getOssId())).collect(Collectors.toList());
+		
+		for (ProjectIdentification prjOssMaster : prjOssMasters) {
 
-		for(ProjectIdentification prjOssMaster : prjOssMasters) {
-
-			if(!isEmpty(checkLicense)) {
+			if (!isEmpty(checkLicense)) {
 				checkLicense += "|";
 			}
 
@@ -496,7 +474,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 	private String makeLicenseExpression(List<ProjectIdentification> licenses, String currentLicense) {
 		String license = "";
 
-		if(licenses.size() != 0){
+		if (licenses.size() != 0){
 			licenses = CommonFunction.makeLicensePermissiveList(licenses, currentLicense);
 			licenses = CommonFunction.makeLicenseExcludeYn(licenses);
 			licenses.sort(Comparator.comparing(ProjectIdentification::getLicenseName));
@@ -516,7 +494,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 
 	@Override
 	public Mono<Object> requestGithubLicense(String location) {
-		String githubToken = CoCodeManager.getCodeExpString(CoConstDef.CD_EXTERNAL_SERVICE_SETTING, CoConstDef.CD_DTL_GITHUB_TOKEN);
+		String githubToken = CommonFunction.getProperty("external.service.github.token");
 
 		return webClient.get()
 			.uri(location)
@@ -524,14 +502,14 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 			.exchange()
 			.flatMap(response -> {
 				HttpStatus statusCode = response.statusCode();
-				if(statusCode.is4xxClientError()) {
+				if (statusCode.is4xxClientError()) {
 					return Mono.error(new HttpServerErrorException(statusCode));
 				}else if (statusCode.is5xxServerError()) {
 					return Mono.error(new HttpServerErrorException(statusCode));
 				}
 				return Mono.just(response);
 			})
-			.retry(1)
+			.retry (1)
 			.flatMap(response -> response.bodyToMono(Object.class));
 	}
 
@@ -557,7 +535,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 					}
 					return Mono.just(response);
 				})
-				.retry(1)
+				.retry (1)
 				.flatMap(response -> response.bodyToMono(Object.class));
 	}
 
@@ -570,7 +548,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 
 			List<String> componentIds = paramBean.getComponentIdList();
 
-			for(String componentId : componentIds) {
+			for (String componentId : componentIds) {
 				OssComponents oc = new OssComponents();
 				oc.setComponentId(componentId);
 				switch(targetName.toUpperCase()) {
@@ -588,7 +566,7 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 				String[] checkLicense = paramBean.getCheckLicense().split(",");
 				String licenseDev = checkLicense.length > 1 ? CoConstDef.LICENSE_DIV_MULTI : CoConstDef.LICENSE_DIV_SINGLE;
 				
-				for(String licenseName : checkLicense) {
+				for (String licenseName : checkLicense) {
 					ProjectIdentification comLicense = new ProjectIdentification();
 					comLicense.setComponentId(componentId);
 					comLicense.setLicenseName(licenseName);
@@ -609,14 +587,14 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 				}
 			}
 			
-			if(CoConstDef.CD_CHECK_OSS_PARTNER.equals(targetName.toUpperCase())
+			if (CoConstDef.CD_CHECK_OSS_PARTNER.equals(targetName.toUpperCase())
 					|| CoConstDef.CD_CHECK_OSS_IDENTIFICATION.equals(targetName.toUpperCase())) {
-				if(updateCnt >= 1) {
+				if (updateCnt >= 1) {
 					String commentId = CoConstDef.CD_CHECK_OSS_PARTNER.equals(targetName.toUpperCase()) ? paramBean.getRefPrjId() : paramBean.getReferenceId();
 					String checkOssLicenseComment = "";
 					String changeOssLicenseInfo = "<p>" + paramBean.getOssName();
 
-					if(!paramBean.getOssVersion().isEmpty()) {
+					if (!paramBean.getOssVersion().isEmpty()) {
 						changeOssLicenseInfo += " (" + paramBean.getOssVersion() + ") ";
 					} else {
 						changeOssLicenseInfo += " ";
@@ -626,12 +604,12 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 							+ paramBean.getLicenseName() + " => " + paramBean.getCheckLicense() + "</p>";
 					CommentsHistory commentInfo = null;
 
-					if(isEmpty(commentId)) {
+					if (isEmpty(commentId)) {
 						checkOssLicenseComment  = "<p><b>The following Licenses were modified by \"Check License\"</b></p>";
 						checkOssLicenseComment += changeOssLicenseInfo;
 						CommentsHistory commHisBean = new CommentsHistory();
 						
-						if(CoConstDef.CD_CHECK_OSS_PARTNER.equals(targetName.toUpperCase())) {
+						if (CoConstDef.CD_CHECK_OSS_PARTNER.equals(targetName.toUpperCase())) {
 							commHisBean.setReferenceDiv(CoConstDef.CD_DTL_COMMENT_PARTNER_HIS);
 							commHisBean.setReferenceId(paramBean.getReferenceId());
 						}else {
@@ -644,8 +622,8 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 					} else {
 						commentInfo = (CommentsHistory) commentService.getCommnetInfo(commentId).get("info");
 
-						if(commentInfo != null) {
-							if(!isEmpty(commentInfo.getContents())) {
+						if (commentInfo != null) {
+							if (!isEmpty(commentInfo.getContents())) {
 								checkOssLicenseComment  = commentInfo.getContents();
 								checkOssLicenseComment += changeOssLicenseInfo;
 								commentInfo.setContents(checkOssLicenseComment);
@@ -655,13 +633,13 @@ public class AutoFillOssInfoServiceImpl extends CoTopComponent implements AutoFi
 						}
 					}
 
-					if(commentInfo != null) {
+					if (commentInfo != null) {
 						map.put("commentId", commentInfo.getCommId());
 					}
 				}
 			}
 			
-			if(updateCnt >= 1) {
+			if (updateCnt >= 1) {
 				map.put("isValid", true);
 				map.put("returnType", "Success");
 			} else {

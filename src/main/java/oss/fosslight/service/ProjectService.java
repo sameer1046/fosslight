@@ -126,7 +126,7 @@ public interface ProjectService extends HistoryConfig{
 
 	List<List<ProjectIdentification>> convertLicenseNickName(List<List<ProjectIdentification>> ossComponentsLicense);
 
-	void addWatcher(Project project);
+	String addWatcher(Project project);
 
 	void removeWatcher(Project project);
 
@@ -134,7 +134,7 @@ public interface ProjectService extends HistoryConfig{
 	
 	boolean existsWatcher(Project project);
 
-	String getPartnerFormatName(String partnerId);
+	String getPartnerFormatName(String partnerId, boolean onlyName);
 
 	void updateIdentificationConfirmSkipPackaing(Project project);
 	
@@ -185,6 +185,28 @@ public interface ProjectService extends HistoryConfig{
 	public void updateComment(Project project);
 
 	public String checkOssNicknameList(ProjectIdentification identification);
+
+	public void updateFileId(Project project);
+
+	public void deleteProjectRefFiles(Project projectInfo);
+
+	public void deleteUploadFile(Project project);
+	
+	public Map<String, Object> getSecurityGridList(Project project);
+
+	public void registSecurity(String prjId, String tabName, List<OssComponents> ossComponents);
+
+	public List<Project> getProjectIdList(Project project);
+	
+	public Map<String, Object> getExportDataForSBOMInfo(OssNotice ossNotice);
+
+	public boolean checkReqEntrySecurity(Project project, String tabMenu);
+
+	public void copySecurityDataForProject(Project project);
+	
+	public Map<String, Object> checkSelectDownloadFile(Project project);
+
+	public List<OssComponents> getDependenciesDataList(Project project);
 }
 
 

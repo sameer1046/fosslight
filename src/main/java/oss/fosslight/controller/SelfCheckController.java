@@ -62,12 +62,7 @@ import oss.fosslight.validation.T2CoValidationResult;
 import oss.fosslight.validation.custom.T2CoProjectValidator;
 import oss.fosslight.service.VerificationService;
 import oss.fosslight.repository.VerificationMapper;
-import oss.fosslight.domain.File;
-import oss.fosslight.domain.OssComponents;
 import oss.fosslight.domain.OssNotice;
-import oss.fosslight.domain.CoMail;
-import oss.fosslight.domain.CoMailManager;
-import oss.fosslight.domain.History;
 
 @Slf4j
 @Controller
@@ -104,14 +99,14 @@ public class SelfCheckController extends CoTopComponent {
 		
 		Project searchBean = null;
 		
-		if(!CoConstDef.FLAG_YES.equals(req.getParameter("gnbF"))) {
+		if (!CoConstDef.FLAG_YES.equals(req.getParameter("gnbF"))) {
 			deleteSession(SESSION_KEY_SEARCH);
 			
 			searchBean = searchService.getSelfCheckSearchFilter(loginUserName());
-			if(searchBean == null) {
+			if (searchBean == null) {
 				searchBean = new Project();
 			}
-		} else if(getSessionObject(SESSION_KEY_SEARCH) != null) {
+		} else if (getSessionObject(SESSION_KEY_SEARCH) != null) {
 			searchBean = (Project) getSessionObject(SESSION_KEY_SEARCH);
 		}
 		
@@ -153,13 +148,19 @@ public class SelfCheckController extends CoTopComponent {
 		model.addAttribute("batFlag", CommonFunction.propertyFlagCheck("menu.bat.use.flag", CoConstDef.FLAG_YES));
 		model.addAttribute("partnerFlag", CommonFunction.propertyFlagCheck("menu.partner.use.flag", CoConstDef.FLAG_YES));
 		
+		boolean permissionFlag = false;
 		// Admin인 경우 Creator 를 변경할 수 있도록 사용자 정보를 반환한다.
-		if(CommonFunction.isAdmin()) {
+		if (CommonFunction.isAdmin()) {
 			List<T2Users> userList = userService.selectAllUsers();
 			
-			if(userList != null) {
+			if (userList != null) {
 				model.addAttribute("userWithDivisionList", userList);
 			}
+		} else {
+			if (selfCheckService.checkUserPermissions(project, loginUserName())) {
+				permissionFlag = true;
+			}
+			if (!permissionFlag) model.addAttribute("projectPermission", CoConstDef.FLAG_NO);
 		}
 		
 		return SELF_CHECK.EDIT_JSP;
@@ -177,7 +178,7 @@ public class SelfCheckController extends CoTopComponent {
 		try {
 			project = selfCheckService.getProjectDetail(project);
 			
-			if(CoConstDef.FLAG_YES.equals(project.getUseYn())) {
+			if (CoConstDef.FLAG_YES.equals(project.getUseYn())) {
 				model.addAttribute("project", project);
 				model.addAttribute("detail", toJson(project));
 				model.addAttribute("distributionFlag", CommonFunction.propertyFlagCheck("distribution.use.flag", CoConstDef.FLAG_YES));
@@ -186,10 +187,10 @@ public class SelfCheckController extends CoTopComponent {
 				model.addAttribute("partnerFlag", CommonFunction.propertyFlagCheck("menu.partner.use.flag", CoConstDef.FLAG_YES));
 				
 				// Admin인 경우 Creator 를 변경할 수 있도록 사용자 정보를 반환한다.
-				if(CommonFunction.isAdmin()) {
+				if (CommonFunction.isAdmin()) {
 					List<T2Users> userList = userService.selectAllUsers();
 					
-					if(userList != null) {
+					if (userList != null) {
 						model.addAttribute("userWithDivisionList", userList);
 					}
 				}
@@ -220,10 +221,10 @@ public class SelfCheckController extends CoTopComponent {
 		project.setSortField(sidx);
 		project.setSortOrder(sord);
 		
-		if("search".equals(req.getParameter("act"))){
+		if ("search".equals(req.getParameter("act"))){
 			// 검색 조건 저장
 			putSessionObject(SESSION_KEY_SEARCH, project);
-		}else if(getSessionObject(SESSION_KEY_SEARCH) != null){
+		}else if (getSessionObject(SESSION_KEY_SEARCH) != null){
 			project = (Project) getSessionObject(SESSION_KEY_SEARCH);
 		}
 
@@ -291,7 +292,7 @@ public class SelfCheckController extends CoTopComponent {
 						.identificationSortByValidInfo(mainDataList, null, null, null, true, true));
 			}
 			
-			if(!vr.isDiff()){
+			if (!vr.isDiff()){
 				Map<String, String> diffMap = vr.getDiffMessageMap();
 				map.put("diffData", diffMap);
 			}
@@ -304,7 +305,7 @@ public class SelfCheckController extends CoTopComponent {
 	public String ossDetailView(HttpServletRequest req, HttpServletResponse res, @ModelAttribute Project bean, Model model){
 		Project project = selfCheckService.getProjectDetail(bean);
 		
-		if(project != null) {
+		if (project != null) {
 			model.addAttribute("project", project);
 		} else {
 			model.addAttribute("project", new Project());
@@ -319,15 +320,15 @@ public class SelfCheckController extends CoTopComponent {
 		
 		List<LicenseMaster> resultList = new ArrayList<LicenseMaster>();
 		
-		if(!isEmpty(bean.getLicenseName())) {
-			for(String s : bean.getLicenseName().split(",")) {
-				if(isEmpty(s)) {
+		if (!isEmpty(bean.getLicenseName())) {
+			for (String s : bean.getLicenseName().split(",")) {
+				if (isEmpty(s)) {
 					continue;
 				}
 				
 				s = s.toUpperCase().trim();
 				
-				if(CoCodeManager.LICENSE_INFO_UPPER.containsKey(s)) {
+				if (CoCodeManager.LICENSE_INFO_UPPER.containsKey(s)) {
 					resultList.add(CoCodeManager.LICENSE_INFO_UPPER.get(s));
 				}
 			}
@@ -398,7 +399,7 @@ public class SelfCheckController extends CoTopComponent {
 			 * // basic validator는 무시, validate를 호출하여 custom validator를 수행한다.
 			 * T2CoValidationResult vr = pv.validate(new HashMap<>());
 			 * 
-			 * // return validator result if(!vr.isValid()) { return
+			 * // return validator result if (!vr.isValid()) { return
 			 * makeJsonResponseHeader(vr.getValidMessageMap()); }
 			 */
 			
@@ -411,7 +412,7 @@ public class SelfCheckController extends CoTopComponent {
 			
 			T2CoValidationResult vr = pv.validate(new HashMap<>());
 			
-			if(!vr.isValid()) {
+			if (!vr.isValid()) {
 				return makeJsonResponseHeader(vr.getValidMessageMap());
 			}
 
@@ -448,21 +449,22 @@ public class SelfCheckController extends CoTopComponent {
 	public @ResponseBody ResponseEntity<Object> saveAjax(@ModelAttribute Project project, HttpServletRequest req,
 			HttpServletResponse res, Model model) {
 		project.setWatchers(req.getParameterValues("watchers"));
+		List<Project> list = new ArrayList<Project>();
 
 		Boolean isNew = StringUtil.isEmpty(project.getPrjId());
 		String copy = req.getParameter("copy");
 		String creatorIdByName = null;
 		
-		if(CommonFunction.isAdmin() && !isNew && !"true".equals(copy)) {
-			if(!isEmpty(project.getCreatorNm())) {
+		if (CommonFunction.isAdmin() && !isNew && !"true".equals(copy)) {
+			if (!isEmpty(project.getCreatorNm())) {
 				List<T2Users> userList = userService.getUserListByName(project.getCreatorNm());
 				
-				if(userList != null) {
-					for(T2Users _bean : userList) {
-						if(_bean.getUserId().equals(project.getCreator())) {
+				if (userList != null) {
+					for (T2Users _bean : userList) {
+						if (_bean.getUserId().equals(project.getCreator())) {
 							creatorIdByName = _bean.getUserId();
 							
-							if(!creatorIdByName.equals(project.getCreator())) {
+							if (!creatorIdByName.equals(project.getCreator())) {
 								project.setCreator(_bean.getUserId());
 							}
 							
@@ -471,6 +473,20 @@ public class SelfCheckController extends CoTopComponent {
 					}
 				}
 			}
+		}
+
+		T2CoProjectValidator pv = new T2CoProjectValidator();
+		pv.setProcType(pv.PROC_TYPE_SELFCHECK);
+		Map<String, String> reqMap = new HashMap<>();
+		pv.saveRequest(req, reqMap);
+
+		if (!isEmpty(creatorIdByName)) {
+			reqMap.put("CREATOR_NM", creatorIdByName);
+		}
+		T2CoValidationResult vr = pv.validateObject(reqMap, list);
+
+		if (!vr.isValid()) {
+			return makeJsonResponseHeader(vr.getValidMessageMap());
 		}
 
 		project.setCopy(copy);
@@ -500,7 +516,7 @@ public class SelfCheckController extends CoTopComponent {
 	public @ResponseBody String getLicenseUserGuideHtml(@PathVariable String licenseName, HttpServletRequest req, HttpServletResponse res, Model model){
 		LicenseMaster license = CoCodeManager.LICENSE_INFO_UPPER.get(avoidNull(licenseName).toUpperCase());
 		
-		if(license != null) {
+		if (license != null) {
 			return CommonFunction.makeHtmlLinkTagWithText(license.getDescription());
 		}
 		
@@ -512,7 +528,7 @@ public class SelfCheckController extends CoTopComponent {
 	public @ResponseBody ResponseEntity<Object> addWatcher(@RequestBody Project project,
 			HttpServletRequest req, HttpServletResponse res, Model model) {
 		try {
-			if(!isEmpty(project.getPrjUserId()) || !isEmpty(project.getPrjEmail())) {
+			if (!isEmpty(project.getPrjUserId()) || !isEmpty(project.getPrjEmail())) {
 				selfCheckService.addWatcher(project);
 			} else {
 				return makeJsonResponseHeader(false, null);
@@ -528,7 +544,7 @@ public class SelfCheckController extends CoTopComponent {
 	public @ResponseBody ResponseEntity<Object> removeWatcher(@RequestBody Project project,
 			HttpServletRequest req, HttpServletResponse res, Model model) {
 		try {
-			if(!isEmpty(project.getPrjUserId()) || !isEmpty(project.getPrjEmail())) {
+			if (!isEmpty(project.getPrjUserId()) || !isEmpty(project.getPrjEmail())) {
 				selfCheckService.removeWatcher(project);
 			} else {
 				return makeJsonResponseHeader(false, null);
@@ -554,24 +570,24 @@ public class SelfCheckController extends CoTopComponent {
 			HttpServletRequest req, HttpServletResponse res, Model model) {
 			HashMap<String, Object> resMap = new HashMap<>();
 		try {			
-			if(!isEmpty(project.getListKind()) && !isEmpty(project.getListId()) ) {
+			if (!isEmpty(project.getListKind()) && !isEmpty(project.getListId()) ) {
 				
 				List<Project> result = selfCheckService.copyWatcher(project);
 				
-				if(result != null) {
-					for(Project bean : result) {
-						if(!StringUtils.isEmpty(bean.getPrjDivision())) {
+				if (result != null) {
+					for (Project bean : result) {
+						if (!StringUtils.isEmpty(bean.getPrjDivision())) {
 							bean.setPrjDivisionName(CoCodeManager.getCodeString(CoConstDef.CD_USER_DIVISION, bean.getPrjDivision()));
 						}
 					}
 					
-					if(!isEmpty(project.getPrjId())) {
+					if (!isEmpty(project.getPrjId())) {
 						boolean existSelfCheckWatcher = selfCheckService.existsWatcher(project);
 						
-						for(Project pm : result) {
+						for (Project pm : result) {
 							pm.setPrjId(project.getPrjId());
 							
-							if(existSelfCheckWatcher) {
+							if (existSelfCheckWatcher) {
 								selfCheckService.addWatcher(pm);
 							}
 						}					
@@ -596,15 +612,15 @@ public class SelfCheckController extends CoTopComponent {
 		Map<String, List<LicenseMaster>> resultMap = new HashMap<>();
 		List<LicenseMaster> resultList = new ArrayList<LicenseMaster>();
 		
-		if(!isEmpty(bean.getLicenseName())) {
-			for(String s : bean.getLicenseName().split(",")) {
-				if(isEmpty(s)) {
+		if (!isEmpty(bean.getLicenseName())) {
+			for (String s : bean.getLicenseName().split(",")) {
+				if (isEmpty(s)) {
 					continue;
 				}
 				
 				s = s.toUpperCase().trim();
 				
-				if(CoCodeManager.LICENSE_INFO_UPPER.containsKey(s)) {
+				if (CoCodeManager.LICENSE_INFO_UPPER.containsKey(s)) {
 					resultList.add(CoCodeManager.LICENSE_INFO_UPPER.get(s));
 				}
 			}
@@ -751,5 +767,16 @@ public class SelfCheckController extends CoTopComponent {
 		}
 		
 		return makeJsonResponseHeader(downloadId);
+	}
+	
+	@PostMapping(value=SELF_CHECK.CHECK_SELECT_DOWNLOAD_FILE)
+	public @ResponseBody ResponseEntity<Object> checkSelectDownloadFile(@RequestBody Project project, HttpServletRequest req, HttpServletResponse res, Model model){
+		Map<String, Object> resMap = new HashMap<>();
+		try {
+			resMap = selfCheckService.checkSelectDownloadFile(project);
+		} catch (Exception e) {
+			log.error(e.getMessage(), e);
+		}
+		return makeJsonResponseHeader(resMap);
 	}
 }

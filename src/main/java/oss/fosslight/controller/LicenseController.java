@@ -14,12 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,8 +29,11 @@ import oss.fosslight.service.LicenseService;
 import oss.fosslight.service.SearchService;
 import oss.fosslight.util.DateUtil;
 import oss.fosslight.util.ExcelUtil;
+import oss.fosslight.util.StringUtil;
 import oss.fosslight.validation.T2CoValidationResult;
 import oss.fosslight.validation.custom.T2CoLicenseValidator;
+
+import static oss.fosslight.common.CoConstDef.*;
 
 @Controller
 @Slf4j
@@ -51,17 +49,17 @@ public class LicenseController extends CoTopComponent{
 	public String list(HttpServletRequest req, HttpServletResponse res, Model model) throws Exception{
 		LicenseMaster searchBean = null;
 		
-		if(!CoConstDef.FLAG_YES.equals(req.getParameter("gnbF"))) {
+		if (!CoConstDef.FLAG_YES.equals(req.getParameter("gnbF"))) {
 			deleteSession(SESSION_KEY_SEARCH);
 			searchBean = searchService.getLicenseSearchFilter(loginUserName());
-			if(searchBean == null) {
+			if (searchBean == null) {
 				searchBean = new LicenseMaster();
 			}
-		} else if(getSessionObject(SESSION_KEY_SEARCH) != null) {
+		} else if (getSessionObject(SESSION_KEY_SEARCH) != null) {
 			searchBean = (LicenseMaster) getSessionObject(SESSION_KEY_SEARCH);
 		}
 		
-		if(getSessionObject("defaultLoadYn") != null) {
+		if (getSessionObject("defaultLoadYn") != null) {
 			model.addAttribute("defaultLoadYn", CoConstDef.FLAG_YES);
 			
 			deleteSession("defaultLoadYn");
@@ -79,7 +77,7 @@ public class LicenseController extends CoTopComponent{
 			, HttpServletResponse res
 			, Model model){
 		
-		if("Y".equals(req.getParameter("ignoreSearchFlag"))) {
+		if ("Y".equals(req.getParameter("ignoreSearchFlag"))) {
 			return makeJsonResponseHeader(new HashMap<String, Object>());
 		}
 		
@@ -93,17 +91,17 @@ public class LicenseController extends CoTopComponent{
 		licenseMaster.setSortField(sidx);
 		licenseMaster.setSortOrder(sord);
 
-		if("search".equals(req.getParameter("act"))) {
+		if ("search".equals(req.getParameter("act"))) {
 			// 검색 조건 저장
 			putSessionObject(SESSION_KEY_SEARCH, licenseMaster);
-		} else if(getSessionObject(SESSION_KEY_SEARCH) != null) {
+		} else if (getSessionObject(SESSION_KEY_SEARCH) != null) {
 			licenseMaster = (LicenseMaster) getSessionObject(SESSION_KEY_SEARCH);
 		}
 		
 		Map<String, Object> map = null;
 		
 		try {
-			if(isEmpty(licenseMaster.getLicenseNameAllSearchFlag())) {
+			if (isEmpty(licenseMaster.getLicenseNameAllSearchFlag())) {
 				licenseMaster.setLicenseNameAllSearchFlag(CoConstDef.FLAG_NO);
 			}
 			
@@ -128,11 +126,11 @@ public class LicenseController extends CoTopComponent{
 		licenseMaster = licenseService.getLicenseMasterOne(licenseMaster);
 		boolean distributionFlag = CommonFunction.propertyFlagCheck("distribution.use.flag", CoConstDef.FLAG_YES);
 		
-		if(licenseMaster != null) {
+		if (licenseMaster != null) {
 			licenseMaster.setDomain(CommonFunction.getDomain(req));
 			licenseMaster.setInternalUrl(CommonFunction.makeLicenseInternalUrl(licenseMaster, distributionFlag));
 
-			if(!"ROLE_ADMIN".equals(loginUserRole())) {
+			if (!"ROLE_ADMIN".equals(loginUserRole())) {
 				// html link 형식으로 변환
 				licenseMaster.setDescription(CommonFunction.makeHtmlLinkTagWithText(licenseMaster.getDescription()));
 			}
@@ -141,7 +139,7 @@ public class LicenseController extends CoTopComponent{
 		
 		model.addAttribute("detail", toJson(licenseMaster));
 		
-		if("ROLE_ADMIN".equals(loginUserRole())) {
+		if ("ROLE_ADMIN".equals(loginUserRole())) {
 			return LICENSE.EDIT_JSP;
 		} else {
 			return LICENSE.LICENSE_VIEW_JSP;
@@ -157,7 +155,7 @@ public class LicenseController extends CoTopComponent{
 		// validation check
 		T2CoLicenseValidator lv = new T2CoLicenseValidator();
 		T2CoValidationResult vResult = lv.validateRequest(req);
-		
+
 		return makeJsonResponseHeader(vResult.getValidMessageMap());
 	}
 	
@@ -172,7 +170,7 @@ public class LicenseController extends CoTopComponent{
 		lv.setAppendix("licenseId", licenseMaster.getLicenseId());
 		T2CoValidationResult vr = lv.validate(new HashMap<>());
 		
-		if(!vr.isValid()) {
+		if (!vr.isValid()) {
 			return makeJsonResponseHeader(false, vr.getValidMessage("LICENSE_NAME"));
 		}
 		
@@ -185,12 +183,6 @@ public class LicenseController extends CoTopComponent{
 		} catch(Exception e) {
 			log.error(e.getMessage(), e);
 		}
-		
-		licenseService.deleteLicenseMaster(licenseMaster);
-		
-		putSessionObject("defaultLoadYn", true); // 화면 로드 시 default로 리스트 조회 여부 flag 
-		CoCodeManager.getInstance().refreshLicenseInfo();
-		
 		try {
 			CoMail mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_LICENSE_DELETE);
 			mailBean.setParamLicenseId(licenseMaster.getLicenseId());
@@ -200,6 +192,11 @@ public class LicenseController extends CoTopComponent{
 		} catch (Exception e) {
 			log.error(e.getMessage(), e);
 		}
+		
+		licenseService.deleteLicenseMaster(licenseMaster);
+		
+		putSessionObject("defaultLoadYn", true); // 화면 로드 시 default로 리스트 조회 여부 flag 
+		CoCodeManager.getInstance().refreshLicenseInfo();
 		
 		try {
 			boolean distributionFlag = CommonFunction.propertyFlagCheck("distribution.use.flag", CoConstDef.FLAG_YES);
@@ -218,157 +215,10 @@ public class LicenseController extends CoTopComponent{
 			, HttpServletRequest req
 			, HttpServletResponse res
 			, Model model){
-		String resCd="00";	//비정상
-		String result="";
-		LicenseMaster beforeBean = null;
-		LicenseMaster afterBean = null;
-		
-		HashMap<String,Object> resMap = new HashMap<>(); 
-		String licenseId = licenseMaster.getLicenseId();
-		boolean isNew = isEmpty(licenseId);
-		boolean isChangeName = false;
-		boolean distributionFlag = CommonFunction.propertyFlagCheck("distribution.use.flag", CoConstDef.FLAG_YES);
-		List<OssMaster> typeChangeOssIdList = null;
 
-		if(!isNew) {
-			beforeBean =  licenseService.getLicenseMasterOne(licenseMaster);
-		}
-		
-		// webpages이 n건일때 0번째 값은 oss Master로 저장.
-		String[] webpages = licenseMaster.getWebpages();
-		if(webpages != null){
-			if(webpages.length >= 1){
-				for(String url : webpages){
-					if(!isEmpty(url)){
-						licenseMaster.setWebpage(url); // 등록된 url 중 공백을 제외한 나머지에서 첫번째 url을 만나게 되면 등록을 함.
-						break;
-					}
-				}
-			}
-		} else if(webpages == null){
-			licenseMaster.setWebpage("");
-		}
-		
-		result = licenseService.registLicenseMaster(licenseMaster);
-		
-		if(!isNew) {
-			afterBean =  licenseService.getLicenseMasterOne(licenseMaster);
+		//License Save
+		Map<String, Object> resMap = licenseService.saveLicense(licenseMaster);
 
-			// licnese type이 변경된 경우, 해당 라이선스를 사용하는 oss의 license type을 재확인 한다.
-			if(!avoidNull(beforeBean.getLicenseType()).equals(avoidNull(afterBean.getLicenseType()))) {
-				typeChangeOssIdList = licenseService.updateOssLicenseType(result);
-			}
-			
-			isChangeName = !beforeBean.getLicenseName().equalsIgnoreCase(afterBean.getLicenseName());
-		}
-		
-		// 싱글톤 정보 refresh
-		resCd="10";		//정상
-		putSessionObject("defaultLoadYn", true); // 화면 로드 시 default로 리스트 조회 여부 flag 
-		
-		try{
-			History h = licenseService.work(licenseMaster);
-			h.sethAction(isEmpty(licenseId) ? CoConstDef.ACTION_CODE_INSERT : CoConstDef.ACTION_CODE_UPDATE);
-			historyService.storeData(h);
-		}catch(Exception e){
-			log.error(e.getMessage(), e);
-		}
-		
-		// osdd 연동
-		boolean successType = false;
-		
-		try {			
-			if(isNew) {
-				successType = licenseService.distributeLicense(result, distributionFlag);
-			} else if(beforeBean != null && afterBean != null) {
-				if(!avoidNull(beforeBean.getLicenseName()).equals(afterBean.getLicenseName())
-						|| !avoidNull(beforeBean.getShortIdentifier()).equals(afterBean.getShortIdentifier())
-						|| !avoidNull(beforeBean.getLicenseText()).equals(afterBean.getLicenseText())) {
-					successType = licenseService.distributeLicense(result, distributionFlag);
-				} else {
-					successType = true; // license > update 일 경우에 internal url 생성과 상관없는 항목이 update될 경우는 comment를 남기지 않음.
-				}
-			}
-		} catch (Exception e) {
-			log.error(e.getMessage(), e);
-		}
-		
-		try {
-			CoMail mailBean = new CoMail(isNew ? CoConstDef.CD_MAIL_TYPE_LICENSE_REGIST : isChangeName ? CoConstDef.CD_MAIL_TYPE_LICENSE_RENAME : CoConstDef.CD_MAIL_TYPE_LICENSE_UPDATE);
-			mailBean.setParamLicenseId(result);
-			String comment = licenseMaster.getComment();
-			
-			if(!successType) { // internal url 생성 실패시 comment 남김
-				comment += (isEmpty(comment) ? "" : "<br>") + "[Error] An error occurred when creating an internal URL file.";
-			}
-			
-			mailBean.setComment(comment);
-			
-			if(!isNew) {
-				
-				mailBean.setParamOssList(typeChangeOssIdList);
-				
-				// code convert
-				if(beforeBean != null) {
-					beforeBean.setLicenseType(CoCodeManager.getCodeString(CoConstDef.CD_LICENSE_TYPE, beforeBean.getLicenseType()));
-					beforeBean.setObligation(CommonFunction.makeLicenseObligationStr(beforeBean.getObligationNotificationYn(), beforeBean.getObligationDisclosingSrcYn(), beforeBean.getObligationNeedsCheckYn()));
-					beforeBean.setModifiedDate(DateUtil.dateFormatConvert(beforeBean.getModifiedDate(), DateUtil.TIMESTAMP_PATTERN, DateUtil.DATE_PATTERN_DASH));
-					beforeBean.setModifier(CoMailManager.getInstance().makeUserNameFormat(beforeBean.getModifier()));
-					beforeBean.setDescription(CommonFunction.lineReplaceToBR(beforeBean.getDescription()));
-					beforeBean.setLicenseText(CommonFunction.lineReplaceToBR(beforeBean.getLicenseText()));
-					beforeBean.setAttribution(CommonFunction.lineReplaceToBR(beforeBean.getAttribution()));
-					if(beforeBean.getWebpages().length > 0) beforeBean.setWebpage(licenseService.webPageStringFormat(beforeBean.getWebpages()));
-				}
-				
-				if(afterBean != null) {
-					afterBean.setLicenseType(CoCodeManager.getCodeString(CoConstDef.CD_LICENSE_TYPE, afterBean.getLicenseType()));
-					afterBean.setObligation(CommonFunction.makeLicenseObligationStr(afterBean.getObligationNotificationYn(), afterBean.getObligationDisclosingSrcYn(), afterBean.getObligationNeedsCheckYn()));
-					afterBean.setModifiedDate(DateUtil.dateFormatConvert(afterBean.getModifiedDate(), DateUtil.TIMESTAMP_PATTERN, DateUtil.DATE_PATTERN_DASH));
-					afterBean.setModifier(CoMailManager.getInstance().makeUserNameFormat(afterBean.getModifier()));
-					afterBean.setDescription(CommonFunction.lineReplaceToBR(afterBean.getDescription()));
-					afterBean.setLicenseText(CommonFunction.lineReplaceToBR(afterBean.getLicenseText()));
-					afterBean.setAttribution(CommonFunction.lineReplaceToBR(afterBean.getAttribution()));
-					if(afterBean.getWebpages().length > 0) afterBean.setWebpage(licenseService.webPageStringFormat(afterBean.getWebpages()));
-				}
-				
-				mailBean.setCompareDataBefore(beforeBean);
-				mailBean.setCompareDataAfter(afterBean);
-			}
-			
-			CoMailManager.getInstance().sendMail(mailBean);
-		} catch (Exception e) {
-			log.error(e.getMessage(), e);
-		}
-		
-		try{
-			// RESTRICTION(2) => Network Redistribution
-			String netWorkRestriction = CoConstDef.CD_LICENSE_NETWORK_RESTRICTION;
-			
-			if(isNew) {
-				if(licenseMaster.getRestriction().contains(netWorkRestriction)){
-					licenseService.registNetworkServerLicense(licenseMaster.getLicenseId(), "NEW");
-				}
-			} else {
-				String type = "";
-				
-				if(beforeBean.getRestriction().contains(netWorkRestriction) && afterBean.getRestriction().contains(netWorkRestriction)){
-					type = "";
-				}else if(beforeBean.getRestriction().contains(netWorkRestriction) && !afterBean.getRestriction().contains(netWorkRestriction)){
-					type = "DEL";
-				}else if(!beforeBean.getRestriction().contains(netWorkRestriction) && afterBean.getRestriction().contains(netWorkRestriction)){
-					type = "INS";
-				}
-				
-				licenseService.registNetworkServerLicense(licenseMaster.getLicenseId(), type);
-			}
-		} catch (Exception e){
-			
-		}
-		
-		resMap.put("resCd", resCd);
-		resMap.put("licenseId", result);
-		
-		
 		return makeJsonResponseHeader(resMap);
 	}
 	
@@ -386,7 +236,7 @@ public class LicenseController extends CoTopComponent{
 			log.error(e.getMessage());
 		}
 		
-		if(!vResult.isValid()){
+		if (!vResult.isValid()){
 			return makeJsonResponseHeader(vResult.getValidMessageMap());
 		}
 		try{
@@ -433,7 +283,7 @@ public class LicenseController extends CoTopComponent{
 			, HttpServletResponse res
 			, Model model){
 		try{
-			if(!isEmpty(licenseMaster.getLicenseName()) && CoCodeManager.LICENSE_INFO_UPPER.containsKey(licenseMaster.getLicenseName().trim().toUpperCase())) {
+			if (!isEmpty(licenseMaster.getLicenseName()) && CoCodeManager.LICENSE_INFO_UPPER.containsKey(licenseMaster.getLicenseName().trim().toUpperCase())) {
 				return makeJsonResponseHeader(true, CommonFunction.lineReplaceToBR(avoidNull(CoCodeManager.LICENSE_INFO_UPPER.get(licenseMaster.getLicenseName().trim().toUpperCase()).getLicenseText())));
 			}
 		}catch(Exception e){
@@ -474,6 +324,216 @@ public class LicenseController extends CoTopComponent{
 	public String LicenseBulkRegPage(HttpServletRequest req, HttpServletResponse res, Model model) {
 
 		return LICENSE.LICENSE_BULK_REG_JSP;
+	}
+
+	/**
+	 * LicenseBulkReg Save Post
+	 * */
+	@PostMapping(value = Url.LICENSE.BULK_REG_AJAX)
+	public @ResponseBody
+	ResponseEntity<Object> saveAjaxJson(
+			@RequestBody List<LicenseMaster> licenseMasters
+			, HttpServletRequest req
+			, HttpServletResponse res
+			, Model model) {
+		List<Map<String, Object>> licenseDataMapList = new ArrayList<>();
+		Map<String, Object> resMap = new HashMap<>();
+
+		if (licenseMasters.isEmpty()) {
+			//When the licenseMaster List delivered from the client is empty (if the upload button is pressed without uploading the file)
+			resMap.put("res", false);
+			return makeJsonResponseHeader(resMap);
+		}
+
+		for (LicenseMaster license : licenseMasters) {
+			Map<String, Object> licenseDataMap = new HashMap<>();
+
+			if (license.getLicenseType().equalsIgnoreCase("Permissive")) {
+				license.setLicenseType(CD_LICENSE_TYPE_PMS);
+			} else if (license.getLicenseType().equalsIgnoreCase("Weak Copyleft")) {
+				license.setLicenseType(CD_LICENSE_TYPE_WCP);
+			} else if (license.getLicenseType().equalsIgnoreCase("Copyleft")) {
+				license.setLicenseType(CD_LICENSE_TYPE_CP);
+			} else if (license.getLicenseType().equalsIgnoreCase("Proprietary")) {
+				license.setLicenseType(CD_LICENSE_TYPE_NA);
+			} else if (license.getLicenseType().equalsIgnoreCase("Proprietary Free")) {
+				license.setLicenseType(CD_LICENSE_TYPE_PF);
+			} else {
+				license.setLicenseType("");
+			}
+
+			/**
+			 * Set
+			 * HotYn, notice, source
+			 * */
+			license.setRestriction("");
+			license.setHotYn(CoConstDef.FLAG_NO);
+			if (license.getObligationNotificationYn().equalsIgnoreCase("o")) {
+				license.setObligationNotificationYn(CoConstDef.FLAG_YES);
+			} else {
+				license.setObligationNotificationYn(null);
+			}
+			if (license.getObligationDisclosingSrcYn().equalsIgnoreCase("o")) {
+				license.setObligationDisclosingSrcYn(CoConstDef.FLAG_YES);
+			} else {
+				license.setObligationDisclosingSrcYn(null);
+			}
+
+			/**
+			 * Check
+			 * LicenseName NPE
+			 * LicenseName COMMA
+			 * LicenseName DB Check
+			 * */
+			if (Objects.isNull(license.getLicenseName()) || StringUtil.isBlank(license.getLicenseName())) {
+				log.debug("License name is required.");
+				licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (Required missing)");
+				licenseDataMapList.add(licenseDataMap);
+				continue;
+			} else if (license.getLicenseName().contains(CoConstDef.CD_COMMA_CHAR)) {
+				log.debug("License name contains COMMA.");
+				licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (License name contains COMMA)");
+				licenseDataMapList.add(licenseDataMap);
+				continue;
+			} else {
+				LicenseMaster licenseForCheckName = new LicenseMaster();
+				licenseForCheckName.setLicenseName(license.getLicenseName());
+				LicenseMaster resultByName = licenseService.checkExistsLicense(licenseForCheckName);
+				if (resultByName != null) {
+					log.debug("Same License already exists.");
+					licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (license already exist)");
+					licenseDataMapList.add(licenseDataMap);
+					continue;
+				}
+			}
+
+			/**
+			 * Check
+			 * LicenseText NPE
+			 * */
+			String licenseText = license.getLicenseText();
+			if (licenseText == null || licenseText.isEmpty()) {
+				log.debug("licenseText is null:" + license.getLicenseName());
+				licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (Required missing)");
+				licenseDataMapList.add(licenseDataMap);
+				continue;
+			}
+
+			/**
+			 * Check
+			 * LicenseType NPE
+			 * */
+			String licenseType = license.getLicenseType();
+			if (licenseType == null || licenseType.isEmpty()) {
+				log.debug("licenseType is null:" + license.getLicenseName());
+				licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (Required missing)");
+				licenseDataMapList.add(licenseDataMap);
+				continue;
+			}
+
+			/**
+			 * Check
+			 * SHORT_IDENTIFIER COMMA
+			 * SHORT_IDENTIFIER LicenseName
+			 */
+			if (license.getShortIdentifier().contains(CoConstDef.CD_COMMA_CHAR)) {
+				log.debug("SPDX contains COMMA.");
+				licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (SPDX contains COMMA)");
+				licenseDataMapList.add(licenseDataMap);
+				continue;
+			} else if (license.getShortIdentifier().equalsIgnoreCase(avoidNull(license.getLicenseName()))) {
+				log.debug("SPDX equals with LicenseName.");
+				licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (SPDX sames with LicenseName.)");
+				licenseDataMapList.add(licenseDataMap);
+				continue;
+			} else if(!license.getShortIdentifier().equals("")) {
+				LicenseMaster licenseForCheckSPDX = new LicenseMaster(license.getLicenseId());
+				licenseForCheckSPDX.setLicenseName(license.getShortIdentifier());
+				LicenseMaster resultBySPDX = licenseService.checkExistsLicense(licenseForCheckSPDX);
+				if (resultBySPDX != null) {
+					log.debug("SPDX already exits");
+					licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (SPDX already exits)");
+					licenseDataMapList.add(licenseDataMap);
+					continue;
+				}
+			}
+
+			/**
+			 * Check
+			 * LicenseNickname Input Duplication
+			 * LicenseNickname contains COMMA
+			 * LicenseNickname DB Check
+			 */
+			List<String> nickNameList = new ArrayList<>();
+			Boolean checkLicenseNickname = true;
+			for (String nickname : license.getLicenseNicknames()) {
+
+				if (nickNameList.contains(nickname.toUpperCase())) {
+					log.debug("Input nickname is overlapped.");
+					licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (Input nickname is overlapped.)");
+					licenseDataMapList.add(licenseDataMap);
+					checkLicenseNickname = false;
+					break;
+				} else {
+					nickNameList.add(nickname.toUpperCase());
+
+					if (nickname.contains(CoConstDef.CD_COMMA_CHAR)) {
+						log.debug("LicenseNickname contains COMMA.");
+						licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (LicenseNickname contains COMMA)");
+						licenseDataMapList.add(licenseDataMap);
+						checkLicenseNickname = false;
+						break;
+					} else if (nickname.equalsIgnoreCase(avoidNull(license.getLicenseName()))
+							|| nickname.equalsIgnoreCase(avoidNull(license.getShortIdentifier()))) {
+						log.debug("Nickname equals with LicenseName or SPDX");
+						licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (Nickname equals with LicenseName or SPDX)");
+						licenseDataMapList.add(licenseDataMap);
+						checkLicenseNickname = false;
+						break;
+					} else {
+						LicenseMaster licenseForCheckNickname = new LicenseMaster(license.getLicenseId());
+						licenseForCheckNickname.setLicenseName(nickname);
+						LicenseMaster resultByNickname = licenseService.checkExistsLicense(licenseForCheckNickname);
+						if (resultByNickname != null) {
+							log.debug("LicenseNickname already exits");
+							licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), false, "X (LicenseNickname already exits)");
+							licenseDataMapList.add(licenseDataMap);
+							checkLicenseNickname = false;
+							break;
+						}
+					}
+				}
+			}
+			if (checkLicenseNickname == false) {
+				continue;
+			}
+
+			Map<String, Object> result = licenseService.saveLicense(license);
+			if (result.get("resCd").equals("10")) {
+				licenseDataMap = licenseService.getLicenseDataMap(license.getGridId(), true, "O");
+				licenseDataMapList.add(licenseDataMap);
+			}
+		}
+		resMap.put("res", true);
+		resMap.put("value", licenseDataMapList);
+		return makeJsonResponseHeader(resMap);
+	}
+
+	/**
+	 * Validate Bulk Reg
+	 * */
+	@PostMapping(value=Url.LICENSE.BULK_VALIDATION)
+	public @ResponseBody ResponseEntity<Object> bulkValidation(
+			@RequestBody List<LicenseMaster> licenseMasters){
+		Map<String, Object> resMap = new HashMap<>();
+
+		T2CoLicenseValidator validator = new T2CoLicenseValidator();
+		validator.setAppendix("licenseList", licenseMasters);
+		validator.setVALIDATION_TYPE(validator.VALID_LICNESELIST_BULK);
+		T2CoValidationResult vr = validator.validate(new HashMap<>());
+
+		resMap.put("validData", vr.getValidMessageMap());
+		return makeJsonResponseHeader(resMap);
 	}
 
 	/**LicenseBulkReg Upload Post*/

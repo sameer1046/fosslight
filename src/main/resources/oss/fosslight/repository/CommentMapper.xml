@@ -158,6 +158,9 @@
 			<when test="@oss.fosslight.util.StringUtil@equals(referenceDiv,'3rd')">
 				AND REFERENCE_DIV IN ('20')
 			</when>
+			<when test="@oss.fosslight.util.StringUtil@equals(referenceDiv,'security')">
+				AND REFERENCE_DIV IN ('19', '10', '12', '14', '60')
+			</when>
 			<otherwise>
 				AND REFERENCE_DIV IN ('99')
 			</otherwise>
@@ -176,7 +179,7 @@
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(schKeyword)">
 			CASE WHEN CONTENTS LIKE CONCAT('%',#{schKeyword},'%') THEN 1 ELSE 2 END,
 		</if>
-	CREATED_DATE DESC
+	COMM_ID DESC
 	LIMIT 5
 	</select>
 	
@@ -245,7 +248,7 @@
 			<if test="!@oss.fosslight.util.StringUtil@isEmpty(schKeyword)">
 				CASE WHEN T1.CONTENTS LIKE CONCAT('%',#{schKeyword},'%') THEN 1 ELSE 2 END,
 			</if>
-		T1.CREATED_DATE DESC
+		T1.COMM_ID DESC
 		) AS G1
 	WHERE G1.RNUM > 5
 	ORDER BY RNUM

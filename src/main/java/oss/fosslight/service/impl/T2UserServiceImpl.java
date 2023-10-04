@@ -13,17 +13,19 @@ import java.util.List;
 import java.util.Map;
 
 import javax.naming.Context;
-import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
-import javax.naming.directory.DirContext;
-import javax.naming.directory.InitialDirContext;
-import javax.naming.directory.SearchControls;
-import javax.naming.directory.SearchResult;
+import javax.naming.directory.Attributes;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import org.springframework.ldap.core.AttributesMapper;
+import org.springframework.ldap.core.LdapTemplate;
+import org.springframework.ldap.core.support.LdapContextSource;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -57,6 +59,8 @@ import oss.fosslight.service.FileService;
 import oss.fosslight.service.T2UserService;
 import oss.fosslight.util.JwtUtil;
 import oss.fosslight.util.StringUtil;
+
+import static org.springframework.ldap.query.LdapQueryBuilder.query;
 
 /**
  * The Class T2UserServiceImpl.
@@ -141,20 +145,20 @@ public class T2UserServiceImpl implements T2UserService {
 			List<PartnerMaster> partnerList = null;
 //			List<Map<String, Object>> batList = null;
 			
-			if(CommonFunction.propertyFlagCheck("menu.project.use.flag", CoConstDef.FLAG_YES)) {
+			if (CommonFunction.propertyFlagCheck("menu.project.use.flag", CoConstDef.FLAG_YES)) {
 				// project watcher 초대여부
 				prjList = projectMapper.getWatcherListByEmail(t2Users.getEmail());
 				userMapper.updateProjectWatcherUserInfo(t2Users);		
 			}
 			
-			if(CommonFunction.propertyFlagCheck("menu.partner.use.flag", CoConstDef.FLAG_YES)) {
+			if (CommonFunction.propertyFlagCheck("menu.partner.use.flag", CoConstDef.FLAG_YES)) {
 				partnerList = partnerMapper.getWatcherListByEmail(t2Users.getEmail());
 				userMapper.updatePartnerWatcherUserInfo(t2Users);
 			}
 			
-			if(prjList != null) {
+			if (prjList != null) {
 				// 진행중인 프로젝트에 대해서 creator에세 메일을 발송
-				for(Project bean : prjList) {
+				for (Project bean : prjList) {
 					CoMail mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PROJECT_WATCHER_REGISTED);
 					mailBean.setParamPrjId(bean.getPrjId());
 					mailBean.setParamUserId(t2Users.getUserId());
@@ -163,9 +167,9 @@ public class T2UserServiceImpl implements T2UserService {
 				}
 			}
 			
-			if(partnerList != null) {
+			if (partnerList != null) {
 				// 진행중인 프로젝트에 대해서 creator에세 메일을 발송
-				for(PartnerMaster bean : partnerList) {
+				for (PartnerMaster bean : partnerList) {
 					CoMail mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_PARTER_WATCHER_REGISTED);
 					mailBean.setParamPartnerId(bean.getPartnerId());
 					mailBean.setParamUserId(t2Users.getUserId());
@@ -174,9 +178,9 @@ public class T2UserServiceImpl implements T2UserService {
 				}
 			}
 			
-//			if(batList != null) {
+//			if (batList != null) {
 //				// 진행중인 프로젝트에 대해서 creator에세 메일을 발송
-//				for(Map<String, Object> bean : batList) {
+//				for (Map<String, Object> bean : batList) {
 //					String batId = (String) bean.get("baId");
 //					CoMail mailBean = new CoMail(CoConstDef.CD_MAIL_TYPE_BAT_WATCHER_REGISTED);
 //					mailBean.setParamBatId(batId);
@@ -282,7 +286,7 @@ public class T2UserServiceImpl implements T2UserService {
 	public String getPassword(T2Users user) {
 		T2Users result = userMapper.getPassword(user);
 		
-		if(result != null) {
+		if (result != null) {
 			return result.getPassword();
 		}
 		
@@ -326,16 +330,16 @@ public class T2UserServiceImpl implements T2UserService {
 
 	@Override
 	public void modUser(List<T2Users> vo) {
-		for(int i = 0;i<vo.size();i++) {
+		for (int i = 0;i<vo.size();i++) {
 			vo.get(i).setModifier(vo.get(i).getUserId());
 			vo.get(i).setPassword("");
-			if(vo.get(i).getDivision().trim().equals("")){
+			if (vo.get(i).getDivision().trim().equals("")){
 				vo.get(i).setDivision(CoConstDef.CD_USER_DIVISION_EMPTY);
 			}
 			
 			userMapper.updateUsers(vo.get(i));	
 			
-			if("V".equals(vo.get(i).getAuthority())) {
+			if ("V".equals(vo.get(i).getAuthority())) {
 				vo.get(i).setAuthority("ROLE_ADMIN");
 				userMapper.updateAuthorities(vo.get(i));
 			} else {
@@ -357,11 +361,11 @@ public class T2UserServiceImpl implements T2UserService {
 	public List<T2Users> getUserListExcel() throws Exception {
 		List<T2Users> result = userMapper.selectUserList();
 		
-		for(int i = 0; i< result.size(); i++){
+		for (int i = 0; i< result.size(); i++){
 			String userId = result.get(i).getUserId();
 			String userAuth = userMapper.selectAuthority(userId);
 			
-			if("ROLE_ADMIN".equals(userAuth)){
+			if ("ROLE_ADMIN".equals(userAuth)){
 				userAuth = "V";
 			} else {
 				userAuth = "";
@@ -378,7 +382,7 @@ public class T2UserServiceImpl implements T2UserService {
 		String duplicate = userMapper.checkDuplicateId(vo);
 		boolean result;
 		
-		if("DUPLICATE".equals(duplicate)) {
+		if ("DUPLICATE".equals(duplicate)) {
 			result = true;
 		} else {
 			result = false;
@@ -411,53 +415,33 @@ public class T2UserServiceImpl implements T2UserService {
 		String userPw = (String) userInfo.get(pwKey);
 		
 		String ldapDomain = CoCodeManager.getCodeExpString(CoConstDef.CD_LOGIN_SETTING, CoConstDef.CD_LDAP_DOMAIN);
-		Hashtable<String, String> properties = new Hashtable<String, String>();
-		properties.put(Context.INITIAL_CONTEXT_FACTORY, CoConstDef.AD_LDAP_LOGIN.INITIAL_CONTEXT_FACTORY.getValue());
-		properties.put(Context.PROVIDER_URL, CoConstDef.AD_LDAP_LOGIN.LDAP_SERVER_URL.getValue());
-		properties.put(Context.SECURITY_AUTHENTICATION, "simple");
-		properties.put(Context.SECURITY_PRINCIPAL, userId+ldapDomain);
-		properties.put(Context.SECURITY_CREDENTIALS, userPw);
-		
-		String[] attrIDs = { "cn", "mail" };
-		if(StringUtil.isEmpty(filter)) {
-			filter = "(cn=" + userId + ")";
-		}
-		
-		DirContext con = null;
-		SearchControls constraints = new SearchControls();
-		NamingEnumeration<SearchResult> m_ne = null;
-		
 		try {
-			con = new InitialDirContext(properties);
-			isAuthenticated = true;
+			LdapContextSource contextSource = new LdapContextSource();
+			contextSource.setUrl(CoConstDef.AD_LDAP_LOGIN.LDAP_SERVER_URL.getValue());
+			contextSource.setBase("OU=LGE Users,DC=LGE,DC=NET");
+			contextSource.setUserDn(userId+ldapDomain);
+			contextSource.setPassword(userPw);
+			CommonFunction.setSslWithCert();
+			contextSource.afterPropertiesSet();
 			
-			constraints.setSearchScope(SearchControls.SUBTREE_SCOPE);
-			
-			if(attrIDs != null) {
-				constraints.setReturningAttributes(attrIDs);
+			if (StringUtil.isEmpty(filter)) {
+				filter = userId;
 			}
 			
-			String searchKey = StringUtil.avoidNull(CommonFunction.getProperty("ldap.search.key"), "");
-			m_ne = con.search(searchKey, filter, constraints);
-		} catch (NamingException e) {
-			log.error(e.getMessage(), e);
-		} finally {
-			if(con != null) {
-				try {
-					con.close();
-				} catch (NamingException e) {}
-			}
-		}
-		
-		try {
-			SearchResult sr = null;
-
-			while (m_ne.hasMoreElements()) {
-				sr = (SearchResult) m_ne.next();
-				if(sr != null) {
-					String email = (String) sr.getAttributes().get("mail").get();
-					
-					if(!StringUtil.isEmpty(email)) {
+			LdapTemplate ldapTemplate = new LdapTemplate(contextSource);
+			ldapTemplate.afterPropertiesSet();
+			
+			@SuppressWarnings({ "unchecked", "rawtypes" })
+			List<String[]> result = ldapTemplate.search(query().where("mail").is(filter), new AttributesMapper() {
+				public Object mapFromAttributes(Attributes attrs) throws NamingException {
+					return new String[]{(String)attrs.get("mail").get(), (String)attrs.get("displayname").get()};
+				}
+			});
+			if(result != null && result.size() > 0) {
+				isAuthenticated = true;
+				for(int i=0;i<result.size();i++) {
+					String email = result.get(i)[0];
+					if (!StringUtil.isEmpty(email)) {
 						userInfo.put("EMAIL", email);
 					}
 				}
@@ -517,13 +501,13 @@ public class T2UserServiceImpl implements T2UserService {
 		params.setToken(_token);
 		params = getUser(params); // 등록된 token 여부 확인
 		
-		if(params == null) {
+		if (params == null) {
 			// 미등록 token
 			throw new CUserNotFoundException();
 		}
 		
 		// Token 인증
-		if(checkToken(params, _token)) { // 추출된 USER 정보로 동일한 token이 생성이 되는지 확인.
+		if (checkToken(params, _token)) { // 추출된 USER 정보로 동일한 token이 생성이 되는지 확인.
             return getUserAndAuthorities(params);
         } else {
             throw new CSigninFailedException();
@@ -538,8 +522,8 @@ public class T2UserServiceImpl implements T2UserService {
 	@Transactional
 	public boolean procToken(T2Users vo) {
 		try {
-			if(CoConstDef.CD_TOKEN_CREATE_TYPE.equals(vo.getTokenType())) {
-				if(StringUtil.isEmpty(vo.getExpireDate())) {
+			if (CoConstDef.CD_TOKEN_CREATE_TYPE.equals(vo.getTokenType())) {
+				if (StringUtil.isEmpty(vo.getExpireDate())) {
 					vo.setExpireDate(CoConstDef.CD_TOKEN_END_DATE);
 				}
 				
@@ -550,7 +534,7 @@ public class T2UserServiceImpl implements T2UserService {
 				vo.setToken(tokenKey);
 			}
 			
-			if(!StringUtil.isEmpty(vo.getToken())) {
+			if (!StringUtil.isEmpty(vo.getToken())) {
 				int successCnt = userMapper.procToken(vo);
 				
 				return successCnt != 1 ? false : true;
@@ -574,7 +558,7 @@ public class T2UserServiceImpl implements T2UserService {
 	
 	public boolean checkPassword(String rawPassword, T2Users bean) {
 		T2Users userInfo = userMapper.getPassword(bean);
-		if(userInfo == null) {
+		if (userInfo == null) {
 			return false;
 		}
 		String encPassword = userInfo.getPassword();
@@ -611,66 +595,68 @@ public class T2UserServiceImpl implements T2UserService {
 		return properties;
 	}
 
+	private LdapContextSource makeLdapContextSource() {
+		String LDAP_SEARCH_DOMAIN = CoCodeManager.getCodeExpString(CoConstDef.CD_LOGIN_SETTING, CoConstDef.CD_LDAP_DOMAIN);
+		String LDAP_SEARCH_ID = CoCodeManager.getCodeExpString(CoConstDef.CD_LDAP_SEARCH_INFO, CoConstDef.CD_DTL_LDAP_SEARCH_ID);
+		String LDAP_SEARCH_PW = CoCodeManager.getCodeExpString(CoConstDef.CD_LDAP_SEARCH_INFO, CoConstDef.CD_DTL_LDAP_SEARCH_PW);
+		
+		LdapContextSource contextSource = new LdapContextSource();
+		contextSource.setUrl(CoConstDef.AD_LDAP_LOGIN.LDAP_SERVER_URL.getValue());
+		contextSource.setBase("OU=LGE Users,DC=LGE,DC=NET");
+		contextSource.setUserDn(LDAP_SEARCH_ID+LDAP_SEARCH_DOMAIN);
+		contextSource.setPassword(LDAP_SEARCH_PW);
+		
+		return contextSource;
+	}
+	
 	public String[] checkUserInfo(T2Users userInfo) {
-		return checkUserInfo(userInfo, makeLdapProperty());
+		return checkUserInfo(userInfo, makeLdapContextSource());
 	}
 
-	private String[] checkUserInfo(T2Users userInfo, Hashtable<String, String> property) {
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private String[] checkUserInfo(T2Users userInfo, LdapContextSource contextSource) {
 		String[] result = new String[3];
-
-		String[] attrIDs = { "distinguishedName", "displayName", "title", "mail", "cn" };
-		String filter = "(cn=" + userInfo.getUserId() + ")";
-
-		DirContext con = null;
-		SearchControls constraints = new SearchControls();
-		NamingEnumeration<SearchResult> m_ne = null;
-		try {
-			con = new InitialDirContext(property);
-			constraints.setSearchScope(SearchControls.SUBTREE_SCOPE);
-
-			if(attrIDs != null) {
-				constraints.setReturningAttributes(attrIDs);
-			}
-
-			String searchKey = StringUtil.avoidNull(CommonFunction.getProperty("ldap.search.key"), "");
-			m_ne = con.search(searchKey, filter, constraints);
-		} catch (NamingException e) {
-			log.error(e.getMessage(), e);
-		} finally {
-			if(con != null) {
-				try {
-					con.close();
-				} catch (NamingException e) {}
-			}
-		}
+		String userId = !StringUtil.isEmptyTrimmed(userInfo.getUserId()) ? userInfo.getUserId() : userInfo.getCreator();
+		String ldapSearchID = CoCodeManager.getCodeExpString(CoConstDef.CD_LDAP_SEARCH_INFO, CoConstDef.CD_DTL_LDAP_SEARCH_ID);
 
 		try {
-			SearchResult sr = null;
-			int cnt = 1;
-			while (m_ne.hasMoreElements()) {
-				sr = (SearchResult) m_ne.next();
-				if(sr != null) {
-					// 이름/직책/부서(email)
-					String displayName = (String) sr.getAttributes().get("displayName").get();
-					String email = (String) sr.getAttributes().get("mail").get();
-					if(StringUtil.isEmptyTrimmed(displayName)) {
-						result[0] = email.split("@")[0];
-					} else{
-						result[0] = displayName.replaceAll("\\("+email+"\\)", "").trim();
+			CommonFunction.setSslWithCert();
+			contextSource.afterPropertiesSet();
+			
+			LdapTemplate ldapTemplate = new LdapTemplate(contextSource);
+			ldapTemplate.afterPropertiesSet();
+			
+			if(ldapTemplate.authenticate("", String.format("(cn=%s)", ldapSearchID), contextSource.getPassword())) {
+				List<String[]> searchResult = ldapTemplate.search(query().where("cn").is(userId), new AttributesMapper() {
+					public Object mapFromAttributes(Attributes attrs) throws NamingException {
+						return new String[]{(String)attrs.get("mail").get(), (String)attrs.get("displayname").get()};
 					}
-					
-					if(!StringUtil.isEmptyTrimmed(userInfo.getEmail())) {
-						if(email.equals(userInfo.getEmail().trim())) {
-							result[1] = email;
-							result[2] = String.valueOf(cnt);
-							break;
-						} else {
-							result[1] = "";
-							result[2] = String.valueOf(cnt);
+				});
+				if(searchResult != null && searchResult.size() > 0) {
+					int cnt = 1;
+					for(int i=0;i<searchResult.size();i++) {
+						String email = searchResult.get(i)[0];
+						String displayName = searchResult.get(i)[1];
+						
+						if (StringUtil.isEmptyTrimmed(displayName)) {
+							result[0] = email.split("@")[0];
+						} else{
+							result[0] = displayName.replaceAll("\\("+email+"\\)", "").trim();
 						}
-					} else {
-						result[1] = email;
-						result[2] = String.valueOf(cnt++);
+						
+						if (!StringUtil.isEmptyTrimmed(userInfo.getEmail())) {
+							if (email.equals(userInfo.getEmail().trim())) {
+								result[1] = email;
+								result[2] = String.valueOf(cnt);
+								break;
+							} else {
+								result[1] = "";
+								result[2] = String.valueOf(cnt);
+							}
+						} else {
+							result[1] = email;
+							result[2] = String.valueOf(cnt++);
+						}
 					}
 				}
 			}
@@ -680,5 +666,47 @@ public class T2UserServiceImpl implements T2UserService {
 
 			return null;
 		}
+	}
+
+	@Override
+	public T2Users checkApiUserAuthAndSetSession(String _token) {
+		T2Users params = new T2Users();
+		params.setToken(_token);
+		params = getUser(params);
+		
+		if (params == null) {
+			throw new CUserNotFoundException();
+		}
+		
+		if (checkToken(params, _token)) {
+			List<GrantedAuthority> roles = new ArrayList<GrantedAuthority>();
+			T2Users getUser = getUserAndAuthorities(params);
+			for (T2Authorities auth : getUser.getAuthoritiesList()) {
+            	roles.add(new SimpleGrantedAuthority(auth.getAuthority()));
+            }
+			
+			Authentication authentication = new UsernamePasswordAuthenticationToken(params.getUserId(), null, roles);
+			SecurityContextHolder.getContext().setAuthentication(authentication);
+			
+			return getUser;
+        } else {
+            throw new CSigninFailedException();
+        }
+	}
+
+	@Override
+	public boolean isAdmin(String _token) {
+		T2Users params = new T2Users();
+		params.setToken(_token);
+		params = getUser(params);
+
+		if (params == null) {
+			throw new CUserNotFoundException();
+		}
+
+		if (params.getAuthority().equals("ROLE_ADMIN")) {
+			return true;
+		}
+		return false;
 	}
 }

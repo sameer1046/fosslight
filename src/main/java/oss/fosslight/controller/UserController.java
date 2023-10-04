@@ -6,6 +6,9 @@
 package oss.fosslight.controller;
 
 import java.lang.reflect.Type;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +16,7 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.lang.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -40,7 +44,6 @@ import oss.fosslight.domain.T2Users;
 import oss.fosslight.service.CodeService;
 import oss.fosslight.service.T2UserService;
 import oss.fosslight.util.StringUtil;
-import oss.fosslight.validation.T2BasicValidator;
 import oss.fosslight.validation.T2CoValidationResult;
 import oss.fosslight.validation.custom.T2CoAdminValidator;
 
@@ -80,7 +83,7 @@ public class UserController extends CoTopComponent {
 		// validation check
 		T2CoValidationResult vResult = validate(req);
 		
-		if(!vResult.isValid()) {
+		if (!vResult.isValid()) {
 			return makeJsonResponseHeader(vResult.getValidMessageMap());
 		}
 		
@@ -94,12 +97,12 @@ public class UserController extends CoTopComponent {
 		
 		String ldapFlag = CoCodeManager.getCodeExpString(CoConstDef.CD_SYSTEM_SETTING, CoConstDef.CD_LDAP_USED_FLAG);
 		
-		if(!CoConstDef.FLAG_YES.equals(ldapFlag)) {
+		if (!CoConstDef.FLAG_YES.equals(ldapFlag)) {
 			vo.setPassword(encodePassword((String) validResultMap.get("USER_PW")));
 		}
 		
 		// 선택된 division이 없을경우 N/A로 선택됨.
-		if(isEmpty(vo.getDivision())){
+		if (isEmpty(vo.getDivision())){
 			vo.setDivision(CoConstDef.CD_USER_DIVISION_EMPTY);
 		}
 		
@@ -147,7 +150,7 @@ public class UserController extends CoTopComponent {
 		String email = req.getParameter("email");
 		List<T2Users> list = userService.checkEmail(email);
 		
-		if(list.size() > 0){
+		if (list.size() > 0){
 			resMap.put("isValid", "true");
 			resMap.put("userId", list.get(0).getUserId());
 			resMap.put("division", list.get(0).getDivision());
@@ -159,7 +162,7 @@ public class UserController extends CoTopComponent {
 		return makeJsonResponseHeader(resMap);
 	}
 	
-	@GetMapping(value = USER.AUTOCOMPLETE_CRAETOR_AJAX)
+	@GetMapping(value = USER.AUTOCOMPLETE_CREATOR_AJAX)
 	public @ResponseBody ResponseEntity<Object> autoCompleteCreatorAjax(T2Users t2Users, HttpServletRequest req,
 			HttpServletResponse res, Model model) {
 		t2Users.setSortField("userName");
@@ -205,7 +208,7 @@ public class UserController extends CoTopComponent {
 			
 			int updateCnt = userService.updateUsers(userInfo);
 			
-			if(updateCnt == 1) {
+			if (updateCnt == 1) {
 				resMap.put("resCd", "10");
 			} else {
 				resMap.put("resCd", "20");
@@ -219,6 +222,61 @@ public class UserController extends CoTopComponent {
 		
 		return makeJsonResponseHeader(resMap);
 	}
+
+	@PostMapping(value = USER.RESET_PASSWORD)
+	public @ResponseBody ResponseEntity<Object> resetPassword(
+			@RequestBody Map<String, String> params,
+			HttpServletRequest httpServletRequest) {
+		Map<String, Object> resMap = new HashMap<>();
+		T2Users targetUser = new T2Users();
+		String userId = params.getOrDefault("userId", "");
+		String email = params.getOrDefault("email", "");
+		targetUser.setUserId(userId);
+
+		T2Users foundUser = userService.getUser(targetUser);
+		if (foundUser == null || !foundUser.getEmail().equals(email)) {
+			resMap.put("resCd", 21);
+			resMap.put("resMsg", "Can't find matching user");
+			return makeJsonResponseHeader(resMap);
+		}
+
+		String generatedPassword = RandomStringUtils.randomAlphanumeric(10);
+		foundUser.setPassword(encodePassword(generatedPassword));
+		foundUser.setModifier(userId);
+
+		int updateCnt = userService.updateUsers(foundUser);
+		if (updateCnt != 1) {
+			resMap.put("resCd", "20");
+			resMap.put("resMsg", "fail to reset password");
+
+			return makeJsonResponseHeader(resMap);
+		}
+
+		String emailType = CoConstDef.CD_MAIL_TYPE_RESET_USER_PASSWORD;
+		CoMail mailBean = new CoMail(emailType);
+
+		List<Map<String, Object>> paramList = new ArrayList<>();
+		Map<String, Object> userInfo = new HashMap<>();
+		userInfo.put("userId", userId);
+		userInfo.put("afterPassword", generatedPassword);
+		userInfo.put("modifiedTime", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.now()));
+		userInfo.put("requestedIP", httpServletRequest.getRemoteAddr());
+		paramList.add(userInfo);
+
+		mailBean.setParamList(paramList);
+		mailBean.setParamUserId(userId);
+		mailBean.setToIds(new String[] { foundUser.getUserId() });
+
+		boolean isMailSendingSuccessful = CoMailManager.getInstance().sendMail(mailBean);
+		if (!isMailSendingSuccessful) {
+			resMap.put("resCd", "20");
+			resMap.put("resMsg", "fail to send email");
+			return makeJsonResponseHeader(resMap);
+		}
+
+		resMap.put("resCd", "10");
+		return makeJsonResponseHeader(resMap);
+	}
 	
 	@PostMapping(value=USER.UPDATE_USERNAME_DIVISION)
 	public  @ResponseBody ResponseEntity<Object> updateUserNameDivision(
@@ -230,12 +288,12 @@ public class UserController extends CoTopComponent {
 		try {
 			params.put("USER_NAME", params.get("userName").trim());
 			params.put("DIVISION", params.get("division").trim());
-			if(params.get("password") != null) {
+			if (params.get("password") != null) {
 				params.put("PASSWORD", params.get("password").trim());
 			}
 			T2CoAdminValidator validator = new T2CoAdminValidator();
 			T2CoValidationResult vr = validator.validate(params);
-			if(!vr.isValid()) {
+			if (!vr.isValid()) {
 				return makeJsonResponseHeader(false,  CommonFunction.makeValidMsgTohtml(vr.getValidMessageMap()), vr.getValidMessageMap());
 			}
 			userInfo.setUserId(loginUserName());
@@ -244,7 +302,7 @@ public class UserController extends CoTopComponent {
 			userInfo.setDivision(params.get("DIVISION"));
 			
 			String passwd = params.get("PASSWORD");
-			if(!StringUtil.isEmpty(passwd)) {
+			if (!StringUtil.isEmpty(passwd)) {
 				userInfo.setPassword(encodePassword(passwd)); // password encoding	
 			}
 			
@@ -275,7 +333,7 @@ public class UserController extends CoTopComponent {
 		
 		isSuccess = userService.procToken(userData);
 		
-		if(isSuccess) {
+		if (isSuccess) {
 			// email 발송
 			try {
 				String emailType = null;
@@ -292,7 +350,7 @@ public class UserController extends CoTopComponent {
 						break;
 				}
 				
-				if(!isEmpty(emailType)) {
+				if (!isEmpty(emailType)) {
 					CoMail mailBean = new CoMail(emailType);
 					mailBean.setParamUserId(userData.getUserId());
 					mailBean.setToIds(new String[] { userData.getUserId() });

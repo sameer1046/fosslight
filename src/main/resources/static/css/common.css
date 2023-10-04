@@ -174,8 +174,8 @@ body#login_before {background:#fff;}
 #login .box .btnlogin {width:100%;color:#fff;height:53px;border:none;background:#ac1e35;}
 #login .joinGo {display:block;padding:20px 0;text-align:left;}
 #login .joinGo label {font-weight:bold;}
-#login .joinGo strong {float:right;margin-top:-3px;border-bottom:1px solid #333}
-#login .joinGo strong a {font-size:14px;}
+#login .joinGo strong a {font-size:14px; border-bottom:1px solid #333}
+#login .options {float: right; margin-top:-3px;}
 #login .joinBtn {display:block;}
 #login .joinBtn .btnlogin {float:left;width:60%;}
 #login .joinBtn .btnJoinCanel {float:left;width:40%;color:#fff;height:53px;border:none;background:#ccc;}
@@ -323,7 +323,7 @@ body,html {overflow:hidden !important;/*letter-spacing:0.06em;*/background:#efef
 .loading div p {padding:16px 0 0;line-height:20px;}
 /* Pop Common */
 .pop h1 {height:58px;font-family:Verdana;font-size:28px;font-weight:600;line-height:58px !important;color:#ff5a00;letter-spacing:-0.05em;text-align:center;}
-.registPop {margin:-235px 0 0 -225px;padding-bottom:35px;width:450px;/*height:470px;*/}
+.registPop {margin:-235px 0 0 -300px;padding-bottom:35px;width:450px;/*height:470px;*/}
 .registPop h1 {height:80px;}
 .registPop .popdata {padding:40px 70px 0;}
 .registPop table {border-collapse:separate;border-spacing:0;}

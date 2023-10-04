@@ -65,12 +65,15 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 		// 'X-Frame-Options' to 'DENY' 대응
 		.headers().frameOptions().disable().and()
 		.authorizeRequests().antMatchers(Url.USER.SAVE_AJAX).permitAll().and() // 사용자가입 요청처리 예외
+		.authorizeRequests().antMatchers(Url.USER.RESET_PASSWORD).permitAll().and() // 비밀번호 초기화 요청처리 예외
 		.authorizeRequests().antMatchers("/*" + Url.USER.SAVE_AJAX).permitAll().and() // 사용자가입 요청처리 예외
 		.authorizeRequests().antMatchers(Url.VULNERABILITY.VULN_POPUP).permitAll().and() // vulnerability popup 화면 예외
 		.authorizeRequests().antMatchers(Url.API.PATH+"/**").permitAll().and()
+		.authorizeRequests().antMatchers(Url.NOTICE.PUBLISHED_NOTICE).permitAll().and() // 공지사항 조회 요청처리 예외
+
 		// 요청에 대한 권한 매핑
 		.authorizeRequests().anyRequest().authenticated()		// 모든 요청에 대해 권한 확인이 필요
-		
+
 		// set login page url
 		.and()
 		.formLogin()
@@ -151,7 +154,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             T2Users userInfo = userService.getUserAndAuthorities(user);
             
             HashMap<String, Object> info = new HashMap<String, Object>();
-			if(StringUtil.isEmptyTrimmed(userInfo.getDivision())){
+			if (StringUtil.isEmptyTrimmed(userInfo.getDivision())){
 				userInfo.setDivision(CoConstDef.CD_USER_DIVISION_EMPTY);
 			}
             info.put("sessUserInfo", userInfo);
@@ -205,11 +208,11 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 			String error = "true";
 			String message = "Invalid ID or password. Please try again.";
 			
-			if(exception.getMessage().equals("enter email")) {
+			if (exception.getMessage().equals("enter email")) {
 				message = exception.getMessage();
 			}
 			
-			if( StringUtil.indexOf(accept, "html") > -1 ) {
+			if ( StringUtil.indexOf(accept, "html") > -1 ) {
 				String redirectUrl = request.getParameter(this.targetUrlParameter);
 			   
 				if (redirectUrl != null) {
@@ -235,7 +238,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 				out.print(data);
 				out.flush();
 				out.close();
-			} else if( StringUtil.indexOf(accept, "json") > -1 ) {
+			} else if ( StringUtil.indexOf(accept, "json") > -1 ) {
 				response.setContentType("application/json");
 				response.setCharacterEncoding("utf-8");
 				

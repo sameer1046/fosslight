@@ -119,6 +119,14 @@ var saveFlag = false;
 			}
 		});
 	});
+	
+	// close exportlist
+	$(document).click(function(e){
+		if(!$("#ExportContainer").has(e.target).length) {
+			$("#ExportList").hide();
+		}
+	});
+	
 	var commentTemp = '';
 	var modifyCommentId = '${detail.comment}';
 	var commentIdx= '${detail.comment}';
@@ -354,6 +362,70 @@ var saveFlag = false;
 				}
 			});
 			
+			
+			var accept4 = '';
+	 		<c:forEach var="file" items="${ct:getCodes(ct:getConstDef('CD_FILE_ACCEPT'))}" varStatus="fileStatus">
+				<c:if test="${file eq '19'}">
+				accept4 = '${ct:getCodeExpString(ct:getConstDef("CD_FILE_ACCEPT"), file)}';
+				</c:if>
+			</c:forEach>
+			
+			$('#partnerBinaryFile').uploadFile({
+				url:'<c:url value="${suffixUrl}/partner/noticeText?fileType=text"/>',
+				multiple:false,
+				dragDrop:true,
+				allowedTypes:accept4,
+				fileName:"myfile",
+				sequential:true,
+				sequentialCount:1,
+				dynamicFormData: function() {
+					var data ={ "registFileId" : '' }
+
+					return data;
+				},
+				onSubmit:function(files){
+					// file ext 재확인
+					var accept4 = "";
+					var ext = files[0].split(".")[1];
+					
+					<c:forEach var="file" items="${ct:getCodes(ct:getConstDef('CD_FILE_ACCEPT'))}" varStatus="fileStatus">
+						<c:if test="${file eq '19'}">
+						accept4 = '${ct:getCodeExpString(ct:getConstDef("CD_FILE_ACCEPT"), file)}';
+						</c:if>
+					</c:forEach>
+					
+					if(accept4 != ext){
+						return false;
+					}
+				},
+				onSuccess:function(files,data,xhr,pd){
+					var result = jQuery.parseJSON(data);
+					
+					if(result == null) {
+						alertify.error('<spring:message code="msg.common.valid" />', 0);
+						$('.ajax-file-upload-statusbar').fadeOut('slow');
+						$('.ajax-file-upload-statusbar').remove();
+					} else {
+						result = result[0][0];
+						$('#binaryFileId').val(result.registFileId);
+						$('.ajax-file-upload-statusbar').fadeOut('slow');
+						$('.ajax-file-upload-statusbar').remove();
+
+						$('.binaryUpload').children().remove();
+						
+						var htmlStr  = '<a href="/download/'+result.registSeq+'/'+result.fileName+'">'+result.originalFilename+'</a>';
+							htmlStr += '<span style="margin-left:20px;">' + result.createdDate + '</span>';
+							htmlStr += '<span> <input type="button" value="Delete" class="smallDelete" style="vertical-align:super;" onclick="fn.deleteBinaryFile(this)" /></span>';
+							htmlStr += '<input type="hidden" id="binaryFileId" name="binaryFileId" value="'+result.registSeq+'"/>';
+						
+						$('.binaryUpload').append(htmlStr);
+					}
+				},
+				onError:function(files,status,errMsg,pd){
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				}
+			});			
+			
 			$('#documentsFile').uploadFile({
 				url : '<c:url value="/partner/documentsFile"/>',
 				multiple:false,
@@ -513,7 +585,13 @@ var saveFlag = false;
 			});
 
 			$("#createProject").on("click", function(){
-				createTabInFrameWithCondition("New_Project", '#<c:url value="/project/edit"/>', 'PARTNER', encodeURIComponent("${detail.partnerId}||${detail.partnerName}||${detail.softwareName}"));
+				var partnerId = "${detail.partnerId}";
+				var partnerName = "${detail.partnerName}";
+				var softwareName = "${detail.softwareName}";
+				if(softwareName.indexOf("/") > -1){
+					softwareName = softwareName.replace("/", "[]");
+				}
+				createTabInFrameWithCondition("New_Project", '#<c:url value="/project/edit"/>', 'PARTNER', encodeURIComponent(partnerId + "||" + partnerName + "||" + softwareName));
 			});
 		},
 		tabInit: function(){
@@ -1101,6 +1179,17 @@ var saveFlag = false;
 			
 			evt.init();
 		},
+		deleteBinaryFile : function(obj){
+			var htmlStr  = '<span class="fileex_back">';
+				htmlStr +=    '<div id="partnerBinaryFile">upload</div>';
+				htmlStr +=    '<input type="hidden" id="binaryFileId" name="binaryFileId"/>';
+				htmlStr += '</span>';
+			
+			$('.binaryUpload').children().remove();
+			$('.binaryUpload').append(htmlStr);
+			
+			evt.init();
+		},
 		makeOssList : function(data){
 			// 서브 그리드 url 전송 설정(false 전송 안함)
 			partyMainData = data.mainData;
@@ -1257,7 +1346,7 @@ var saveFlag = false;
 					
 					return false;
 				}
-				var param = {status : 'CONF', partnerId : '${detail.partnerId}', userComment : replaceWithLink(CKEDITOR.instances['editor'].getData())};
+				var param = {status : 'CONF', partnerId : '${detail.partnerId}', binaryFileId : '${detail.binaryFileId}', userComment : replaceWithLink(CKEDITOR.instances['editor'].getData()), "ignoreBinaryDbFlag" : $("#ignoreBinaryDbFlag").val()};
 				$.ajax({
 					url : '<c:url value="${suffixUrl}/partner/changeStatus"/>',
 					type : 'POST',
@@ -1911,6 +2000,31 @@ var saveFlag = false;
 			$('.ajs-close').trigger("click");
 			alertify.success('<spring:message code="msg.common.success" />');
 		},
+		binaryDBSave : function() {
+			var param = {
+				"partnerId" : '${detail.partnerId}',
+				"referenceDiv" : "20"
+			};
+
+			$.ajax({
+				url : '<c:url value="${suffixUrl}/partner/saveBinaryDB"/>',
+				type : 'POST',
+				data : JSON.stringify(param),
+				dataType : 'json',
+				cache : false,
+				contentType : 'application/json',
+				success : function(data){
+					if("false" == data.isValid) {
+						alertify.alert('Nothing to store in Binary DB', function(){});
+					}else{
+						alertify.alert('<spring:message code="msg.common.success" />', function(){});
+					}
+				},
+				error : function(){
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				}
+			});
+	    },
 	    bulkEdit : function(){
 	    	var gridList = $("#list");
 	        var targetGird = "list";
@@ -1950,6 +2064,197 @@ var saveFlag = false;
 	            alertify.alert('<spring:message code="msg.oss.select.ossTable" />', function(){});
 	            return false;
 	        }
+		},
+		exportList : function(obj) {
+	    	var exportListId = '#' + $(obj).siblings("div").attr("id");
+	        if ($(exportListId).css('display')=='none') {
+	            $(exportListId).show();
+	        }else{
+	            $(exportListId).hide();
+	        }
+	        $(exportListId).menu();
+	    },
+	    selectDownloadFile : function(target) {
+	    	// download file
+	    	if (target === "report_sub") {
+	    		fn.downloadExcel();
+	    	} else {
+	    		var status = '${detail.status}';
+	        	if ('CONF' != status) {
+	        		alertify.confirm('<spring:message code="msg.common.check.sbom.export" />', function (e) {
+	    				if (e) {
+	    					fn.selectDownloadFileValidation(target);
+	    				} else {
+	    					return false;
+	    				}
+	    			});
+	        	} else {
+	        		fn.selectDownloadFileValidation(target);
+	        	}
+	    	}
+	        
+	    	// hide list
+	        $("#ExportList").hide();
+	    },
+	    selectDownloadFileValidation : function(target) {
+	    	if (fn.checkSelectDownloadFile()) {
+        		if (target === "Spreadsheet_sub") fn.downloadSpdxSpreadSheetExcel();
+    	        else if (target === "RDF_sub") fn.downloadSpdxRdf();
+    	        else if (target === "TAG_sub") fn.downloadSpdxTag();
+    	        else if (target === "JSON_sub") fn.downloadSpdxJson();
+    	        else if (target === "YAML_sub") fn.downloadSpdxYaml();
+    	        else if (target === "YAML") fn.downloadYaml();
+			} else {
+	    		alertify.error('<spring:message code="msg.common.check.sbom.export2" />', 0);
+	    	}
+	    },
+		checkSelectDownloadFile : function() {
+			var checkEmptyFlag = false;
+			
+			$.ajax({
+	    		type: "POST",
+				url: '<c:url value="/partner/checkSelectDownloadFile"/>',
+				data: JSON.stringify({"partnerId":'${detail.partnerId}'}),
+				dataType : 'json',
+				cache : false,
+				async : false,
+				contentType : 'application/json',
+				success: function (data) {
+					if (data.isValid) {
+						checkEmptyFlag = true;
+					}
+				},
+				error: function(data){
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				}
+	    	});
+	    	
+	    	return checkEmptyFlag;
+		}
+		downloadSpdxSpreadSheetExcel : function(){
+			var partnerId = "${detail.partnerId}";
+			if ("" !== partnerId) {
+				partnerId = "3rd_" + partnerId;
+				
+				$.ajax({
+					type: "POST",
+					url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+					data: JSON.stringify({"type":"spdx", "prjId":partnerId, "dataStr":"spdx_sbom"}),
+					dataType : 'json',
+					cache : false,
+					contentType : 'application/json',
+					success: function (data) {
+						if("false" == data.isValid) {
+							alertify.error('<spring:message code="msg.common.valid2" />', 0);
+						} else {
+							window.location = '/spdxdownload/getFile?id='+data.validMsg;
+						}
+					},
+					error: function(data){
+						alertify.error('<spring:message code="msg.common.valid2" />', 0);
+					}
+				});
+			}
+		},
+		downloadSpdxRdf : function() {
+			var partnerId = "${detail.partnerId}";
+			if ("" !== partnerId) {
+				partnerId = "3rd_" + partnerId;
+				
+				$.ajax({
+					type: "POST",
+					url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+					data: JSON.stringify({"type":"spdxRdf", "prjId":partnerId, "dataStr":"spdx_sbom"}),
+					dataType : 'json',
+					cache : false,
+					contentType : 'application/json',
+					success: function (data) {
+						if("false" == data.isValid) {
+							alertify.error('<spring:message code="msg.common.valid2" />', 0);
+						} else {
+							window.location = '/spdxdownload/getFile?id='+data.validMsg;
+						}
+					},
+					error: function(data){
+						alertify.error('<spring:message code="msg.common.valid2" />', 0);
+					}
+				});
+			}
+		},
+		downloadSpdxTag : function() {
+			var partnerId = "${detail.partnerId}";
+			if ("" !== partnerId) {
+				partnerId = "3rd_" + partnerId;
+				
+				$.ajax({
+					type: "POST",				   
+					url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+					data: JSON.stringify({"type":"spdxTag", "prjId":partnerId, "dataStr":"spdx_sbom"}),
+					dataType : 'json',
+					cache : false,
+					contentType : 'application/json',
+					success: function (data) {
+						if("false" == data.isValid) {
+							alertify.error('<spring:message code="msg.common.valid2" />', 0);
+						} else {
+							window.location = '/spdxdownload/getFile?id='+data.validMsg;
+						}
+					},
+					error: function(data){
+						alertify.error('<spring:message code="msg.common.valid2" />', 0);
+					}
+				});
+			}
+		},
+		downloadSpdxJson : function() {
+			var partnerId = "${detail.partnerId}";
+			if ("" !== partnerId) {
+				partnerId = "3rd_" + partnerId;
+				
+				$.ajax({
+					type: "POST",
+					url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+					data: JSON.stringify({"type":"spdxJson", "prjId":partnerId, "dataStr":"spdx_sbom"}),
+					dataType : 'json',
+					cache : false,
+					contentType : 'application/json',
+					success: function (data) {
+						if("false" == data.isValid) {
+							alertify.error('<spring:message code="msg.common.valid2" />', 0);
+						} else {
+							window.location = '/spdxdownload/getFile?id='+data.validMsg;
+						}
+					},
+					error: function(data){
+						alertify.error('<spring:message code="msg.common.valid2" />', 0);
+					}
+				});
+			}
+		},
+		downloadSpdxYaml : function() {
+			var partnerId = "${detail.partnerId}";
+			if ("" !== partnerId) {
+				partnerId = "3rd_" + partnerId;
+				
+				$.ajax({
+					type: "POST",
+					url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+					data: JSON.stringify({"type":"spdxYaml", "prjId":partnerId, "dataStr":"spdx_sbom"}),
+					dataType : 'json',
+					cache : false,
+					contentType : 'application/json',
+					success: function (data) {
+						if("false" == data.isValid) {
+							alertify.error('<spring:message code="msg.common.valid2" />', 0);
+						} else {
+							window.location = '/spdxdownload/getFile?id='+data.validMsg;
+						}
+					},
+					error: function(data){
+						alertify.error('<spring:message code="msg.common.valid2" />', 0);
+					}
+				});
+			}
 		}
 	}
 	
@@ -2061,7 +2366,7 @@ var saveFlag = false;
 				datatype: 'local',
 				data : partyMainData,
 				colNames: ['gridId', 'ID_KEY', 'ID', 'ReferenceId', 'ReferenceDiv', 'OssId', 'Binary Name or Source Path', 'OSS Name','OSS Version','LicenseId','License','Download Location'
-						   ,'Homepage','Copyright Text', 'CVE ID', 'Vulnera<br/>bility','<input type="checkbox" onclick="fn_grid_com.onCboxClickAll(this,\'list\');">Exclude','LicenseDiv','obligationLicense','ObligationType','Notify','Source','Restriction'],
+						   ,'Homepage','Copyright Text', 'CVE ID', 'Vulnera<br/>bility','<input type="checkbox" onclick="fn_grid_com.onCboxClickAll(this,\'list\');">Exclude','Comment','LicenseDiv','obligationLicense','ObligationType','Notify','Source','Restriction'],
 				colModel: [
 					{name: 'gridId', index: 'gridId', editable:false, hidden:true, key:true},
 					{name: 'componentId', index: 'componentId', width: 40, align: 'center', hidden:true},
@@ -2318,6 +2623,17 @@ var saveFlag = false;
 					{name: 'cveId', index: 'cveId', hidden:true},
 					{name: 'cvssScore', index: 'cvssScore', width: 80, align: 'center', formatter:fn_grid_com.displayVulnerability, unformatter:fn_grid_com.unformatter, sortable : true, sorttype:'float', template: searchNumberOptions},
 					{name: 'excludeYn', index: 'excludeYn', width: 50, align: 'center', formatter: fn_grid_com.cboxFormatter, unformat: fn_grid_com.cboxUnFormatter, search: false},
+					{name: 'comments', index: 'comments', width: 150, align: 'left', editable:true, template: searchStringOptions, edittype:"textarea", editoptions:{rows:"5",cols:"24", 
+						dataInit:
+							function (e) {
+								$(e).on("change", function() {
+									var rowid = (e.id).split('_')[0];
+
+									fn_grid_com.saveCellData("list",rowid,e.name,e.value,partyValidMsgData_e,partyDiffMsgData_e);
+								});
+							}
+						}
+					},
 					{name: 'licenseDiv', index: 'licenseDiv', width: 100, align: 'left', editable:false, hidden:true},
 					{name: 'obligationLicense', index: 'obligationLicense', width: 40, align: 'center', hidden:true},
 					{name: 'obligationType', index: 'obligation', width: 40, align: 'center', hidden:true},

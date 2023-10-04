@@ -241,6 +241,7 @@ public class CoConstDef {
 	public static final String FILE_GUBUN_FILE_DOWNLOAD = "DL";
 	
 	public static final String SESSION_KEY_UPLOAD_REPORT_PARTNER = "REPORT_PARTNER";
+	public static final String SESSION_KEY_UPLOAD_REPORT_PROJECT_DEP = "REPORT_PROJECT_DEP";
 	public static final String SESSION_KEY_UPLOAD_REPORT_PROJECT_SRC = "REPORT_PROJECT_SRC";
 	public static final String SESSION_KEY_UPLOAD_REPORT_PROJECT_BIN = "REPORT_PROJECT_BIN";
 	public static final String SESSION_KEY_UPLOAD_REPORT_PROJECT_ANDROID = "REPORT_PROJECT_ANDROID";
@@ -338,6 +339,7 @@ public class CoConstDef {
 	public static final String CD_COMPONENT_DIVISION = "210";
 	public static final String CD_DTL_COMPONENT_ID_PARTNER = "10";
 	public static final String CD_DTL_COMPONENT_ID_SRC = "11";
+	public static final String CD_DTL_COMPONENT_ID_DEP = "16";
 	public static final String CD_DTL_COMPONENT_ID_BAT = "12";
 	public static final String CD_DTL_COMPONENT_ID_BOM = "13";
 	public static final String CD_DTL_COMPONENT_ID_ANDROID = "14";
@@ -398,6 +400,7 @@ public class CoConstDef {
 	public static final String CD_DTL_COMMENT_PARTNER_USER = "21";
 	public static final String CD_DTL_COMMENT_LICENSE = "30";
 	public static final String CD_DTL_COMMENT_OSS = "40";
+	public static final String CD_DTL_COMMENT_SECURITY_HIS = "60";
 	
 	/** License 타입별 백그라운드 색 - 216 */
 	public static final String CD_LICENSE_BACKGROUND = "216";
@@ -531,6 +534,7 @@ public class CoConstDef {
 	/** Project Identification self reject */
 	public static final String CD_MAIL_TYPE_PROJECT_IDENTIFICATION_SELF_REJECT = "45";
 	public static final String CD_MAIL_TYPE_PROJECT_IDENTIFICATION_CONFIRMED_ONLY = "46";
+	public static final String CD_MAIL_TYPE_BIN_PROJECT_IDENTIFICATION_CONF = "100";
 	/* Project Identification Binary DB Check*/
 	public static final String CD_MAIL_TYPE_PROJECT_IDENTIFICATION_BINARY_DATA_COMMIT = "47";
 	/** Project Request Review(packaging) */
@@ -557,6 +561,7 @@ public class CoConstDef {
 
 	/** changed USER Info */
 	public static final String CD_MAIL_TYPE_CHANGED_USER_INFO = "816";
+	public static final String CD_MAIL_TYPE_RESET_USER_PASSWORD = "817";
 	
 	public static final String CD_MAIL_TYPE_PROJECT_DISTRIBUTE_ADDED_COMMENT = "65";
 	public static final String CD_MAIL_TYPE_PROJECT_DISTRIBUTE_MODIFIED_COMMENT = "650";
@@ -570,6 +575,9 @@ public class CoConstDef {
 	public static final String CD_MAIL_TYPE_PARTNER_BINARY_DATA_COMMIT = "470";
 	/** 3rd party reviewer changed */
 	public static final String CD_MAIL_TYPE_PARTER_REVIEWER_CHANGED = "70";
+	public static final String CD_MAIL_TYPE_PARTER_REVIEWER_TO_CHANGED = "701";
+	/** 3rd party changed */
+	public static final String CD_MAIL_TYPE_PARTNER_CHANGED = "700";
 	/** 3rd party reviewer changed */
 	public static final String CD_MAIL_TYPE_PARTER_REQ_REVIEW = "71";
 	/** 3rd party reviewer changed */
@@ -604,6 +612,8 @@ public class CoConstDef {
 	public static final String CD_MAIL_TYPE_VULNERABILITY_PROJECT_RECALCULATED_ALL = "93";
 	/** vulnerability score가 9.0 이상에서 삭제되어 recalculated 대상이 된 경우 */
 	public static final String CD_MAIL_TYPE_VULNERABILITY_PROJECT_REMOVE_RECALCULATED = "94";
+	/* nvd data 중 vendor-product 가 다른 경우 */
+	public static final String CD_MAIL_TYPE_VULNERABILITY_NVDINFO_DIFF = "95";
 	public static final String CD_MAIL_TYPE_SYSTEM_ERROR = "99";
 	
 	/** Mail Type엥 따른 공통 Components 구성 */
@@ -791,6 +801,7 @@ public class CoConstDef {
 	public static final String CD_OPEN_API_FILE_SIZEOVER_MESSAGE				= "410";
 	public static final String CD_OPEN_API_EXT_UNSUPPORT_MESSAGE				= "420";
 	public static final String CD_OPEN_API_UPLOAD_TARGET_ERROR_MESSAGE			= "430";
+	public static final String CD_OPEN_API_FILE_DATA_EMPTY_MESSAGE				= "440";
 	public static final String CD_OPEN_API_PERMISSION_ERROR_MESSAGE				= "500";
 	public static final String CD_OPEN_API_COMMUNICATION_ERROR_MESSAGE			= "900";
 	public static final String CD_OPEN_API_UNKNOWN_ERROR_MESSAGE				= "999";
@@ -826,4 +837,8 @@ public class CoConstDef {
 	/* SCORE CODE */
 	public static final String CD_VULNERABILITY_MAILING_SCORE					= "750";
 	public static final String CD_VULNERABILITY_MAILING_SCORE_STANDARD			= "100";
+	
+	/* SECURITY SCORE CODE */
+	public static final String CD_SECURITY_VULNERABILITY_SCORE					= "760";
+	public static final String CD_SECURITY_VULNERABILITY_DETAIL_SCORE			= "100";
 }

@@ -22,9 +22,10 @@
     	FROM NVD_META
 		WHERE FILE_TYPE = #{fileType} 
 			AND FILE_NM = #{fileNm}
-			AND USE_YN = 'Y' 
+			AND USE_YN = 'Y'
+			AND JOB_STATUS = 'C' 
 			AND MODI_DATE IS NOT NULL
-		ORDER BY FILE_NM
+		ORDER BY IDX DESC
     </select>
     
     <!-- 메타 데이터 신규 등록 -->
@@ -32,6 +33,12 @@
     	INSERT INTO NVD_META
 			(FILE_NM, FILE_TYPE, MODI_DATE, SIZE, ZIP_SIZE, GZ_SIZE, SHA256, USE_YN) VALUES
 			(#{fileNm}, #{fileType}, #{modiDate}, #{size}, #{zipSize}, #{gzSize}, #{sha256}, 'Y')
+    </insert>
+    
+    <insert id="insertNewMetaDataUrlConnection" parameterType="HashMap">
+    	INSERT INTO NVD_META
+			(FILE_NM, FILE_TYPE, MODI_DATE, USE_YN, JOB_STATUS) VALUES
+			(#{fileNm}, #{fileType}, #{modiDate}, 'Y', 'C')
     </insert>
     
     <insert id="insertErrorMetaData" parameterType="HashMap">
@@ -64,7 +71,7 @@
 		WHERE FILE_TYPE = #{fileType} 
 			AND USE_YN = 'Y' 
 		    AND JOB_STATUS = 'W'
-		ORDER BY FILE_NM
+		ORDER BY MODI_DATE DESC, SIZE DESC
     </select>
     
     <!-- 메타 데이터 Delete Job 데이터 조회 -->
@@ -417,7 +424,7 @@
     
     <select id="selectNickNameMgrtNvdDataScoreV3" resultType="int">
     	SELECT COUNT(*) AS CNT
-		  FROM (SELECT NICK.OSS_NAME, NVD1.VERSION, NVD1.CVE_ID, NVD1.CVSS_SCORE, NVD1.VULN_SUMMARY, now() AS MODI_DATE
+		  FROM (SELECT NICK.OSS_NAME, NVD1.VERSION, NVD1.VENDOR, NVD1.CVE_ID, NVD1.CVSS_SCORE, NVD1.VULN_SUMMARY, now() AS MODI_DATE
 				  FROM OSS_NICKNAME NICK
 				 INNER JOIN NVD_DATA_SCORE_V3 NVD1 ON NICK.OSS_NICKNAME = NVD1.PRODUCT
 				  LEFT JOIN NVD_DATA_SCORE_V3 NVD2 ON NICK.OSS_NAME = NVD2.PRODUCT AND NVD1.VERSION = NVD2.VERSION
@@ -425,9 +432,9 @@
 				 GROUP BY NVD1.PRODUCT, NVD1.VERSION) RTN
     </select>
     <insert id="insertNickNameMgrtNvdDataScoreV3">
-    	INSERT INTO NVD_DATA_SCORE_V3 (PRODUCT, VERSION, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE)
-	    	SELECT RTN.OSS_NAME, RTN.VERSION, RTN.CVE_ID, RTN.CVSS_SCORE, RTN.VULN_SUMMARY, RTN.MODI_DATE
-			  FROM (SELECT NICK.OSS_NAME, NVD1.VERSION, NVD1.CVE_ID, NVD1.CVSS_SCORE, NVD1.VULN_SUMMARY, now() AS MODI_DATE
+    	INSERT INTO NVD_DATA_SCORE_V3 (PRODUCT, VERSION, VENDOR, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE)
+	    	SELECT RTN.OSS_NAME, RTN.VERSION, RTN.VENDOR, RTN.CVE_ID, RTN.CVSS_SCORE, RTN.VULN_SUMMARY, RTN.MODI_DATE
+			  FROM (SELECT NICK.OSS_NAME, NVD1.VERSION, NVD1.VENDOR, NVD1.CVE_ID, NVD1.CVSS_SCORE, NVD1.VULN_SUMMARY, now() AS MODI_DATE
 					  FROM OSS_NICKNAME NICK
 					 INNER JOIN NVD_DATA_SCORE_V3 NVD1 ON NICK.OSS_NICKNAME = NVD1.PRODUCT
 					  LEFT JOIN NVD_DATA_SCORE_V3 NVD2 ON NICK.OSS_NAME = NVD2.PRODUCT AND NVD1.VERSION = NVD2.VERSION
@@ -442,27 +449,27 @@
     </insert>
     <select id="selectMaxCvssScoreNvdDataScoreV3" resultType="int">
 	    SELECT COUNT(*) AS CNT
-		  FROM (SELECT PRODUCT, VERSION, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE 
+		  FROM (SELECT PRODUCT, VERSION, VENDOR, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE 
 				  FROM NVD_DATA_SCORE_V3 
 				 WHERE CONCAT(PRODUCT,'@',CVSS_SCORE) IN (SELECT CONCAT(PRODUCT,'@',MAX(CVSS_SCORE)) AS NVD_KEY FROM NVD_DATA_SCORE_V3 GROUP BY PRODUCT)
 				 GROUP BY PRODUCT) NVD
-		  LEFT JOIN (SELECT PRODUCT, VERSION, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE
+		  LEFT JOIN (SELECT PRODUCT, VERSION, VENDOR, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE
 			  		   FROM NVD_DATA_SCORE_V3 
 			  		  WHERE VERSION ='-') NVD2
-			ON NVD.PRODUCT = NVD2.PRODUCT
+			ON NVD.PRODUCT = NVD2.PRODUCT AND NVD.VENDOR = NVD2.VENDOR
 		 WHERE (NVD.CVSS_SCORE != NVD2.CVSS_SCORE OR NVD2.PRODUCT IS NULL)
     </select>
 	<insert id="insertMaxCvssScoreNvdDataScoreV3">
-		INSERT INTO NVD_DATA_SCORE_V3 (PRODUCT, VERSION, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE)
-			SELECT NVD.PRODUCT, '-' AS VERSION, NVD.CVE_ID, NVD.CVSS_SCORE, NVD.VULN_SUMMARY, now() AS MODI_DATE
-			  FROM (SELECT PRODUCT, VERSION, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE 
+		INSERT INTO NVD_DATA_SCORE_V3 (PRODUCT, VERSION, VENDOR, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE)
+			SELECT NVD.PRODUCT, '-' AS VERSION, NVD.VENDOR, NVD.CVE_ID, NVD.CVSS_SCORE, NVD.VULN_SUMMARY, now() AS MODI_DATE
+			  FROM (SELECT PRODUCT, VERSION, VENDOR, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE 
 					  FROM NVD_DATA_SCORE_V3 
 					 WHERE CONCAT(PRODUCT,'@',CVSS_SCORE) IN (SELECT CONCAT(PRODUCT,'@',MAX(CVSS_SCORE)) AS NVD_KEY FROM NVD_DATA_SCORE_V3 GROUP BY PRODUCT)
 					 GROUP BY PRODUCT) NVD
-			  LEFT JOIN (SELECT PRODUCT, VERSION, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE
+			  LEFT JOIN (SELECT PRODUCT, VERSION, VENDOR, CVE_ID, CVSS_SCORE, VULN_SUMMARY, MODI_DATE
 			  			   FROM NVD_DATA_SCORE_V3 
 			  			  WHERE VERSION ='-') NVD2
-			    ON NVD.PRODUCT = NVD2.PRODUCT
+			    ON NVD.PRODUCT = NVD2.PRODUCT AND NVD.VENDOR = NVD2.VENDOR
 			 WHERE (NVD.CVSS_SCORE != NVD2.CVSS_SCORE OR NVD2.PRODUCT IS NULL)
 		ON DUPLICATE KEY UPDATE
 			CVE_ID = NVD.CVE_ID
@@ -476,6 +483,7 @@
 		 INNER JOIN NVD_DATA_SCORE_V3 NVD2 ON NICK.OSS_NICKNAME = NVD2.PRODUCT
 		   SET NVD1.CVSS_SCORE = NVD2.CVSS_SCORE
 		     , NVD1.CVE_ID = NVD2.CVE_ID
+		     , NVD1.VULN_SUMMARY = NVD2.VULN_SUMMARY
 		     , NVD1.MODI_DATE = now()
 		 WHERE NVD1.VERSION = NVD2.VERSION
 		   AND NVD2.CVSS_SCORE <![CDATA[>]]> NVD1.CVSS_SCORE
@@ -486,6 +494,7 @@
 		 INNER JOIN NVD_DATA_SCORE_V3 NVD2 ON NICK.OSS_NICKNAME = NVD2.PRODUCT
 		   SET NVD2.CVSS_SCORE = NVD1.CVSS_SCORE
 		     , NVD2.CVE_ID = NVD1.CVE_ID
+		     , NVD2.VULN_SUMMARY = NVD1.VULN_SUMMARY
 		     , NVD2.MODI_DATE = now()
 		 WHERE NVD1.VERSION = NVD2.VERSION
 		   AND NVD1.CVSS_SCORE <![CDATA[>]]> NVD2.CVSS_SCORE
@@ -496,7 +505,15 @@
 		 INNER JOIN NVD_DATA_SCORE_V3 NVD1 ON NICK.OSS_NAME = NVD1.PRODUCT
 		 INNER JOIN NVD_DATA_SCORE_V3 NVD2 ON NICK.OSS_NICKNAME = NVD2.PRODUCT
 		 WHERE NVD1.VERSION = NVD2.VERSION
-		   AND NVD1.CVSS_SCORE != NVD2.CVSS_SCORE
+		   AND NVD1.CVSS_SCORE <![CDATA[<]]> NVD2.CVSS_SCORE
+	</select>
+	<select id="ossNameToNickMgrtCvssScoreDiffCnt" resultType="int">
+		SELECT COUNT(*) AS CNT 
+		  FROM OSS_NICKNAME NICK
+		 INNER JOIN NVD_DATA_SCORE_V3 NVD1 ON NICK.OSS_NAME = NVD1.PRODUCT
+		 INNER JOIN NVD_DATA_SCORE_V3 NVD2 ON NICK.OSS_NICKNAME = NVD2.PRODUCT
+		 WHERE NVD1.VERSION = NVD2.VERSION
+		   AND NVD1.CVSS_SCORE <![CDATA[>]]> NVD2.CVSS_SCORE
 	</select>
 	
 	<update id="truncateCpeMatch">TRUNCATE TABLE NVD_CPE_MATCH_NAMES</update>
@@ -535,9 +552,11 @@
 			T2.CPE23URI 
 		FROM NVD_CPE_MATCH T1 
 				INNER JOIN NVD_CPE_MATCH_NAMES T2 
-					ON T1.SEQ = T2.SEQ 
+					ON T1.MATCH_CRITERIA_ID = T2.MATCH_CRITERIA_ID 
 		WHERE 
 			T1.CPE23URI = #{cpe23Uri}
+		AND
+			T1.MATCH_CRITERIA_ID = #{matchCriteriaId}
 			<choose>
 				<when test="versionStartIncluding != null">AND T1.VER_START_INC = #{versionStartIncluding}</when>
 				<otherwise>AND T1.VER_START_INC IS NULL</otherwise>
@@ -562,7 +581,7 @@
 	
 	<select id="getProducVerCnt" resultType="int">
 		SELECT COUNT(*) FROM (
-			SELECT PRODUCT, VERSION FROM NVD_DATA_V3 GROUP BY PRODUCT, VERSION
+			SELECT PRODUCT FROM NVD_DATA_V3 GROUP BY PRODUCT
 		) AS RESULT
 	</select>
 	
@@ -608,4 +627,112 @@
 	<update id="truncateCpeMatchNameTemp">TRUNCATE TABLE NVD_CPE_MATCH_NAMES_TEMP</update>
 	<insert id="copyNvdDataMatchFromTemp">INSERT INTO NVD_CPE_MATCH SELECT * FROM NVD_CPE_MATCH_TEMP</insert>
 	<insert id="copyNvdDataMatchNameFromTemp">INSERT INTO NVD_CPE_MATCH_NAMES SELECT * FROM NVD_CPE_MATCH_NAMES_TEMP</insert>
+	
+	<select id="selectVendorProductNvdDataV3Cnt" resultType="int">SELECT COUNT(*) FROM NVD_DATA_V3 WHERE VENDOR != '' AND (VENDORPRODUCT = '' OR VENDORPRODUCT IS NULL)</select>
+	<update id="updateVendorProductNvdDataV3">
+		UPDATE NVD_DATA_V3
+		   SET VENDORPRODUCT = CONCAT(VENDOR,'-',PRODUCT)
+		 WHERE VENDOR != ''
+		   AND (VENDORPRODUCT = '' OR VENDORPRODUCT IS NULL)
+	</update>
+	<select id="selectVendorProductNvdDataScoreV3Cnt" resultType="int">SELECT COUNT(*) FROM NVD_DATA_SCORE_V3 WHERE VENDOR != '' AND (VENDORPRODUCT = '' OR VENDORPRODUCT IS NULL)</select>
+	<update id="updateVendorProductNvdDataScoreV3">
+		UPDATE NVD_DATA_SCORE_V3
+		   SET VENDORPRODUCT = CONCAT(VENDOR,'-',PRODUCT)
+		 WHERE VENDOR != ''
+		   AND (VENDORPRODUCT = '' OR VENDORPRODUCT IS NULL)
+	</update>
+	
+	<!-- 사용중인 메타 데이터 조회 -->
+    <select id="selectUseMetaDataUrlConnection" parameterType="HashMap" resultType="HashMap">
+    	SELECT 
+    		FILE_NM		AS fileNm
+    		, FILE_TYPE	AS fileType
+    		, MODI_DATE	AS modiDate
+    		, USE_YN	AS useYn
+    		, JOB_STATUS AS jobStatus
+    	FROM NVD_META
+		WHERE FILE_TYPE = #{fileType} 
+			AND FILE_NM = #{fileNm}
+			AND MODI_DATE = #{modiDate}
+			AND USE_YN = 'Y'
+			AND JOB_STATUS = 'C' 
+		ORDER BY IDX DESC
+    </select>
+    
+    <insert id="insertNvdDataPatchLink" parameterType="HashMap">
+    	INSERT INTO NVD_DATA_PATCH_LINK (CVE_ID, PATCH_LINK, PUBL_DATE) VALUES (#{cveId}, #{patchLink}, #{publDate})
+    </insert>
+    
+    <delete id="deleteNvdDataPatchLink" parameterType="String">
+    	DELETE FROM NVD_DATA_PATCH_LINK WHERE CVE_ID = #{cveId}
+    </delete>
+    
+    <select id="selectNvdCpeMatch" parameterType="String" resultType="int">
+		SELECT COUNT(*) FROM NVD_CPE_MATCH WHERE MATCH_CRITERIA_ID = #{matchCriteriaId}
+	</select>
+	
+	<delete id="deleteNvdCpeMatch" parameterType="String">
+    	DELETE FROM NVD_CPE_MATCH WHERE MATCH_CRITERIA_ID = #{matchCriteriaId}
+    </delete>
+    
+    <delete id="deleteNvdCpeMatchNames" parameterType="String">
+    	DELETE FROM NVD_CPE_MATCH_NAMES WHERE MATCH_CRITERIA_ID = #{matchCriteriaId}
+    </delete>
+    
+    <insert id="insertNvdDataConfigurationsTemp" parameterType="HashMap">
+    	INSERT INTO NVD_DATA_CONFIGURATIONS_TEMP (
+    		CVE_ID
+    		, MATCH_CRITERIA_ID
+    		, CRITERIA
+    		, VENDOR
+    		, PRODUCT
+    		, VERSION
+    	<if test="!@oss.fosslight.util.StringUtil@isEmpty(versionStartIncluding)">
+    		, VER_START_INC
+    	</if>
+    	<if test="!@oss.fosslight.util.StringUtil@isEmpty(versionEndIncluding)">
+    		, VER_END_INC
+    	</if>
+    	<if test="!@oss.fosslight.util.StringUtil@isEmpty(versionStartExcluding)">
+    		, VER_START_EXC
+    	</if>
+    	<if test="!@oss.fosslight.util.StringUtil@isEmpty(versionEndExcluding)">
+    		, VER_END_EXC
+    	</if>
+    	) VALUE (
+    		#{cveId}
+    		, #{matchCriteriaId}
+    		, #{criteria}
+    		, #{vendor}
+    		, #{product}
+    		, #{version}
+    	<if test="!@oss.fosslight.util.StringUtil@isEmpty(versionStartIncluding)">
+    		, #{versionStartIncluding}
+    	</if>
+    	<if test="!@oss.fosslight.util.StringUtil@isEmpty(versionEndIncluding)">
+    		, #{versionEndIncluding}
+    	</if>
+    	<if test="!@oss.fosslight.util.StringUtil@isEmpty(versionStartExcluding)">
+    		, #{versionStartExcluding}
+    	</if>
+    	<if test="!@oss.fosslight.util.StringUtil@isEmpty(versionEndExcluding)">
+    		, #{versionEndExcluding}
+    	</if>
+    	)
+    </insert>
+    
+    <update id="truncateNvdDataConfigurations">TRUNCATE TABLE NVD_DATA_CONFIGURATIONS</update>
+	<insert id="copyNvdDataConfigurationsFromTemp">INSERT INTO NVD_DATA_CONFIGURATIONS SELECT * FROM NVD_DATA_CONFIGURATIONS_TEMP</insert>
+	<update id="truncateNvdDataConfigurationsTemp">TRUNCATE TABLE NVD_DATA_CONFIGURATIONS_TEMP</update>
+	
+	<delete id="deleteNvdDataConfigurations" parameterType="HashMap">
+		DELETE FROM NVD_DATA_CONFIGURATIONS
+		WHERE CVE_ID = #{cveId}
+		AND MATCH_CRITERIA_ID = #{matchCriteriaId}
+		AND CRITERIA = #{criteria}
+		AND VENDOR = #{vendor}
+		AND PRODUCT = #{product}
+		AND VERSION = #{version}
+	</delete>
 </mapper>

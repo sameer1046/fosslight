@@ -62,7 +62,7 @@ public class NoticeController extends CoTopComponent {
 			, Model model) throws Exception{
 		T2CoValidationResult vResult = validateWithAppendix(req, "PROC_MODE", "ADD");
 		
-		if(!vResult.isValid()) {
+		if (!vResult.isValid()) {
 			return makeJsonResponseHeader(vResult.getValidMessageMap());
 		}
 		
@@ -70,8 +70,8 @@ public class NoticeController extends CoTopComponent {
 		return makeJsonResponseHeader();
 	}
 	
-	@RequestMapping(value=NOTICE.PUBLISHEDT_NOTICE, method = {RequestMethod.POST, RequestMethod.GET})
-	public @ResponseBody ResponseEntity<Object> getPublishedtNotice(
+	@RequestMapping(value=NOTICE.PUBLISHED_NOTICE, method = {RequestMethod.POST, RequestMethod.GET})
+	public @ResponseBody ResponseEntity<Object> getPublishedNotice(
 			@ModelAttribute Notice vo
 			, HttpServletRequest req
 			, HttpServletResponse res

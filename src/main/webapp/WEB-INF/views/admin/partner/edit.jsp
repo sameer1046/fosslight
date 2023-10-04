@@ -22,6 +22,11 @@
 							<input id="createProject" type="button" value="Create Project for OSS Notice" class="btnColor red w200" />
 						</c:if>
 						<c:if test="${detail.loginUserRole eq 'ROLE_ADMIN'}">
+							<c:if test="${not empty binaryFile and detail.status eq 'REV'}">
+								<div style="position:absolute;right:154px;top:5px;width:175px;" id="binaryDB">
+									<input type="checkbox" id="ignoreBinaryDbFlag" name="ignoreBinaryDbFlag" value="N" style="margin-right:10px;"/>Do not register in binary DB
+								</div>
+							</c:if>
 							<c:if test="${detail.status eq 'REV' }">
 							<a href="javascript:void(0);" class="btnSet confirm" onclick="fn.confirm()"><span>Confirm</span></a>
 							</c:if>
@@ -198,6 +203,26 @@
 							</td>
 						</tr>
 					</tr>
+						<tr>
+							<th class="dCase">fosslight_binary.txt</th>
+							<td class="dCase uploadCase binaryUpload">
+								<c:if test="${empty binaryFile}">
+									<span class="fileex_back" <c:if test="${isCommited}">style="display:none;"</c:if>>
+										<div id="partnerBinaryFile">upload</div>
+										<input type="hidden" id="binaryFileId" name="binaryFileId"/>
+									</span>
+								</c:if>
+								<c:if test="${not empty binaryFile}">
+									<a href="<c:url value="/download/${binaryFile.fileSeq}/${binaryFile.logiNm}"/>">${binaryFile.origNm}</a>
+									<span style="margin-left:20px;">${binaryFile.createdDate}</span>
+									<span> <input type="button" value="Delete" class="smallDelete" onclick="fn.deleteBinaryFile(this)" style="vertical-align:super;" <c:if test="${isCommited}">style="display:none;"</c:if>/></span>
+									<input type="hidden" id="binaryFileId" name="binaryFileId" value="${binaryFile.fileId}"/>
+								</c:if>
+								<div class="required">
+									<div class="retxt ossFileId">This field is required.</div>
+								</div>
+							</td>
+						</tr>
 					<tr>
 						<th class="dCase"><spring:message code="msg.common.field.relatedDocuments" /></th>
 						<td class="dCase uploadCase documentsUpload">
@@ -364,9 +389,22 @@
 				<c:if test="${not empty detail.partnerId}">
 					<input type="button" value="Share URL" class="btnColor red" onclick="fn.shareUrl();" />
 				</c:if>
+				<c:if test="${not empty detail.partnerId and ct:isAdmin()}">
+					<input type="button" value="Save (Binary DB)" class="btnSave btnColor red idenSave" onclick="fn.binaryDBSave('${detail.partnerId}')" style="width:120px;"/>
+				</c:if>
                 <c:if test="${not empty detail.partnerId}">
-                    <input type="button" value="Export" class="btnColor red btnExport" onclick="fn.downloadExcel()"/>
-					<input type="button" value="Yaml" class="btnColor red btnExport" onclick="fn.downloadYaml()"/
+                	<div id="ExportContainer" class="inblock" style="vertical-align:top; position: relative;">
+                		<input type="button" value="Export" class="btnColor red btnExport" onclick="fn.exportList(this)"/>
+                		<div id="ExportList" class="w200 tright" style="display: none; position: absolute; z-index: 1; right: 0;">
+							<a onclick="fn.selectDownloadFile('report_sub')" style="display: block;">FOSSLight Report (Spreadsheet)</a>
+							<a onclick="fn.selectDownloadFile('YAML')" style="display: block;">FOSSLight Report (YAML)</a>
+							<a onclick="fn.selectDownloadFile('Spreadsheet_sub')" style="display: block;">SPDX (Spreadsheet)</a>
+							<a onclick="fn.selectDownloadFile('RDF_sub')" style="display: block;">SPDX (RDF)</a>
+							<a onclick="fn.selectDownloadFile('TAG_sub')" style="display: block;">SPDX (TAG)</a>
+							<a onclick="fn.selectDownloadFile('JSON_sub')" style="display: block;">SPDX (JSON)</a>
+							<a onclick="fn.selectDownloadFile('YAML_sub')" style="display: block;">SPDX (YAML)</a>
+						</div>
+                    </div>
                 </c:if>
                 <c:if test="${detail.status ne 'REQ' and detail.status ne 'CONF' and  (detail.loginUserRole eq 'ROLE_ADMIN'  or (detail.loginUserRole ne 'ROLE_ADMIN' and detail.status ne 'REV')) and detail.viewOnlyFlag ne 'Y'}">
                     <input type="button" value="Check OSS Name" onclick="fn.CheckOssViewPage('PARTNER')" class="btnColor red srcBtn" style="width: 115px;" />
@@ -380,6 +418,9 @@
 	                <input id="partyDelete" type="button" value="Delete" class="btnColor red" onclick="fn.delete()"/>
 	                <input id="partyBulkEdit" type="button" value="Bulk Edit" class="btnColor red" onclick="fn.bulkEdit()"/>
 	            </c:if>
+				<c:if test="${not empty detail.partnerId and ct:isAdmin()}">
+					<input type="button" value="OSS bulk registration" onclick="fn_grid_com.ossBulkReg('${detail.partnerId }','20')" class="btnColor red" style="width: 145px;" />
+				</c:if>
             </span>
         </div>
 		<div class="jqGridSet list2">

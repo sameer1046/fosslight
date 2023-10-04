@@ -157,20 +157,14 @@
 			, OSS_COPYRIGHT
 		)VALUES(
 			#{ossId}
-			,(SELECT LICENSE_ID FROM LICENSE_MASTER A 
-			  WHERE A.USE_YN = 'Y' AND  (A.LICENSE_NAME = #{licenseName}
-						  OR SHORT_IDENTIFIER = #{licenseName}
-						  OR EXISTS (SELECT 1 
-										     FROM LICENSE_NICKNAME B
-										   WHERE A.LICENSE_NAME = B.LICENSE_NAME
-											   AND B.LICENSE_NICKNAME = #{licenseName})))
+			,#{licenseId}
 			, #{ossLicenseIdx}  
 			, #{ossLicenseComb} 
 			, #{ossLicenseText} 
 			, #{ossCopyright}
 		) ON DUPLICATE KEY UPDATE
 			OSS_ID = #{ossId}
-			, LICENSE_ID = (SELECT LICENSE_ID FROM LICENSE_MASTER WHERE USE_YN = 'Y' AND LICENSE_NAME = #{licenseName}) 	
+			, LICENSE_ID = #{licenseId}
 			, OSS_LICENSE_IDX 	= #{ossLicenseIdx}
 			, OSS_LICENSE_COMB 	= #{ossLicenseComb}
 			, OSS_LICENSE_TEXT 	= #{ossLicenseText}
@@ -364,12 +358,23 @@
 			AND REPLACE(REPLACE(REPLACE(IFNULL(T1.SUMMARY_DESCRIPTION, ''),'\r\n', ' '),'\n', ' '), ' ', '') LIKE CONCAT('%',REPLACE(REPLACE(REPLACE(#{summaryDescription},'\r\n', ' '),'\n', ' '), ' ', ''),'%')
 		</if>
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(homepage)">
-			AND 
-			(
-			T1.HOMEPAGE LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
-			OR T1.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
-			OR DOWN.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
-			)
+		AND
+			<choose>
+				<when test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(homepageAllSearchFlag,'Y')">
+					(
+					SUBSTRING_INDEX(SUBSTRING_INDEX(T1.HOMEPAGE, '//', -1), 'www.', -1) = #{homepage} OR SUBSTRING_INDEX(SUBSTRING_INDEX(T1.HOMEPAGE, '//', -1), 'www.', -1) = CONCAT(#{homepage},"/")
+					OR SUBSTRING_INDEX(SUBSTRING_INDEX(T1.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = #{homepage} OR SUBSTRING_INDEX(SUBSTRING_INDEX(T1.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = CONCAT(#{homepage},"/")
+					OR SUBSTRING_INDEX(SUBSTRING_INDEX(DOWN.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = #{homepage} OR SUBSTRING_INDEX(SUBSTRING_INDEX(DOWN.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = CONCAT(#{homepage},"/")
+					)
+				</when>
+				<otherwise>
+					(
+					T1.HOMEPAGE LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
+					OR T1.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
+					OR DOWN.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
+					)
+				</otherwise>
+			</choose>
 		</if>
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(copyrights)">
 			AND (
@@ -428,6 +433,11 @@
 			</if>
 			)
 		</if>
+		<if test="!@oss.fosslight.util.StringUtil@isEmpty(cvssScore)">
+			<![CDATA[
+			AND	CAST(T1.CVSS_SCORE AS FLOAT ) >= CAST(#{cvssScore} AS FLOAT )
+			]]>
+		</if>
 		GROUP BY T1.OSS_NAME
 		) RESULT
    	</select>
@@ -440,7 +450,14 @@
 			) T2 ON T1.OSS_NAME = T2.OSS_NAME
 		WHERE T1.USE_YN = 'Y' AND T1.OSS_ID <![CDATA[<>]]> #{ossId}
 	    <if test="!@oss.fosslight.util.StringUtil@isEmpty(schOssName)">
-			AND	T1.OSS_NAME LIKE CONCAT('%',#{schOssName},'%')
+	    	<choose>
+	    		<when test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(ossNameAllSearchFlag,'Y')">
+					AND T1.OSS_NAME = #{schOssName}
+				</when>
+				<otherwise>
+					AND	T1.OSS_NAME LIKE CONCAT('%',#{schOssName},'%')
+				</otherwise>
+	    	</choose>
 		</if>
 	</select>
 	
@@ -456,7 +473,14 @@
 			) T2 ON T1.OSS_NAME = T2.OSS_NAME
 		WHERE T1.USE_YN = 'Y' AND T1.OSS_ID <![CDATA[<>]]> #{ossId}
 	    <if test="!@oss.fosslight.util.StringUtil@isEmpty(schOssName)">
-			AND	T1.OSS_NAME LIKE CONCAT('%',#{schOssName},'%')
+	    	<choose>
+	    		<when test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(ossNameAllSearchFlag,'Y')">
+					AND T1.OSS_NAME = #{schOssName}
+				</when>
+				<otherwise>
+					AND	T1.OSS_NAME LIKE CONCAT('%',#{schOssName},'%')
+				</otherwise>
+	    	</choose>
 		</if>
 		ORDER BY T1.OSS_NAME, T1.OSS_VERSION DESC
 		<include refid="limitPage"/>
@@ -577,12 +601,23 @@
 			AND REPLACE(REPLACE(REPLACE(IFNULL(T1.SUMMARY_DESCRIPTION, ''),'\r\n', ' '),'\n', ' '), ' ', '') LIKE CONCAT('%',REPLACE(REPLACE(REPLACE(#{summaryDescription},'\r\n', ' '),'\n', ' '), ' ', ''),'%')
 		</if>
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(homepage)">
-			AND 
-			(
-			T1.HOMEPAGE LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
-			OR T1.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
-			OR DOWN.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
-			)
+			AND
+			<choose>
+				<when test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(homepageAllSearchFlag,'Y')">
+					(
+					SUBSTRING_INDEX(SUBSTRING_INDEX(T1.HOMEPAGE, '//', -1), 'www.', -1) = #{homepage} OR SUBSTRING_INDEX(SUBSTRING_INDEX(T1.HOMEPAGE, '//', -1), 'www.', -1) = CONCAT(#{homepage},"/")
+					OR SUBSTRING_INDEX(SUBSTRING_INDEX(T1.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = #{homepage} OR SUBSTRING_INDEX(SUBSTRING_INDEX(T1.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = CONCAT(#{homepage},"/")
+					OR SUBSTRING_INDEX(SUBSTRING_INDEX(DOWN.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = #{homepage} OR SUBSTRING_INDEX(SUBSTRING_INDEX(DOWN.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = CONCAT(#{homepage},"/")
+					)
+				</when>
+				<otherwise>
+					(
+					T1.HOMEPAGE LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
+					OR T1.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
+					OR DOWN.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
+					)
+				</otherwise>
+			</choose>
 		</if>
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(copyrights)">
 			AND (
@@ -641,6 +676,11 @@
 			</if>
 			)
 		</if>
+		<if test="!@oss.fosslight.util.StringUtil@isEmpty(cvssScore)">
+			<![CDATA[
+			AND CAST(T1.CVSS_SCORE AS FLOAT ) >= CAST(#{cvssScore} AS FLOAT )
+			]]>
+		</if>
 		<if test="@oss.fosslight.util.StringUtil@notEquals(versionCheck,'N')">
 		GROUP BY T1.OSS_NAME
 		</if>
@@ -669,6 +709,8 @@
 			, T1.DEACTIVATE_FLAG
 			, T1.MODIFIER
 			, T1.MODIFIED_DATE
+			, T1.CVE_ID
+			, T1.CVSS_SCORE
 		FROM
 			OSS_MASTER 									T1
 			LEFT OUTER JOIN OSS_LICENSE_DECLARED		T2	ON T1.OSS_ID = T2.OSS_ID AND T2.OSS_LICENSE_IDX  = 1
@@ -771,14 +813,23 @@
 			AND REPLACE(REPLACE(REPLACE(IFNULL(T1.SUMMARY_DESCRIPTION, ''),'\r\n', ' '),'\n', ' '), ' ', '') LIKE CONCAT('%',REPLACE(REPLACE(REPLACE(#{summaryDescription},'\r\n', ' '),'\n', ' '), ' ', ''),'%')
 		</if>
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(homepage)">
-			AND 
-			(
-			T1.HOMEPAGE LIKE CONCAT('%',#{homepage},'%')
-			OR T1.DOWNLOAD_LOCATION LIKE CONCAT('%',#{homepage},'%')
-			<if test="!@oss.fosslight.util.StringUtil@isEmpty(homepage)">
-			OR DOWN.DOWNLOAD_LOCATION LIKE CONCAT('%',#{homepage},'%')
-			</if>
-			)
+			AND
+			<choose>
+				<when test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(homepageAllSearchFlag,'Y')">
+					(
+					SUBSTRING_INDEX(SUBSTRING_INDEX(T1.HOMEPAGE, '//', -1), 'www.', -1) = #{homepage} OR SUBSTRING_INDEX(SUBSTRING_INDEX(T1.HOMEPAGE, '//', -1), 'www.', -1) = CONCAT(#{homepage},"/")
+					OR SUBSTRING_INDEX(SUBSTRING_INDEX(T1.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = #{homepage} OR SUBSTRING_INDEX(SUBSTRING_INDEX(T1.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = CONCAT(#{homepage},"/")
+					OR SUBSTRING_INDEX(SUBSTRING_INDEX(DOWN.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = #{homepage} OR SUBSTRING_INDEX(SUBSTRING_INDEX(DOWN.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = CONCAT(#{homepage},"/")
+					)
+				</when>
+				<otherwise>
+					(
+					T1.HOMEPAGE LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
+					OR T1.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
+					OR DOWN.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{homepage}, '_', '\\\\_'),'%')
+					)
+				</otherwise>
+			</choose>
 		</if>
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(copyrights)">
 			AND (
@@ -862,7 +913,8 @@
 	</select>
 	
 	<update id="deleteOssMaster" parameterType="oss.fosslight.domain.OssMaster">
-		UPDATE OSS_MASTER SET USE_YN='N', MODIFIER=#{loginUserName}, MODIFIED_DATE=now() WHERE OSS_ID=#{ossId}
+		<!-- UPDATE OSS_MASTER SET USE_YN='N', MODIFIER=#{loginUserName}, MODIFIED_DATE=now() WHERE OSS_ID=#{ossId} -->
+		DELETE FROM OSS_MASTER WHERE OSS_ID=#{ossId}
 	</update>
 	<delete id="deleteOssNickname" parameterType="oss.fosslight.domain.OssMaster">
 		DELETE FROM OSS_NICKNAME WHERE OSS_NAME=#{ossName}
@@ -1415,6 +1467,10 @@
 			MULTI_LICENSE_FLAG = #{multiLicenseFlag}
 			, DUAL_LICENSE_FLAG = #{dualLicenseFlag}    
 	</insert>
+	<delete id="deleteOssLicenseFlag">
+		DELETE FROM OSS_MASTER_LICENSE_FLAG WHERE OSS_ID = #{ossId}
+	</delete>
+	
 	<update id="updateOssLicenseVDiffFlag" parameterType="oss.fosslight.domain.OssMaster">
 		UPDATE OSS_MASTER_LICENSE_FLAG SET VERSION_DIFF_FLAG = #{versionDiffFlag}
 		WHERE OSS_ID IN 
@@ -1706,24 +1762,24 @@
 
 	<select id="checkOssNameTotal" parameterType="oss.fosslight.domain.ProjectIdentification" resultType="oss.fosslight.domain.OssMaster">
 		SELECT GROUP_CONCAT(DISTINCT OM.OSS_NAME) AS OSS_NAME
-		FROM (SELECT OSS_ID, OSS_NAME, DOWNLOAD_LOCATION FROM OSS_MASTER WHERE USE_YN = 'Y') OM
+		FROM (SELECT OSS_ID, OSS_NAME, DOWNLOAD_LOCATION FROM OSS_MASTER WHERE USE_YN = 'Y'  AND DEACTIVATE_FLAG = 'N') OM
 				 LEFT JOIN OSS_DOWNLOADLOCATION DOWN
 						   ON OM.OSS_ID = DOWN.OSS_ID
 		WHERE OM.OSS_NAME != #{ossName}
 		  AND (
-			SUBSTRING_INDEX(SUBSTRING_INDEX(OM.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = #{downloadLocation}
-		   OR SUBSTRING_INDEX(SUBSTRING_INDEX(DOWN.DOWNLOAD_LOCATION, '//', -1), 'www.', -1) = #{downloadLocation}
+			OM.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{downloadLocation}, '_', '\\\\_'))
+		   	OR DOWN.DOWNLOAD_LOCATION LIKE CONCAT('%',REGEXP_REPLACE(#{downloadLocation}, '_', '\\\\_'))
 			)
 		GROUP BY OM.OSS_NAME
 		UNION
 		SELECT GROUP_CONCAT(DISTINCT OM.OSS_NAME) AS OSS_NAME
 		FROM OSS_MASTER OM
-		WHERE OM.OSS_NAME = #{ossNickName} AND OM.USE_YN = 'Y'
+		WHERE OM.OSS_NAME = #{ossNickName} AND OM.USE_YN = 'Y' AND OM.DEACTIVATE_FLAG = 'N'
 		GROUP BY OM.OSS_NAME
 		UNION
 		SELECT GROUP_CONCAT(DISTINCT OM.OSS_NAME) AS OSS_NAME
 		FROM (SELECT OSS_NAME FROM OSS_NICKNAME WHERE OSS_NICKNAME = #{ossNickName}) A1
-				 INNER JOIN OSS_MASTER OM WHERE (A1.OSS_NAME=OM.OSS_NAME AND OM.USE_YN = "Y") GROUP BY OM.OSS_NAME
+				 INNER JOIN OSS_MASTER OM WHERE (A1.OSS_NAME=OM.OSS_NAME AND OM.USE_YN = "Y" AND OM.DEACTIVATE_FLAG = 'N') GROUP BY OM.OSS_NAME
 	</select>
 
 	<update id="updateOssCheckNameBySelfCheck" parameterType="oss.fosslight.domain.ProjectIdentification">
@@ -1804,7 +1860,7 @@
 	
 	<select id="checkOssNameUrl2Cnt" parameterType="oss.fosslight.domain.ProjectIdentification" resultType="int">
 		SELECT COUNT(*) AS CNT
-		  FROM (SELECT OSS_ID, OSS_NAME, DOWNLOAD_LOCATION FROM OSS_MASTER WHERE USE_YN = 'Y') OM
+		  FROM (SELECT OSS_ID, OSS_NAME, DOWNLOAD_LOCATION FROM OSS_MASTER WHERE USE_YN = 'Y' AND DEACTIVATE_FLAG = 'N') OM
 		  LEFT JOIN OSS_DOWNLOADLOCATION DOWN
 		    ON OM.OSS_ID = DOWN.OSS_ID
 		 WHERE OM.OSS_NAME = #{ossName}
@@ -1820,6 +1876,13 @@
 		 WHERE REFERENCE_ID = #{prjId}
 		 <if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(startAnalysisFlag,'Y')">
 			AND ANALYSIS_YN = #{startAnalysisFlag}
+			<if test="!@oss.fosslight.util.StringUtil@isEmpty(csvComponentIdList)">
+				AND COMPONENT_ID IN (
+		   		<foreach item="id" index="index" collection="csvComponentIdList" separator=",">
+					#{id}
+				</foreach>
+				)
+			</if>
 		</if>
 	</select>
 	
@@ -1882,6 +1945,13 @@
 		 WHERE REFERENCE_ID = #{prjId}
 		 <if test="@oss.fosslight.util.StringUtil@equalsIgnoreCase(startAnalysisFlag,'Y')">
 		   AND ANALYSIS_YN = #{startAnalysisFlag}
+		   	<if test="!@oss.fosslight.util.StringUtil@isEmpty(csvComponentIdList)">
+		   		AND COMPONENT_ID IN (
+		   		<foreach item="id" index="index" collection="csvComponentIdList" separator=",">
+					#{id}
+				</foreach>
+				)
+			</if>
 		 ORDER BY COMPONENT_ID ASC
 			 <include refid="limitPage"/>
 		 </if>
@@ -2156,21 +2226,33 @@
 					 , CVE.VULN_SUMMARY
 					 , CVE.MODI_DATE
 				  FROM (
-				  		SELECT PRODUCT
+				  		SELECT NVD.PRODUCT, NVD.VERSION, NVD.CVE_ID
+				  		FROM
+				  		(SELECT REPLACE(PRODUCT, ' ', '_') AS PRODUCT
 				 			 , VERSION
 				 			 , CVE_ID
 				  		  FROM NVD_DATA_V3
 				  		 WHERE (
 				  		 		PRODUCT = #{ossName}
+				  		 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(ossNameTemp)">
+				  		 			OR PRODUCT = #{ossNameTemp}
+				  		 		</if>
 				  		 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(ossNicknames)">
 					  			    <foreach item="item" index="index" collection="ossNicknames">
 										OR PRODUCT = #{item}
+									</foreach>
+								</if>
+								<if test="!@oss.fosslight.util.StringUtil@isEmpty(dashOssNameList)">
+									<foreach item="dashItem" index="index" collection="dashOssNameList">
+										OR VENDORPRODUCT = #{dashItem}
 									</foreach>
 								</if>
 				 				)
 				 		<if test="@oss.fosslight.util.StringUtil@notEquals('-', ossVersion)">
 				 		   AND VERSION = #{ossVersion}
 				 		</if>
+				 		) NVD
+				 		GROUP BY NVD.PRODUCT, NVD.VERSION, NVD.CVE_ID
 				 	   ) DATA
 				 INNER JOIN NVD_CVE_V3 CVE
 				    ON DATA.CVE_ID = CVE.CVE_ID
@@ -2178,8 +2260,7 @@
 			) T1
 			GROUP BY T1.PRODUCT, T1.CVSS_SCORE, T1.CVE_ID, T1.VULN_SUMMARY, T1.MODI_DATE
 		</if>
-			ORDER BY CVSS_SCORE DESC, MODI_DATE DESC
-			LIMIT 5
+			ORDER BY CVSS_SCORE DESC, MODI_DATE DESC LIMIT 10
 	</select>
 	
 	<select id="selectMultiOssList" parameterType="oss.fosslight.domain.OssMaster" resultType="string">
@@ -2209,5 +2290,69 @@
 		WHERE OSS_ID = (SELECT OSS_ID FROM OSS_MASTER WHERE OSS_NAME = #{ossName} ORDER BY MODIFIED_DATE DESC LIMIT 1)
 	</select>
 
+	<select id="checkExistsVendorProductMatchOss" parameterType="oss.fosslight.domain.OssMaster" resultType="string">
+		SELECT OM.OSS_ID
+    	FROM OSS_MASTER OM
+    	LEFT JOIN OSS_NICKNAME NICK
+    	ON OM.OSS_NAME = NICK.OSS_NAME
+    	AND OM.USE_YN = 'Y'
+    	WHERE OM.OSS_VERSION = #{ossVersion}
+    	AND NICK.OSS_NAME = #{schOssName}
+	</select>
 
+	<select id="selectVulnInfoForOss" parameterType="oss.fosslight.domain.OssMaster" resultType="string">
+    	SELECT CONCAT(NVD.PRODUCT,'@',NVD.VERSION,'@',NVD.VENDOR,'@',CVE.CVSS_SCORE,'@',CVE.CVE_ID)
+    	FROM
+    	(
+    		SELECT PRODUCT
+    				<if test="@oss.fosslight.util.StringUtil@equals('-', ossVersion)">
+    				, '-' AS VERSION
+    				</if>
+    				<if test="@oss.fosslight.util.StringUtil@notEquals('-', ossVersion)">
+    				, VERSION
+    				</if>
+    				, VENDOR
+    				, CVE_ID
+    		FROM NVD_DATA_V3
+    		WHERE 1=1
+    		<if test="@oss.fosslight.util.StringUtil@notEquals('-', ossVersion)">
+    		AND VERSION = #{ossVersion}
+    		</if>
+    		AND (PRODUCT = #{ossName}
+    		<if test="!@oss.fosslight.util.StringUtil@isEmpty(ossNicknames)">
+				<foreach item="item" collection="ossNicknames">
+					OR PRODUCT = #{item}
+				</foreach>
+				<foreach item="item" collection="ossNicknames">
+					OR VENDORPRODUCT = #{item}
+				</foreach>
+			</if>
+    		)
+    		<if test="!@oss.fosslight.util.StringUtil@isEmpty(vulnerabilityCheckFlag)">
+    		AND CVE_ID NOT IN (SELECT CVE_ID FROM NVD_DATA_SECURITY
+								WHERE OSS_NAME = #{schOssName}
+								<if test="@oss.fosslight.util.StringUtil@notEquals('-', ossVersion)">
+								AND OSS_VERSION = #{ossVersion}
+								</if>
+								<if test="@oss.fosslight.util.StringUtil@equals('-', ossVersion)">
+								AND OSS_VERSION = ''
+								</if>
+								AND REFERENCE_ID = #{prjId}
+								AND VULNERABILITY_RESOLUTION = 'Fixed')
+    		</if>
+    	) NVD
+		INNER JOIN NVD_CVE_V3 CVE
+    	ON NVD.CVE_ID = CVE.CVE_ID
+    	ORDER BY CVE.CVSS_SCORE*1 DESC LIMIT 5
+    </select>
+    
+    <select id="checkOssVersionDiff" parameterType="string" resultType="int">
+		SELECT COUNT(*)
+		FROM OSS_MASTER OM
+		INNER JOIN OSS_MASTER_LICENSE_FLAG OMF
+		ON OM.OSS_ID = OMF.OSS_ID
+		WHERE OM.USE_YN = 'Y'
+		AND OM.OSS_NAME = #{ossName}
+		AND OMF.VERSION_DIFF_FLAG = 'Y'
+	</select>
 </mapper>

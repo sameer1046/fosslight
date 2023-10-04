@@ -62,25 +62,35 @@ public class SPDXDownloadController extends CoTopComponent {
 			String spdxType = (String)map.get("type");
 			String dataStr = (String)map.get("dataStr");
 			String prjId = (String)map.get("prjId");
+			Project prjBean = null;
 			
-			Project prjBean = projectService.getProjectBasicInfo(prjId);
+			boolean partnerIdCheckFlag = prjId.startsWith("3rd_") ? true : false;
+			if (!partnerIdCheckFlag) {
+				prjBean = projectService.getProjectBasicInfo(prjId);
+			}
 			
-			if("spdxRdf".equals(spdxType)) {
-				if(!isEmpty(prjBean.getSpdxRdfFileId())) {
+			if ("spdxRdf".equals(spdxType)) {
+				if (!partnerIdCheckFlag && (prjBean != null && !isEmpty(prjBean.getSpdxRdfFileId()))) {
 					downloadId = prjBean.getSpdxRdfFileId();
 				} else {
-					String sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					String sheetFileId = "";
+					if (dataStr.equals("spdx_sbom")) {
+						sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx_sbom", prjId, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					} else {
+						sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					}
+					 
 					T2File sheetFile = fileService.selectFileInfo(sheetFileId);
 					String sheetFullPath = sheetFile.getLogiPath();
 					
-					if(!sheetFullPath.endsWith("/")) {
+					if (!sheetFullPath.endsWith("/")) {
 						sheetFullPath += "/";
 					}
 					
 					sheetFullPath += sheetFile.getLogiNm();
 					String rdfFullPath = sheetFile.getLogiPath();
 					
-					if(!rdfFullPath.endsWith("/")) {
+					if (!rdfFullPath.endsWith("/")) {
 						rdfFullPath += "/";
 					}
 					
@@ -94,7 +104,7 @@ public class SPDXDownloadController extends CoTopComponent {
 					try {
 						File spdxRdfFile = new File(rdfFullPath);
 						
-						if(spdxRdfFile.exists() && spdxRdfFile.length() <= 0) {
+						if (spdxRdfFile.exists() && spdxRdfFile.length() <= 0) {
 							CommentsHistory commHisBean = new CommentsHistory();
 							commHisBean.setReferenceDiv(CoConstDef.CD_DTL_COMMENT_PACKAGING_HIS);
 							commHisBean.setReferenceId(prjId);
@@ -107,15 +117,20 @@ public class SPDXDownloadController extends CoTopComponent {
 						log.error(e.getMessage(), e);
 					}
 				}
-			} else if("spdxTag".equals(spdxType)) {
-				if(!isEmpty(prjBean.getSpdxTagFileId())) {
+			} else if ("spdxTag".equals(spdxType)) {
+				if (!partnerIdCheckFlag && (prjBean != null && !isEmpty(prjBean.getSpdxTagFileId()))) {
 					downloadId = prjBean.getSpdxTagFileId();
 				} else {
-					String sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					String sheetFileId = "";
+					if (dataStr.equals("spdx_sbom")) {
+						sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx_sbom", prjId, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					} else {
+						sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					}
 					T2File sheetFile = fileService.selectFileInfo(sheetFileId);
 					String sheetFullPath = sheetFile.getLogiPath();
 					
-					if(!sheetFullPath.endsWith("/")) {
+					if (!sheetFullPath.endsWith("/")) {
 						sheetFullPath += "/";
 					}
 					
@@ -123,7 +138,7 @@ public class SPDXDownloadController extends CoTopComponent {
 					
 					String tagFullPath = sheetFile.getLogiPath();
 					
-					if(!tagFullPath.endsWith("/")) {
+					if (!tagFullPath.endsWith("/")) {
 						tagFullPath += "/";
 					}
 					
@@ -137,7 +152,7 @@ public class SPDXDownloadController extends CoTopComponent {
 					try {
 						File spdxTafFile = new File(tagFullPath);
 						
-						if(spdxTafFile.exists() && spdxTafFile.length() <= 0) {
+						if (spdxTafFile.exists() && spdxTafFile.length() <= 0) {
 							CommentsHistory commHisBean = new CommentsHistory();
 							commHisBean.setReferenceDiv(CoConstDef.CD_DTL_COMMENT_PACKAGING_HIS);
 							commHisBean.setReferenceId(prjId);
@@ -149,11 +164,16 @@ public class SPDXDownloadController extends CoTopComponent {
 						log.error(e.getMessage(), e);
 					}
 				}
-			} else if("spdxJson".equals(spdxType)) {
-				if (!isEmpty(prjBean.getSpdxJsonFileId())) {
+			} else if ("spdxJson".equals(spdxType)) {
+				if (!partnerIdCheckFlag && (prjBean != null && !isEmpty(prjBean.getSpdxJsonFileId()))) {
 					downloadId = prjBean.getSpdxJsonFileId();
 				} else {
-					String sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					String sheetFileId = "";
+					if (dataStr.equals("spdx_sbom")) {
+						sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx_sbom", prjId, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					} else {
+						sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					}
 					T2File sheetFile = fileService.selectFileInfo(sheetFileId);
 					String sheetFullPath = sheetFile.getLogiPath();
 
@@ -190,11 +210,16 @@ public class SPDXDownloadController extends CoTopComponent {
 						log.error(e.getMessage(), e);
 					}
 				}
-			} else if("spdxYaml".equals(spdxType)) {
-				if (!isEmpty(prjBean.getSpdxYamlFileId())) {
+			} else if ("spdxYaml".equals(spdxType)) {
+				if (!partnerIdCheckFlag && (prjBean != null && !isEmpty(prjBean.getSpdxYamlFileId()))) {
 					downloadId = prjBean.getSpdxYamlFileId();
 				} else {
-					String sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					String sheetFileId = "";
+					if (dataStr.equals("spdx_sbom")) {
+						sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx_sbom", prjId, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					} else {
+						sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					}
 					T2File sheetFile = fileService.selectFileInfo(sheetFileId);
 					String sheetFullPath = sheetFile.getLogiPath();
 
@@ -231,11 +256,15 @@ public class SPDXDownloadController extends CoTopComponent {
 						log.error(e.getMessage(), e);
 					}
 				}
-			} else if("spdx".equals(spdxType)){
-				if(!isEmpty(prjBean.getSpdxSheetFileId())) {
+			} else if ("spdx".equals(spdxType)){
+				if (!partnerIdCheckFlag && (prjBean != null && !isEmpty(prjBean.getSpdxSheetFileId()))) {
 					downloadId = prjBean.getSpdxSheetFileId();
 				} else {
-					downloadId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					if (dataStr.equals("spdx_sbom")) {
+						downloadId = ExcelDownLoadUtil.getExcelDownloadId("spdx_sbom", prjId, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					} else {
+						downloadId = ExcelDownLoadUtil.getExcelDownloadId("spdx", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
+					}
 				}
 			} else {
 				log.error("not match type...");
@@ -259,7 +288,7 @@ public class SPDXDownloadController extends CoTopComponent {
 		T2File fileInfo = fileService.selectFileInfo(req.getParameter("id"));
 		String filePath = fileInfo.getLogiPath();
 		
-		if(!filePath.endsWith("/")) {
+		if (!filePath.endsWith("/")) {
 			filePath += "/";
 		}
 		
@@ -278,19 +307,19 @@ public class SPDXDownloadController extends CoTopComponent {
 			String dataStr = (String)map.get("dataStr");
 			String prjId = (String)map.get("prjId");
 			
-			if("spdxRdf".equals(spdxType)) {
+			if ("spdxRdf".equals(spdxType)) {
 				String sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx_self", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
 				T2File sheetFile = fileService.selectFileInfo(sheetFileId);
 				String sheetFullPath = sheetFile.getLogiPath();
 				
-				if(!sheetFullPath.endsWith("/")) {
+				if (!sheetFullPath.endsWith("/")) {
 					sheetFullPath += "/";
 				}
 				
 				sheetFullPath += sheetFile.getLogiNm();
 				String rdfFullPath = sheetFile.getLogiPath();
 				
-				if(!rdfFullPath.endsWith("/")) {
+				if (!rdfFullPath.endsWith("/")) {
 					rdfFullPath += "/";
 				}
 				
@@ -304,7 +333,7 @@ public class SPDXDownloadController extends CoTopComponent {
 				try {
 					File spdxRdfFile = new File(rdfFullPath);
 					
-					if(spdxRdfFile.exists() && spdxRdfFile.length() <= 0) {
+					if (spdxRdfFile.exists() && spdxRdfFile.length() <= 0) {
 						CommentsHistory commHisBean = new CommentsHistory();
 						commHisBean.setReferenceDiv(CoConstDef.CD_DTL_COMMENT_PACKAGING_HIS);
 						commHisBean.setReferenceId(prjId);
@@ -316,12 +345,12 @@ public class SPDXDownloadController extends CoTopComponent {
 				} catch (Exception e) {
 					log.error(e.getMessage(), e);
 				}
-			} else if("spdxTag".equals(spdxType)) {
+			} else if ("spdxTag".equals(spdxType)) {
 				String sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx_self", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
 				T2File sheetFile = fileService.selectFileInfo(sheetFileId);
 				String sheetFullPath = sheetFile.getLogiPath();
 				
-				if(!sheetFullPath.endsWith("/")) {
+				if (!sheetFullPath.endsWith("/")) {
 					sheetFullPath += "/";
 				}
 				
@@ -329,7 +358,7 @@ public class SPDXDownloadController extends CoTopComponent {
 				
 				String tagFullPath = sheetFile.getLogiPath();
 				
-				if(!tagFullPath.endsWith("/")) {
+				if (!tagFullPath.endsWith("/")) {
 					tagFullPath += "/";
 				}
 				
@@ -343,7 +372,7 @@ public class SPDXDownloadController extends CoTopComponent {
 				try {
 					File spdxTafFile = new File(tagFullPath);
 					
-					if(spdxTafFile.exists() && spdxTafFile.length() <= 0) {
+					if (spdxTafFile.exists() && spdxTafFile.length() <= 0) {
 						CommentsHistory commHisBean = new CommentsHistory();
 						commHisBean.setReferenceDiv(CoConstDef.CD_DTL_COMMENT_PACKAGING_HIS);
 						commHisBean.setReferenceId(prjId);
@@ -354,7 +383,7 @@ public class SPDXDownloadController extends CoTopComponent {
 				} catch (Exception e) {
 					log.error(e.getMessage(), e);
 				}
-			} else if("spdxJson".equals(spdxType)) {
+			} else if ("spdxJson".equals(spdxType)) {
 				String sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx_self", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
 				T2File sheetFile = fileService.selectFileInfo(sheetFileId);
 				String sheetFullPath = sheetFile.getLogiPath();
@@ -391,7 +420,7 @@ public class SPDXDownloadController extends CoTopComponent {
 				} catch (Exception e) {
 					log.error(e.getMessage(), e);
 				}
-			} else if("spdxYaml".equals(spdxType)) {
+			} else if ("spdxYaml".equals(spdxType)) {
 				String sheetFileId = ExcelDownLoadUtil.getExcelDownloadId("spdx_self", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
 				T2File sheetFile = fileService.selectFileInfo(sheetFileId);
 				String sheetFullPath = sheetFile.getLogiPath();
@@ -428,7 +457,7 @@ public class SPDXDownloadController extends CoTopComponent {
 				} catch (Exception e) {
 					log.error(e.getMessage(), e);
 				}
-			} else if("spdx".equals(spdxType)){
+			} else if ("spdx".equals(spdxType)){
 				downloadId = ExcelDownLoadUtil.getExcelDownloadId("spdx_self", dataStr, RESOURCE_PUBLIC_DOWNLOAD_EXCEL_PATH_PREFIX);
 			} else {
 				log.error("not match type...");

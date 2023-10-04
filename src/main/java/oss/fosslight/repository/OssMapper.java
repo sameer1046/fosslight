@@ -105,6 +105,8 @@ public interface OssMapper {
 	
 	int checkExistsOssByname(OssMaster bean);
 	
+	void deleteOssLicenseFlag(String ossId);
+	
 	void updateOssLicenseFlag(OssMaster updateParam);
 	
 	void updateOssLicenseVDiffFlag(OssMaster updateParam);
@@ -191,7 +193,7 @@ public interface OssMapper {
 	
 	int checkOssNameUrl2Cnt(ProjectIdentification bean);
 
-	int ossAnalysisListCnt(@Param("prjId") String prjId, @Param("startAnalysisFlag") String startAnalysisFlag);
+	int ossAnalysisListCnt(@Param("prjId") String prjId, @Param("startAnalysisFlag") String startAnalysisFlag, @Param("csvComponentIdList") int[] csvComponentIdList);
 	
 	void deleteOssAnalysisList(@Param("prjId") String prjId);
 	
@@ -240,4 +242,10 @@ public interface OssMapper {
 	List<OssMaster> checkOssNameTotal(ProjectIdentification bean);
 
 	Map<String, Object>  getRecentlyModifiedOss(OssMaster ossMaster);
+
+	List<String> selectVulnInfoForOss(OssMaster ossMaster);
+
+	List<String> checkExistsVendorProductMatchOss(OssMaster ossMaster);
+
+	int checkOssVersionDiff(String ossName);
 }

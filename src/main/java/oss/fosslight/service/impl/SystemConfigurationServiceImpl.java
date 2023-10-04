@@ -11,10 +11,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import lombok.extern.slf4j.Slf4j;
 import oss.fosslight.CoTopComponent;
 import oss.fosslight.common.CoCodeManager;
 import oss.fosslight.common.CoConstDef;
@@ -23,8 +23,6 @@ import oss.fosslight.domain.T2CodeDtl;
 import oss.fosslight.repository.CodeMapper;
 import oss.fosslight.service.CodeService;
 import oss.fosslight.service.SystemConfigurationService;
-import oss.fosslight.util.CryptUtil;
-import oss.fosslight.util.StringUtil;
 
 @Service
 @Slf4j
@@ -49,11 +47,11 @@ public class SystemConfigurationServiceImpl extends CoTopComponent implements Sy
 		T2CodeDtl loginAuth = new T2CodeDtl(CoConstDef.CD_LOGIN_SETTING);
 		List<T2CodeDtl> loginAuthList = codeMapper.selectCodeDetailList(loginAuth);
 		
-		T2CodeDtl smtpAuth = new T2CodeDtl(CoConstDef.CD_SMTP_SETTING);
-		List<T2CodeDtl> smtpAuthList = codeMapper.selectCodeDetailList(smtpAuth);
-
-		T2CodeDtl externalServiceAuth = new T2CodeDtl(CoConstDef.CD_EXTERNAL_SERVICE_SETTING);
-		List<T2CodeDtl> tokenAuthList = codeMapper.selectCodeDetailList(externalServiceAuth);
+//		T2CodeDtl smtpAuth = new T2CodeDtl(CoConstDef.CD_SMTP_SETTING);
+//		List<T2CodeDtl> smtpAuthList = codeMapper.selectCodeDetailList(smtpAuth);
+//
+//		T2CodeDtl externalServiceAuth = new T2CodeDtl(CoConstDef.CD_EXTERNAL_SERVICE_SETTING);
+//		List<T2CodeDtl> tokenAuthList = codeMapper.selectCodeDetailList(externalServiceAuth);
 
 		T2CodeDtl externalAnalysisAuth = new T2CodeDtl(CoConstDef.CD_EXTERNAL_ANALYSIS_SETTING);
 		List<T2CodeDtl> externalAnalysisAuthList = codeMapper.selectCodeDetailList(externalAnalysisAuth);
@@ -71,14 +69,14 @@ public class SystemConfigurationServiceImpl extends CoTopComponent implements Sy
 					c.setCdDtlExp((String) configurationMap.get("loginFlag"));
 					
 					break;
-				case CoConstDef.CD_SMTP_USED_FLAG:
-					c.setCdDtlExp((String) configurationMap.get("smtpFlag"));
-					
-					break;
-				case CoConstDef.CD_EXTERNAL_SERVICE_USED_FLAG:
-					c.setCdDtlExp((String) configurationMap.get("externalServiceFlag"));
-
-					break;
+//				case CoConstDef.CD_SMTP_USED_FLAG:
+//					c.setCdDtlExp((String) configurationMap.get("smtpFlag"));
+//					
+//					break;
+//				case CoConstDef.CD_EXTERNAL_SERVICE_USED_FLAG:
+//					c.setCdDtlExp((String) configurationMap.get("externalServiceFlag"));
+//
+//					break;
 
 				case CoConstDef.CD_EXTERNAL_ANALYSIS_USED_FLAG:
 					c.setCdDtlExp((String) configurationMap.get("externalAnalysisFlag"));
@@ -94,7 +92,7 @@ public class SystemConfigurationServiceImpl extends CoTopComponent implements Sy
 		// login detail setting
 		Map<String, Object> loginDetailMap = (Map<String, Object>) configurationMap.get("loginDetail");
 		
-		if(loginDetailMap != null) {
+		if (loginDetailMap != null) {
 			loginAuthList.stream().map(c -> {
 				switch (c.getCdDtlNo()) {
 					case CoConstDef.CD_LDAP_SERVER_URL:
@@ -110,77 +108,77 @@ public class SystemConfigurationServiceImpl extends CoTopComponent implements Sy
 		}
 		
 		// smtp detail setting
-		Map<String, Object> smtpDetailMap = (Map<String, Object>) configurationMap.get("smtpDetail");
-		
-		if(smtpDetailMap != null) {
-			smtpAuthList.stream().map(c -> {
-				switch(c.getCdDtlNo()) {
-					case CoConstDef.CD_SMTP_SERVICE_HOST:
-						c.setCdDtlExp((String) smtpDetailMap.get(CoConstDef.CD_SMTP_SERVICE_HOST));
-						
-						break;
-					case CoConstDef.CD_SMTP_EMAIL_ADDRESS:
-						c.setCdDtlExp((String) smtpDetailMap.get(CoConstDef.CD_SMTP_EMAIL_ADDRESS));
-						
-						break;
-					case CoConstDef.CD_SMTP_SERVICE_PORT:
-						c.setCdDtlExp((String) smtpDetailMap.get(CoConstDef.CD_SMTP_SERVICE_PORT));
-						
-						break;
-					case CoConstDef.CD_SMTP_SERVICE_ENCODING:
-						c.setCdDtlExp((String) smtpDetailMap.get(CoConstDef.CD_SMTP_SERVICE_ENCODING));
-						
-						break;
-					case CoConstDef.CD_SMTP_SERVICE_USERNAME:
-						c.setCdDtlExp((String) smtpDetailMap.get(CoConstDef.CD_SMTP_SERVICE_USERNAME));
-						
-						break;
-					case CoConstDef.CD_SMTP_SERVICE_PASSWORD:
-						String _pw = (String) smtpDetailMap.get(CoConstDef.CD_SMTP_SERVICE_PASSWORD);
-						if(!StringUtil.isEmpty(_pw)) {
-							String _encPw = null;
-							try {
-								_encPw = CryptUtil.encryptAES256(_pw, CoConstDef.ENCRYPT_DEFAULT_SALT_KEY);
-							} catch (Exception e) {
-								log.error(e.getMessage());
-							}
-							if(!StringUtil.isEmpty(_encPw)) {
-								c.setCdDtlExp(_encPw);
-							}
-						}
-						break;
-				}
-				
-				return c;
-			}).collect(Collectors.toList());
-
-			codeService.setCodeDetails(smtpAuthList, CoConstDef.CD_SMTP_SETTING);
-		}
+//		Map<String, Object> smtpDetailMap = (Map<String, Object>) configurationMap.get("smtpDetail");
+//		
+//		if (smtpDetailMap != null) {
+//			smtpAuthList.stream().map(c -> {
+//				switch(c.getCdDtlNo()) {
+//					case CoConstDef.CD_SMTP_SERVICE_HOST:
+//						c.setCdDtlExp((String) smtpDetailMap.get(CoConstDef.CD_SMTP_SERVICE_HOST));
+//						
+//						break;
+//					case CoConstDef.CD_SMTP_EMAIL_ADDRESS:
+//						c.setCdDtlExp((String) smtpDetailMap.get(CoConstDef.CD_SMTP_EMAIL_ADDRESS));
+//						
+//						break;
+//					case CoConstDef.CD_SMTP_SERVICE_PORT:
+//						c.setCdDtlExp((String) smtpDetailMap.get(CoConstDef.CD_SMTP_SERVICE_PORT));
+//						
+//						break;
+//					case CoConstDef.CD_SMTP_SERVICE_ENCODING:
+//						c.setCdDtlExp((String) smtpDetailMap.get(CoConstDef.CD_SMTP_SERVICE_ENCODING));
+//						
+//						break;
+//					case CoConstDef.CD_SMTP_SERVICE_USERNAME:
+//						c.setCdDtlExp((String) smtpDetailMap.get(CoConstDef.CD_SMTP_SERVICE_USERNAME));
+//						
+//						break;
+//					case CoConstDef.CD_SMTP_SERVICE_PASSWORD:
+//						String _pw = (String) smtpDetailMap.get(CoConstDef.CD_SMTP_SERVICE_PASSWORD);
+//						if (!StringUtil.isEmpty(_pw)) {
+//							String _encPw = null;
+//							try {
+//								_encPw = CryptUtil.encryptAES256(_pw, CoConstDef.ENCRYPT_DEFAULT_SALT_KEY);
+//							} catch (Exception e) {
+//								log.error(e.getMessage());
+//							}
+//							if (!StringUtil.isEmpty(_encPw)) {
+//								c.setCdDtlExp(_encPw);
+//							}
+//						}
+//						break;
+//				}
+//				
+//				return c;
+//			}).collect(Collectors.toList());
+//
+//			codeService.setCodeDetails(smtpAuthList, CoConstDef.CD_SMTP_SETTING);
+//		}
 
 		// External Service setting
-		Map<String, Object> tokenDetailMap = (Map<String, Object>) configurationMap.get("externalServiceDetail");
-
-		if(tokenDetailMap != null) {
-			tokenAuthList.stream().map(c -> {
-				switch (c.getCdDtlNo()) {
-					case CoConstDef.CD_DTL_GITHUB_TOKEN:
-						String token = (String) tokenDetailMap.get(CoConstDef.CD_DTL_GITHUB_TOKEN);
-						if(!token.isEmpty()) {
-							c.setCdDtlExp(token);
-						}
-						break;
-				}
-
-				return c;
-			}).collect(Collectors.toList());
-
-			codeService.setCodeDetails(tokenAuthList, CoConstDef.CD_EXTERNAL_SERVICE_SETTING);
-		}
+//		Map<String, Object> tokenDetailMap = (Map<String, Object>) configurationMap.get("externalServiceDetail");
+//
+//		if (tokenDetailMap != null) {
+//			tokenAuthList.stream().map(c -> {
+//				switch (c.getCdDtlNo()) {
+//					case CoConstDef.CD_DTL_GITHUB_TOKEN:
+//						String token = (String) tokenDetailMap.get(CoConstDef.CD_DTL_GITHUB_TOKEN);
+//						if (!token.isEmpty()) {
+//							c.setCdDtlExp(token);
+//						}
+//						break;
+//				}
+//
+//				return c;
+//			}).collect(Collectors.toList());
+//
+//			codeService.setCodeDetails(tokenAuthList, CoConstDef.CD_EXTERNAL_SERVICE_SETTING);
+//		}
 
 		// External Analysis detail setting
 		Map<String, Object> externalAnalysisDetailMap = (Map<String, Object>) configurationMap.get("externalAnalysisDetail");
 
-		if(externalAnalysisDetailMap != null) {
+		if (externalAnalysisDetailMap != null) {
 			externalAnalysisAuthList.stream().map(c -> {
 				switch(c.getCdDtlNo()) {
 
@@ -234,7 +232,7 @@ public class SystemConfigurationServiceImpl extends CoTopComponent implements Sy
 		
 		Map<String, Object> projectDetailMap = (Map<String, Object>) configurationMap.get("projectDetail");
 		
-		if(projectDetailMap != null) {
+		if (projectDetailMap != null) {
 			projectDetailList.stream().map(c -> {
 				switch(c.getCdDtlNo()) {
 					case CoConstDef.CD_AUTO_ANALYSIS_FLAG:
@@ -260,7 +258,7 @@ public class SystemConfigurationServiceImpl extends CoTopComponent implements Sy
 		
 		Map<String, Object> noticeDetailMap = (Map<String, Object>) configurationMap.get("noticeDetail");
 		
-		if(noticeDetailMap != null) {
+		if (noticeDetailMap != null) {
 			noticeDetailList.stream().map(c -> {
 				switch(c.getCdDtlNo()) {
 					case CoConstDef.CD_DTL_NOTICE_HTML:
@@ -286,10 +284,10 @@ public class SystemConfigurationServiceImpl extends CoTopComponent implements Sy
 		Map<String, Object> externalDetailMap = (Map<String, Object>) configurationMap.get("externalDetail");
 		List<T2CodeDtl> externalList = new ArrayList<T2CodeDtl>();
 		
-		if(externalDetailMap != null) {
+		if (externalDetailMap != null) {
 			int seq = 1;
 			
-			for(String key : externalDetailMap.keySet()) {
+			for (String key : externalDetailMap.keySet()) {
 				T2CodeDtl externalItem = new T2CodeDtl();
 				Map<String, Object> value = (Map<String, Object>) externalDetailMap.get((String) key);
 				

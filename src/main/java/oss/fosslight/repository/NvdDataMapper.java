@@ -37,7 +37,7 @@ public interface NvdDataMapper {
 	void deleteNvdDataTempV3();
 	int getProducVerCnt();
 	List<Map<String, Object>> getProducVerList(@Param(value = "pageIdx")int pageIdx, @Param(value = "pageCnt")int pageCnt);
-	public Map<String, Object> getMaxScoreProductVer(@Param(value = "ossName")String ossName, @Param(value = "ossVersion")String ossVersion);
+	public Map<String, Object> getMaxScoreProductVer(@Param(value = "ossName")String ossName, @Param(value = "ossVersion")String ossVersion, @Param(value = "vendor")String vendor);
 	void insertNvdDataListTempV3(List<Map<String, Object>> params);
 	void deleteNvdDataScoreV3();
 	void insertNvdDataScoreV3();
@@ -46,6 +46,7 @@ public interface NvdDataMapper {
 	int selectMaxCvssScoreNvdDataScoreV3();
 	void insertMaxCvssScoreNvdDataScoreV3();
 	int ossNameNickNameCvssScoreDiffCnt();
+	int ossNameToNickMgrtCvssScoreDiffCnt();
 	void ossNameToNickNameMgrtCvssScore();
 	void nickNameToOssNameMgrtCvssScore();
 	void insertCpeMatchData(Map<String, Object> params);
@@ -58,4 +59,20 @@ public interface NvdDataMapper {
 	void truncateCpeMatchNameTemp();
 	void copyNvdDataMatchFromTemp();
 	void copyNvdDataMatchNameFromTemp();
+	int selectVendorProductNvdDataV3Cnt();
+	void updateVendorProductNvdDataV3();
+	int selectVendorProductNvdDataScoreV3Cnt();
+	void updateVendorProductNvdDataScoreV3();
+	void insertNewMetaDataUrlConnection(HashMap<String, Object> param);
+	List<Map<String, Object>> selectUseMetaDataUrlConnection(HashMap<String, Object> param);
+	void insertNvdDataPatchLink(Map<String, Object> param);
+	void deleteNvdDataPatchLink(@Param(value = "cveId") String cveId);
+	int selectNvdCpeMatch(@Param(value = "matchCriteriaId") String matchCriteriaId);
+	void deleteNvdCpeMatch(@Param(value = "matchCriteriaId") String matchCriteriaId);
+	void deleteNvdCpeMatchNames(@Param(value = "matchCriteriaId") String matchCriteriaId);
+	void insertNvdDataConfigurationsTemp(Map<String, String> param);
+	void truncateNvdDataConfigurations();
+	void copyNvdDataConfigurationsFromTemp();
+	void truncateNvdDataConfigurationsTemp();
+	void deleteNvdDataConfigurations(Map<String, String> param);
 }

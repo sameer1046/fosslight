@@ -30,7 +30,7 @@
 							#if( $contentsSubTitle )
 								<p style="font-size:12px;">$contentsSubTitle</p>
 							#end
-								#if($comment && $comment != "" && ($mailType == "51" || $mailType == "50" || $mailType == "40" || $mailType == "41" || $mailType == "68" || $mailType == "38" || $mailType == "33" || $mailType == "46"))
+								#if($comment && $comment != "" && ($mailType == "51" || $mailType == "50" || $mailType == "40" || $mailType == "41" || $mailType == "68" || $mailType == "38" || $mailType == "33" || $mailType == "46" || $mailType == "100"))
 									<h2 style="margin:0;padding:25px 10px 0;font-size:16px;">Comment</h2>
 									<div style="padding:10px;font-size:12px;">$!comment</div>
 								#end
@@ -139,10 +139,6 @@
 										<td style="padding:5px;">$!distribution_info.distributeMasterCategory</td>
 									</tr>
 									<tr>
-										<th align="left" style="padding:5px;background:#f0f0f0;">Software / Model</th>
-										<td style="padding:5px;">$!distribution_info.distributeSoftwareType</td>
-									</tr>
-									<tr>
 										<th align="left" style="padding:5px;background:#f0f0f0;">Distribution Site</th>
 										<td style="padding:5px;">$!distribution_info.distributeTarget</td>
 									</tr>
@@ -247,7 +243,7 @@
 								#end
 								
 								<br />
-								#if($comment && $comment != "" && $mailType != "51" && $mailType != "50" && $mailType != "40" && $mailType != "41" && $mailType != "68" && $mailType != "38" && $mailType != "33" && $mailType != "46")
+								#if($comment && $comment != "" && $mailType != "51" && $mailType != "50" && $mailType != "40" && $mailType != "41" && $mailType != "68" && $mailType != "38" && $mailType != "33" && $mailType != "46" && $mailType != "100")
 									<h2 style="margin:0;padding:25px 10px 0;font-size:16px;">Comment</h2>
 									<div style="padding:10px;font-size:12px;">$!comment</div>
 								#end

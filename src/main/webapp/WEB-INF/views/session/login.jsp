@@ -1,27 +1,10 @@
-<%@ page language="java" contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ include file="/WEB-INF/constants.jsp"%>
 <!DOCTYPE html>
 <html>
 	<head>
-<!-- 		<meta http-equiv="content-type" content="text/html; charset=UTF-8"> -->
-		<meta charset="utf-8" />
-		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-		<title>FOSSLight Hub</title>
-		<%@ include file="/WEB-INF/constants.jsp"%>
-<%-- Add script --%>
-<link rel="stylesheet" type="text/css" href="${ctxPath}/css/jquery-ui.css">
-<link rel="stylesheet" type="text/css" href="${ctxPath}/css/common.css?${cssVersion}" />
-<script type="text/javascript" src="${ctxPath}/js/jquery-1.11.0.min.js"></script>
-<script type="text/javascript" src="${ctxPath}/js/jquery-migrate-1.2.1.min.js"></script>
-<script type="text/javascript" src="${ctxPath}/js/jquery-ui.min.js"></script>
-
-<script type="text/javascript" src="${ctxPath}/js/jquery.form.min.js"></script>
-<script type="text/javascript" src="${ctxPath}/js/basic.js?${jsVersion}"></script>
-
-<!-- alertify -->
-<script type="text/javascript" src="${ctxPath}/js/alertifyjs/alertify.min.js"></script>
-
-<link rel="stylesheet" type="text/css" href="${ctxPath}/js/alertifyjs/css/alertify.min.css" />
-<link rel="stylesheet" type="text/css" href="${ctxPath}/js/alertifyjs/css/themes/default.min.css" />
+		<tiles:insertAttribute name="meta" />
+		<tiles:insertAttribute name="scripts" />
+		<script type="text/javascript" src="${ctxPath}/js/ckeditor/ckeditor.js?${jsVersion}"></script>
 		<script>
 			if (top.location!= self.location) {
 			   top.location = self.location.href;
@@ -30,8 +13,9 @@
 			var etcDomain = "${ct:getConstDef('CD_DTL_ECT_DOMAIN')}";
 			
 			$(document).ready(function() {
-				$("#okRegister, #btnCancel, #btn_login, #btnRegist").css("cursor", "pointer");
+				$("#okRegister, #btnRegistCancel, #btn_login, #btnRegist, #btnResetPwd, #okResetPwd, #btnResetPwdCancel").css("cursor", "pointer");
 				$(".registArea").css("display", "none");
+				$(".resetPwdArea").css("display", "none");
 				var ldapFlag = "${ct:getCodeExpString(ct:getConstDef('CD_SYSTEM_SETTING'), ct:getConstDef('CD_LDAP_USED_FLAG'))}";
 				if(ldapFlag === 'Y') {
 					$('#btnRegist').hide();
@@ -41,10 +25,20 @@
 					$('.registArea').show();
 				});// registArea show
 				
-				$('#btnCancel').click(function(){
+				$('#btnRegistCancel').click(function(){
 					$('.registArea').hide();
 					$(".loginArea").show();
 				}); // registArea hide
+
+				$('#btnResetPwd').click(function() {
+					$(".loginArea").hide();
+					$('.resetPwdArea').show();
+				}); // resetPwdArea show
+
+				$('#btnResetPwdCancel').click(function() {
+					$('.resetPwdArea').hide();
+					$(".loginArea").show();
+				}); // resetPwdArea hide
 				
 				$("#btn_login").click(function() {
 					excSubmit();
@@ -58,6 +52,12 @@
 						$("#email").val($("#emailTemp").val());
 					}
 					registSubmit();
+				});
+
+				$('#okResetPwd').click(function(){
+					if(validResetPassword()) {
+						resetPasswordSubmit();
+					}
 				});
 				
 				// error message hide 처리
@@ -164,7 +164,34 @@
 					error : onError
 				});
 			};
-			
+
+			function resetPasswordSubmit() {
+				$.ajax({
+					url :'<c:url value="/system/user/resetPassword"/>',
+					type : 'POST',
+					data: JSON.stringify({'userId' : $('#resetPwdForm #userId').val(), 'email' : $('#resetPwdForm #email').val()}),
+					dataType: "json",
+					contentType: "application/json; charset=utf-8",
+					cache : false,
+					success: onResetPasswordSuccess,
+					error : onError
+				});
+			}
+
+			function validResetPassword() {
+				if ($('#resetPwdForm #userId').isValueEmpty()) {
+					$('#resetPwdForm #userIdRequired').show();
+					return false;
+				}
+
+				if ($('#resetPwdForm #email').isValueEmpty()) {
+					$('#resetPwdForm #emailRequired').show();
+					return false;
+				}
+
+				return true;
+			}
+
             function onSuccess(json, status){
                 if(json.response.error) {
                     alertify.error(json.response.message, 0);
@@ -214,6 +241,23 @@
   	  				});
   				}
   			};
+
+			function onResetPasswordSuccess(data, status) {
+				if (data.resCd == '10') {
+					alertify.alert('<spring:message code="msg.login.resetPassword.success" />', function(){
+						location.reload();
+					});
+				} else if (data.resCd == '21') {
+					alertify.alert('<spring:message code="msg.login.resetPassword.failureToFindUser" />', function(){
+						location.reload();
+					});
+				}
+				else {
+					alertify.alert('<spring:message code="msg.common.valid2" />', function () {
+						location.reload();
+					});
+				}
+			}
 
 			function onError(data, status){
                 alertify.error('<spring:message code="msg.common.valid2" />', 0);
@@ -278,6 +322,9 @@
         </script>
     </head>
     <body id="login_before">
+		<!-- Notice -->
+		<div class="pops" style="width: 600px;">
+		</div>
     	<!-- Login -->
 		<div id="login" class="loginArea">
 			<div class="back">
@@ -299,13 +346,14 @@
 								<input type="button" value="LOGIN" class="btnlogin" id="btn_login" />
 								<span class="joinGo">
 									<span class="checkSet"><input type="checkbox" id="saveID" /><label for="saveID">SAVE ID</label></span>
-									<strong><a class="btnRegist" id="btnRegist">SignUp</a></strong>
+									<span class="options">
+										<strong><a class="btnRegist" id="btnRegist">SignUp</a></strong>
+										<strong><a class="btnRegist" id="btnResetPwd">Reset Password</a></strong>
+									</span>
 								</span>
 							</form>
 						</div>
 					</fieldset>
-					<!------------>
-					<p><spring:message code="msg.login.description.forgot.pw" /></p>
 				</div>
 			</div>
 		</div>
@@ -361,7 +409,7 @@
 								</dl>
 								<span class="joinBtn">
 									<input type="button" value="SIGN UP" class="btnlogin" id="okRegister" />
-									<input type="button" value="CANCEL" class="btnJoinCanel" id="btnCancel" />
+									<input type="button" value="CANCEL" class="btnJoinCanel" id="btnRegistCancel" />
 								</span>
 							</form>
 						</div>
@@ -371,6 +419,145 @@
 			</div>
 		</div>
 		<!-- //Login -->
-        <div id="blind_wrap"></div>
+		<!-- Login -->
+		<div id="login" class="resetPwdArea">
+			<div class="back">
+				<div class="box joinCase">
+					<fieldset>
+						<div>
+							<h1><img src="../images/img_login_logo2.png" alt="FOSSLIGHT" /><br/>RESET PASSWORD</h1>
+							<form id="resetPwdForm">
+								<dl>
+									<dt><label>ID</label></dt>
+									<dd class="required">
+										<input type="text" id="userId" name="userId" placeholder="foss.kim"/>
+										<div id="userIdRequired" class="retxt" style="display: none">Required</div>
+									</dd>
+									<dt><label>e-mail</label></dt>
+									<dd class="required">
+										<input type="email" id="email" name="email" value=""/>
+										<div id="emailRequired" class="retxt" style="display: none">Required</div>
+									</dd>
+								</dl>
+								<span class="joinBtn">
+									<input type="button" value="Reset Password" class="btnlogin" id="okResetPwd" />
+									<input type="button" value="CANCEL" class="btnJoinCanel" id="btnResetPwdCancel" />
+								</span>
+							</form>
+						</div>
+					</fieldset>
+					<!------------>
+				</div>
+			</div>
+		</div>
+		<!-- //Login -->
     </body>
+	<script>
+		$.ajax({
+			url: '<c:url value="/system/notice/getPublishedNotice"/>',
+			type: "GET",
+			success: function (data) {
+				if (data.noticeList) {
+					for (var i = 0; i < data.noticeList.length; i++) {
+						var seq = data.noticeList[i].seq;
+						var title = data.noticeList[i].title;
+						var notice = data.noticeList[i].notice;
+
+						if (getCookie("noticeYn_" + seq) != "N") {
+							addPopup(title, notice, seq);
+						}
+					}
+				}
+			},
+			error: function () {
+			}
+		});
+
+		function addPopup(title, content, seq) {
+			var popRegistPop = createPopRegistPop();
+			var popData = createPopData();
+			var noticeTitle = createNoticeTitle();
+			var noticeContent = createNoticeContent();
+			var checkboxLabel = createCheckboxLabel();
+			var okButton = createOkButton();
+			appendChild();
+
+			CKEDITOR.replace('noticeEdit_' + seq, {
+				customConfig: '<c:url value="/js/customEditorConf_Comment.js"/>'
+			});
+
+			okButton.addEventListener("click", function () {
+				var checkbox = document.getElementById("chkday_" + seq);
+				if (checkbox.checked) {
+					setCookie("noticeYn_" + seq, "N", 1);
+				}
+
+				popRegistPop.style.display = "none";
+			});
+
+			popRegistPop.style.display = "block";
+
+			function createPopRegistPop() {
+				var popRegistPop = document.createElement("div");
+				popRegistPop.classList.add("pop", "registPop");
+				popRegistPop.style.width = "600px";
+				popRegistPop.style.position = "absolute";
+				return popRegistPop;
+			}
+
+			function createPopData() {
+				var popData = document.createElement("div");
+				popData.className = "popdata";
+				popData.style.padding = "10px 10px 10px";
+				return popData;
+			}
+
+			function createNoticeTitle() {
+				var noticeTitle = document.createElement("div");
+				noticeTitle.id = "noticeTitle";
+				noticeTitle.style.textAlign = "center";
+				noticeTitle.style.fontSize = "12pt";
+				noticeTitle.style.fontWeight = "bold";
+				noticeTitle.style.paddingBottom = "15px";
+				noticeTitle.innerHTML = "[Notice] " + title;
+				return noticeTitle;
+			}
+
+			function createNoticeContent() {
+				var noticeContent = document.createElement("div");
+				noticeContent.id = "noticeContent";;
+				noticeContent.innerHTML = '<div id="noticeEdit_' + seq + '" style="width:300px; height:150px;">' + content + '</div>';
+				return noticeContent;
+			}
+
+			function createCheckboxLabel() {
+				var checkboxLabel = document.createElement("label");
+				checkboxLabel.htmlFor = "chkday_" + seq;
+				checkboxLabel.innerHTML = '<input type="checkbox" value="checkbox" name="chkbox" id="chkday_' + seq + '" />&nbsp;Do not show this message again';
+				return checkboxLabel;
+			}
+
+			function createOkButton() {
+				var okButton = document.createElement("input");
+				okButton.id = "btnNotice";
+				okButton.type = "button";
+				okButton.value = "OK";
+				okButton.className = "okRegister";
+				okButton.style.height = "40px";
+				okButton.style.cursor = "pointer";
+				return okButton;
+			}
+
+			function appendChild() {
+				popData.appendChild(noticeTitle);
+				popData.appendChild(noticeContent);
+				popData.appendChild(checkboxLabel);
+				popData.appendChild(okButton);
+				popRegistPop.appendChild(popData);
+
+				var pops = document.querySelector(".pops");
+				pops.appendChild(popRegistPop);
+			}
+		}
+	</script>
 </html>

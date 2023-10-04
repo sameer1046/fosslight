@@ -81,6 +81,8 @@ public interface ProjectMapper {
 	
 	List<Project> getProjectNameList(Project project);
 	
+	List<Project> getProjectIdList(Project project);
+	
 	List<Project> getProjectModelNameList();
 	
 	List<OssComponents> selectComponentId(ProjectIdentification prj);
@@ -93,8 +95,8 @@ public interface ProjectMapper {
 
 	void updateFileId(Project project);
 
-	List<T2File> selectCsvFile(Project project);
-
+	List<T2File> selectCsvFile(@Param("csvFileId") String csvFileId);
+	
 	void deleteFileBySeq(T2File file);
 
 	List<T2File> selectAndroidCsvFile(Project project);
@@ -215,6 +217,8 @@ public interface ProjectMapper {
 
 	void updateComponentsLicenseInfo(Project project);
 
+	void deleteOssNotice(String prjId);
+	
 	void makeOssNotice(OssNotice noticeParam);
 
 	Map<String, Object> getNoticeType(String prjId);
@@ -238,6 +242,8 @@ public interface ProjectMapper {
 	List<T2File> selectFileInfoById(String fileId);
 
 	void updateComponentsOssInfo(Project project);
+
+	void updateComponentsCopyrightInfo(ProjectIdentification projectIdentification);
 
 	void updateWithoutVerifyYn(OssNotice ossNotice);
 	
@@ -295,8 +301,10 @@ public interface ProjectMapper {
 	
 	int existsAddList(Project project);
 
-	OssMaster findIdentificationMaxNvdInfo(@Param("prjId")String prjId, @Param("commponentDiv")String commponentDiv);
+	List<String> findIdentificationMaxNvdInfo(@Param("prjId")String prjId, @Param("commponentDiv")String commponentDiv);
 
+	List<String> findIdentificationMaxNvdInfoForVendorProduct(@Param("prjId")String prjId, @Param("commponentDiv")String commponentDiv);
+	
 	int selectOssComponentMaxIdx(Project project);
 	
 	Project getProjectBasicInfo(Project project);
@@ -340,4 +348,38 @@ public interface ProjectMapper {
 	void updateConfirmCopyVerificationDestributionStatus(Project project);
 
 	void updateProjectDivision(Project project);
+	
+	void deleteProjectDistributeHis(Project project);
+	
+	List<OssComponentsLicense> selectBomLicenseList(ProjectIdentification identification);
+	
+	void deleteSecurityData(OssComponents ossComponents);
+	
+	void insertSecurityData(OssComponents ossComponents);
+
+	List<OssComponents> getSecurityDataList(ProjectIdentification identification);
+
+	int existsWatcherByUserDivistion(Project project);
+
+	void updateWatcherDivision(Project project);
+
+	void updateCveInfoForNotFixedOssInfo(OssMaster ossMaster);
+
+	List<String> selectVulnInfoForIdentification(@Param("vendorProduct")String vendorProduct, @Param("version")String version);
+	
+	int getSecurityDataCntByProject(Project project);
+	
+	public List<OssComponents> selectOssComponentsSbomList(ProjectIdentification identification);
+
+	public List<OssComponents> selectOssComponentsListClassAppend(ProjectIdentification identification);
+
+	List<OssComponents> selectVulnerabilityResolutionSecurityList(Project project);
+
+	int copySecurityDataForProjectCnt(Project project);
+
+	void copySecurityDataForProject(Project project);
+	
+	List<OssComponents> checkSelectDownloadFile(Project project);
+
+	List<OssComponents> getDependenciesDataList(Project project);
 }

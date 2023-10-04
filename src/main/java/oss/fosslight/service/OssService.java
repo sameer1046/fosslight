@@ -9,14 +9,17 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
-import com.github.jsonldjava.utils.Obj;
 import oss.fosslight.config.HistoryConfig;
-import oss.fosslight.domain.*;
+import oss.fosslight.domain.OssAnalysis;
+import oss.fosslight.domain.OssLicense;
+import oss.fosslight.domain.OssMaster;
+import oss.fosslight.domain.ProjectIdentification;
+import oss.fosslight.domain.Vulnerability;
 
 public interface OssService extends HistoryConfig{
 	String registOssMaster(OssMaster ossMaster);
 	
-	int deleteOssMaster(OssMaster ossMaster);
+	void deleteOssMaster(OssMaster ossMaster);
 	
 	Map<String,Object> getOssMasterList(OssMaster ossMaster);
 	
@@ -58,7 +61,7 @@ public interface OssService extends HistoryConfig{
 	
 	OssMaster getLastModifiedOssInfoByName(OssMaster bean);
 	
-	String checkVdiff(Map<String, Object> reqMap);
+	Map<String, Object> checkVdiff(Map<String, Object> reqMap);
 	
 	String[] checkNickNameRegOss(String ossName, String[] ossNicknames);
 	
@@ -131,4 +134,10 @@ public interface OssService extends HistoryConfig{
 	Map<String, Object> getOssDataMap(String gridId, boolean status, String msg);
 	
 	Map<String, Object> saveOssURLNickname(ProjectIdentification paramBean);
+
+	List<String> selectVulnInfoForOss(OssMaster ossMaster);
+
+	List<String> checkExistsVendorProductMatchOss(OssMaster ossMaster);
+
+	int checkOssVersionDiff(String ossName);
 }

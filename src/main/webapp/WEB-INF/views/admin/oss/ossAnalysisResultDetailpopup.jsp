@@ -109,7 +109,7 @@
 					if(licenseName != ''){
 						var cloneData = common_data.detectLicenseClone.split("autoComOssLicense1").join("autoComOssLicense"+seq); // autoComplete 기능으로 인해 cloneData를 별도로 가공함.
 						$(cloneData).appendTo('.detailDetectedLicense'+seq);
-						$(".detailDetectedLicense"+seq+" input[type=text]:last").val(licenseName);
+						$(".detailDetectedLicense"+seq+" input[type=text]:last").val(licenseName.trim());
 						
 						grid_fn.setCustomAutoComplete('single', '', seq);
 						
@@ -119,6 +119,14 @@
 					}
 				});
 
+				if(selectData.downloadLocation){
+					Ctrl_fn.urlDuplication($("#ossForm"+seq+" input[name=downloadLocations]"));
+				}
+				
+				if(selectData.homepage){
+					Ctrl_fn.homepageDuplication($("#ossForm"+seq+" input[name=homepage]"));
+				}
+				
 				var replaceLicenseData = selectData.licenseName.replace(/\,/gi, ' AND ');
 				var licenseData = replaceLicenseData.split(/\s(?=AND|OR)/g);
 				var licenseDiv = licenseData.length > 1 ? "M" : "S";
@@ -422,8 +430,15 @@
 		            cache : false,
 			        success : function(json) {
 			        	if(json.externalData2) {
-				        	$(target).parent().next("span.urltxt").empty();
-							$(target).parent().next("span.urltxt").html(json.externalData2.downloadLocation).show();
+			        		if (typeof json.externalData2.downloadLocation !== 'undefined') {
+			        			var downloadLocationHtml = json.externalData2.downloadLocation;
+				        		if (downloadLocationHtml.indexOf("createTabInFrame") > -1) {
+				        			downloadLocationHtml = downloadLocationHtml.replaceAll("createTabInFrame", "Ctrl_fn.loadUrl");
+				        		}
+				        		
+				        		$(target).parent().next("span.urltxt").empty();
+								$(target).parent().next("span.urltxt").html(downloadLocationHtml).show();
+			        		}
 			        	} else {
 				        	$(target).parent().next("span.urltxt").empty();
 			        	}
@@ -493,14 +508,24 @@
 		            cache : false,
 			        success : function(json) {
 			        	if(json.externalData2) {
-							$(target).next("span.urltxt").empty();
-							$(target).next("span.urltxt").html(json.externalData2.homepage).show();
+			        		if (typeof json.externalData2.homepage !== 'undefined') {
+			        			var homepageHtml = json.externalData2.homepage;
+				        		if (homepageHtml.indexOf("createTabInFrame") > -1) {
+				        			homepageHtml = homepageHtml.replaceAll("createTabInFrame", "Ctrl_fn.loadUrl");
+				        		}
+				        		
+								$(target).next("span.urltxt").empty();
+								$(target).next("span.urltxt").html(homepageHtml).show();
+			        		}
 			        	} else {
 							$(target).next("span.urltxt").empty();
 			        	}
 			        },
 		            error : Ctrl_fn.onError
 			    }).submit();
+			},
+			loadUrl : function (target, url) {
+				window.opener.opener.bom_fn.loadAnalysisUrl(target, url);
 			},
 			onSuccess : function(){},
 			onError : function(data, status){
@@ -750,6 +775,33 @@
 							return false;
 						}
 					
+						var gridParam = $('#_licenseChoice'+seq).jqGrid('getGridParam', 'data');
+						var checkLicenses = [];
+						if (gridParam.length > 0) {
+							$.each(gridParam, function(index, element){
+								checkLicenses.push(element.licenseNameEx);
+							});
+						}
+						
+						var duplicatedLicenseFlag = true;
+						if (checkLicenses.length > 0) {
+							$.each(checkLicenses, function(index, element){
+								$(".autoComOssLicense"+seq).each(function() {
+									var detectedLicense = $(this).val();
+									if (detectedLicense && element == detectedLicense) {
+				 	 					$(this).parent().next("span.retxt").html("License included in Declared").show();
+				 	 					duplicatedLicenseFlag = false;
+				 	 					return true;
+				 	 				}
+								});
+							});
+						}
+						
+						if (!duplicatedLicenseFlag) {
+				 			alertify.error("License included in Declared", 0);
+				 			return false;
+				 		}
+						
 						alertify.confirm('<spring:message code="msg.common.confirm.save" />', function (e) {
 							if (e) {
 								// 세이브 전 그리드 처리
@@ -845,7 +897,7 @@
 					colModel:[
 						{name:'no', index: 'ossLicenseIdx', width:18, hidden:true},
 						{name:'ossLicenseIdx', index: 'ossLicenseIdx', width:18, key:true, hidden:true},
-						{name:'ossLicenseComb',index:'ossLicenseComb', width:40, align:"center", sortable:false, editable:true, edittype:"select", editoptions:{value:"AND:AND;OR:OR;WITH:WITH", dataEvents:[{type:'change', fn:grid_fn.changeLicenseType(_target, seq)}]}},
+						{name:'ossLicenseComb',index:'ossLicenseComb', width:40, align:"center", sortable:false, editable:true, edittype:"select", editoptions:{value:"AND:AND;OR:OR", dataEvents:[{type:'change', fn:grid_fn.changeLicenseType(_target, seq)}]}},
 						{name:'licenseNameEx',index:'licenseNameEx', width:100, editable:true
 							, editoptions: {
 								dataInit: function (elem) {

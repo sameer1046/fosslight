@@ -223,15 +223,21 @@ $(document).ready(function (){
 			tabs = $(this).closest(".ui-tabs"),
 			panel = tabs.children().eq(index + 1),
 			tabLink = parent.find("a").attr("href");
+		var i = index-1;
+		var iframeDiv = "div:eq(" + i+ ")";
+		if($(".contents").children(iframeDiv).find("iframe").contents().find("#loading_wrap").css("display") == "block") {
+			alertify.alert('Work in progress now. You cannot close the tab.', function (e) {});
+		} else {
 			$(tabLink).remove();
 			parent.remove();
 			panel.remove();
-			
-		if(lastTab > selectTab) lastTab--;
-			
-		$("#nav-tabs").tabs("refresh").tabs('option', 'active', lastTab > -1 ? lastTab : 0 );
-		
-		selectTab = lastTab;
+
+			if(lastTab > selectTab) lastTab--;
+
+			$("#nav-tabs").tabs("refresh").tabs('option', 'active', lastTab > -1 ? lastTab : 0 );
+
+			selectTab = lastTab;
+		}
 	});
 	
 	/* tab click event */
@@ -828,19 +834,19 @@ function createValidMsgComplex(msgData){
 				var targetId = seqSuffix[1] + "_" + seqSuffix[0];
 				
 				if(seqSuffix[0]=='licenseNicknames'){
-					$('input[name=licenseNicknames]:eq('+(Number(seqSuffix[1])-1)+')').parent().next("span.retxt").html(value).show();
+					$('input[name=licenseNicknames]:eq('+(Number(seqSuffix[1])-1)+')').focus().parent().next("span.retxt").html(value).show();
 				}
 				
 				if($('input[id='+targetId+']').length > 0) {
-					$('input[id='+targetId+']').after(makeErrMsg(value)).show();
+					$('input[id='+targetId+']').focus().after(makeErrMsg(value)).show();
 				} else if($('textarea[id='+targetId+']').length > 0) {
-					$('textarea[id='+targetId+']').after(makeErrMsg(value)).show();
+					$('textarea[id='+targetId+']').focus().after(makeErrMsg(value)).show();
 				} else if($('select[id='+targetId+']').length > 0) {
-					$('select[id='+targetId+']').after(makeErrMsg(value)).show();
+					$('select[id='+targetId+']').focus().after(makeErrMsg(value)).show();
 				}
 			} else {
 				if(key == 'licenseNicknames'){
-					$('input[name=licenseNicknames]').parent().next("span.retxt").html(value).show();
+					$('input[name=licenseNicknames]').focus().parent().next("span.retxt").html(value).show();
 				}
 
 				if(key == 'validMsgModelList') {
@@ -848,11 +854,11 @@ function createValidMsgComplex(msgData){
 				}
 				
 				if($('input[name='+key+']').length > 0) {
-					$('input[name='+key+']').next("span.retxt,div.retxt").html(value).show();
+					$('input[name='+key+']').focus().next("span.retxt,div.retxt").html(value).show();
 				} else if($('textarea[name='+key+']').length > 0) {
-					$('textarea[name='+key+']').next("span.retxt,div.retxt").html(value).show();
+					$('textarea[name='+key+']').focus().next("span.retxt,div.retxt").html(value).show();
 				} else if($('select[name='+key+']').length > 0) {
-					$('select[name='+key+']').parent().siblings("span.retxt,div.retxt").html(value).show();
+					$('select[name='+key+']').focus().parent().siblings("span.retxt,div.retxt").html(value).show();
 				}
 			}
 		}
@@ -923,6 +929,9 @@ var commonAjax = {
 	getProjectNameConfTags : function(data){
 		return fnBasicAjaxData(data, "/project/autoCompleteAjax?identificationStatus=CONF");
 	},
+	getProjectIdConfTags : function(data){
+		return fnBasicAjaxData(data, "/project/autoCompleteIdAjax");
+	},
 	getProjectVersionTags : function(data){
 		return fnBasicAjaxData(data, "/project/autoCompleteVersionAjax");
 	},
@@ -936,6 +945,9 @@ var commonAjax = {
 	//partner confirmed
 	getPartnerConfNmTags : function(data){
 		return fnBasicAjaxData(data, "/partner/autoCompleteConfNmAjax");
+	},
+	getPartnerConfIdTags : function(data){
+		return fnBasicAjaxData(data, "/partner/autoCompleteConfIdAjax");
 	},
 	getPartnerSwNmTags : function(data){
 		return fnBasicAjaxData(data, "/partner/autoCompleteSwNmAjax");
@@ -995,14 +1007,25 @@ function fnBasicAjaxData(data, url) {
 	return $.ajax({	type: 'GET',url:CTX_PATH+url,data:data,headers: {'Content-Type': 'application/json'}});
 }
 
+function xssPreventerUnescape(data){
+	var unescapeData = data;
+	if (unescapeData.indexOf("&amp;") > -1){
+		unescapeData = unescapeData.replace("&amp;", "&");
+	}
+	if (unescapeData.indexOf("&quot;") > -1) {
+		unescapeData = unescapeData.replace("&quot;", "\"");
+	}
+	return unescapeData;
+}
+
 var autoComplete = {
 	licenseTags:[],
 	licenseLongTags:[],
 	ossTags:[],
 	//project
-	projectNameTags:[], projectNameConfTags:[], projectVersionTags:[],projectModelTags:[],
+	projectNameTags:[], projectNameConfTags:[], projectIdConfTags:[], projectVersionTags:[],projectModelTags:[],
 	//partner
-	partyNameTags:[], partyConfNameTags:[], softwareNameTags:[], softwareConfNameTags:[],softwareVersionTags:[], softwareConfVersionTags:[],
+	partyNameTags:[], partyConfNameTags:[], partyConfIdTags:[], softwareNameTags:[], softwareConfNameTags:[],softwareVersionTags:[], softwareConfVersionTags:[],
 	//binary
 	binaryNameTags:[],binaryConfNameTags:[],binarySwNameTags:[],binarySwNameConfTags:[],binarySwVersionTags:[],binaryDivisionTags:[],
 	//code
@@ -1071,7 +1094,7 @@ var autoComplete = {
 				if(data != null){
 					data.forEach(function(obj){
 						if(obj!=null) {
-							autoComplete.projectNameTags.push(obj.prjName);
+							autoComplete.projectNameTags.push(xssPreventerUnescape(obj.prjName));
 						}
 					})	
 				}
@@ -1096,6 +1119,18 @@ var autoComplete = {
 					data.forEach(function(obj){
 						if(obj!=null) {
 							autoComplete.projectVersionTags.push(obj.prjVersion);
+						}
+					})	
+				}
+			});
+		}
+		
+		if($('.autoComProjectIdConf').length > 0) {
+			commonAjax.getProjectIdConfTags().success(function(data, status, headers, config){
+				if(data != null){
+					data.forEach(function(obj){
+						if(obj!=null) {
+							autoComplete.projectIdConfTags.push(obj.prjId);
 						}
 					})	
 				}
@@ -1131,6 +1166,17 @@ var autoComplete = {
 					data.forEach(function(obj){
 						if(obj!=null) {
 							autoComplete.partyConfNameTags.push(obj.partnerName);
+						}
+					})	
+				}
+			});
+		}
+		if($('.autoComConfPartyId').length > 0) {
+			commonAjax.getPartnerConfIdTags().success(function(data, status, headers, config){
+				if(data != null){
+					data.forEach(function(obj){
+						if(obj!=null) {
+							autoComplete.partyConfIdTags.push(obj.partnerId);
 						}
 					})	
 				}
@@ -1338,6 +1384,9 @@ var autoComplete = {
 	    $(".autoComProjectNmConf").autocomplete({source: autoComplete.projectNameConfTags, minLength: 0,open: function() { $(this).attr('state', 'open'); },close: function () { $(this).attr('state', 'closed'); }})
 	    .focus(function() {if ($(this).attr('state') != 'open') {$(this).autocomplete("search");}});
 
+		$(".autoComProjectIdConf").autocomplete({source: autoComplete.projectIdConfTags, minLength: 0,open: function() { $(this).attr('state', 'open'); },close: function () { $(this).attr('state', 'closed'); }})
+	    .focus(function() {if ($(this).attr('state') != 'open') {$(this).autocomplete("search");}});
+
 	    $(".autoComProjectVersion").autocomplete({source: autoComplete.projectVersionTags, minLength: 0,open: function() { $(this).attr('state', 'open'); },close: function () { $(this).attr('state', 'closed'); }})
 	    .focus(function() {if ($(this).attr('state') != 'open') {$(this).autocomplete("search");}});
 	    
@@ -1348,6 +1397,9 @@ var autoComplete = {
 	    .focus(function() {if ($(this).attr('state') != 'open') {$(this).autocomplete("search");}});
 	    
 	    $(".autoComConfParty").autocomplete({source: autoComplete.partyConfNameTags, minLength: 0,open: function() { $(this).attr('state', 'open'); },close: function () { $(this).attr('state', 'closed'); }})
+	    .focus(function() {if ($(this).attr('state') != 'open') {$(this).autocomplete("search");}});
+	    
+	    $(".autoComConfPartyId").autocomplete({source: autoComplete.partyConfIdTags, minLength: 0,open: function() { $(this).attr('state', 'open'); },close: function () { $(this).attr('state', 'closed'); }})
 	    .focus(function() {if ($(this).attr('state') != 'open') {$(this).autocomplete("search");}});
 	    
 	    $(".autoComSwNm").autocomplete({source: autoComplete.softwareNameTags, minLength: 0,open: function() { $(this).attr('state', 'open'); },close: function () { $(this).attr('state', 'closed'); }})
@@ -1967,7 +2019,7 @@ function moveTabInFrameByCommentPopup(prjId, stage){
 		urlTxt = '#/project/edit/'+prjId;
 	} else if(stage == "identification") {
 		tabIdx = prjId+"_Identify";
-		urlTxt = '#/project/identification/'+prjId+'/4';
+		urlTxt = '#/project/identification/'+prjId+'/5';
 	} else if(stage == "packaging") {
 		tabIdx = prjId+"_Packaging";
 		urlTxt = '#/project/verification/'+prjId;
@@ -2032,7 +2084,7 @@ function getBarChart(obj){
 		};		
 	};
 	
-	return new Highcharts.chart(obj.chartId, {
+	return Highcharts.chart(obj.chartId, {
 		chart: {
 			type: 'column'
 		},

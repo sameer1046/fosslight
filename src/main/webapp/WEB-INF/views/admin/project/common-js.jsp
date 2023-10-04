@@ -21,6 +21,12 @@ var com_evt = {
 			$("#mergeYn").val("Y");
 			
 			Bom_Save_Flg =true;
+			
+			if("REV" == curIdenStatus) {
+				if($("#binaryDB")){
+					$("#binaryDB").show();
+				}
+			}
 		}
 		
 		$('.btnCommentHistory').on('click', function(e){
@@ -78,6 +84,7 @@ var com_evt = {
 							url :'<c:url value="/project/verification/reviewReportAjax?prjId=${project.prjId}"/>',
 							type : 'POST',
 							cache : false,
+                            async : false,
 							success: function(data){
 								loading.hide();
 							},
@@ -254,6 +261,17 @@ var com_evt = {
 			}
 		});
 
+		$("#securityTab").click(function(){
+			var prjId = '${project.prjId}';
+			var idx = getTabIndex(prjId+"_Security");
+			
+			if(idx != ""){
+				changeTabInFrame(idx);
+			}else{
+				createTabInFrame(prjId+'_Security', '#<c:url value="/project/security/'+prjId+'"/>');
+			}
+		});
+		
 		com_fn.saveFlagObject["SRC"] = false;
 		com_fn.saveFlagObject["BIN"] = false;
 		com_fn.saveFlagObject["ANDROID"] = false;
@@ -1280,6 +1298,13 @@ var com_fn = {
         }
 
         if(rowCheckedArr.length > 0){
+        	for (var i in rowCheckedArr) {
+        		var licenseName = com_fn.getLicenseName(gridList.getRowData(rowCheckedArr[i]));
+        		gridList.jqGrid("setCell", rowCheckedArr[i], "licenseName", licenseName);
+				fn_grid_com.saveCellData(gridList.attr("id"), rowCheckedArr[i], "licenseName", licenseName, null, null);
+				gridList.jqGrid('saveRow', rowCheckedArr[i]);
+        	}
+        	
             fn_grid_com.totalGridSaveMode(targetGird);
 
 			var _popup = null;
@@ -1447,6 +1472,77 @@ var com_fn = {
                 alertify.error('<spring:message code="msg.common.valid2" />', 0);
             }
         });
-    }
+    },
+	deleteFiles : function(obj, type){
+		var FileSeq = [];
+		var tabGubn = $(".tabMenu").find("span").text();
+		var seq = $(obj).prev().val();
+		var referenceDiv = "";
+		
+		if(seq == ""){
+			return;
+		}
+		
+		switch(tabGubn.toUpperCase()){
+			case "SRC":		referenceDiv = "11";	break;
+			case "ANDROID":	referenceDiv = "14";	break;
+			case "BIN":		referenceDiv = "15";	break;
+		}
+		
+		var object = {fileSeq : seq};
+		FileSeq.push(object);
+		var Data = {"csvDelFileIds" : JSON.stringify(FileSeq), "prjId" : "${project.prjId}", "referenceDiv" : referenceDiv};
+		
+		$.ajax({
+			url : '<c:url value="/project/deleteFiles"/>',
+			type : 'POST',
+			data : JSON.stringify(Data),
+			dataType : 'json',
+			cache : false,
+			contentType : 'application/json',
+			success: function(data){
+				if("10" == data.resCd){
+					alertify.success('<spring:message code="msg.common.success" />');
+					$(obj).closest('li').remove();
+				}else{
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				}
+			},
+			error: function(data){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+			}
+		});
+	},
+	checkSelectDownloadFile : function (target) {
+		var checkEmptyFlag = false;
+		var referenceDiv = "";
+		var params = {'prjId':'${project.prjId}'};
+		
+		switch(target.toUpperCase()){
+			case "SRC":		referenceDiv = "11";	break;
+			case "BOM":		referenceDiv = "13";	break;
+			case "BIN":		referenceDiv = "15";	break;
+		}
+		
+		$.ajax({
+    		type: "POST",
+			url: '<c:url value="/project/checkSelectDownloadFile/'+referenceDiv+'"/>',
+			data: JSON.stringify(params),
+			dataType : 'json',
+			cache : false,
+			async : false,
+			contentType : 'application/json',
+			success: function (data) {
+				if (data.isValid) {
+					checkEmptyFlag = true;
+				}
+			},
+			error: function(data){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+			}
+    	});
+    	
+    	return checkEmptyFlag;
+	}
 }
 </script>

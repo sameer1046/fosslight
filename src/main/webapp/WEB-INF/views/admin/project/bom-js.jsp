@@ -8,6 +8,14 @@ var groupBuffer='';
 var _popupOssAutoAnalysis = null;
 var ossAnalysisStatus = "${project.ossAnalysisStatus}";
 var analysisStartDate = "${project.analysisStartDate}";
+
+//close exportlist
+$(document).click(function(e){
+	if(!$("#ExportContainer").has(e.target).length) {
+		$("#ExportList").hide();
+	}
+});
+
 var bom_evt = {
 	commentIdx : '${project.commentIdx}',
 	commentTemp : '',
@@ -560,10 +568,33 @@ var bom_fn = {
 			alertify.alert('<spring:message code="msg.project.warn.project.status" />', function(){});
 		}
 	},
-    exportList:function(){
-        var buttonId = event.target.id;
-        var exportListId = "#" + $("#" + buttonId).siblings("div").attr("id");
+	binaryDBSave : function(prjId) {
+		var param = {
+			"prjId" : prjId,
+			"referenceDiv" : "13"
+		};
 
+		$.ajax({
+			url : '<c:url value="${suffixUrl}/project/binaryDBSave"/>',
+			type : 'POST',
+			data : JSON.stringify(param),
+			dataType : 'json',
+			cache : false,
+			contentType : 'application/json',
+			success : function(data){
+				if("false" == data.isValid) {
+					alertify.alert('Nothing to store in Binary DB', function(){});
+				}else{
+					alertify.alert('<spring:message code="msg.common.success" />', function(){});
+				}
+			},
+			error : function(){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+			}
+		});
+    },
+    exportList : function(obj) {
+    	var exportListId = '#' + $(obj).siblings("div").attr("id");
         if ($(exportListId).css('display')=='none') {
             $(exportListId).show();
         }else{
@@ -571,29 +602,144 @@ var bom_fn = {
         }
         $(exportListId).menu();
     },
-    selectDownloadFile : function() {
-        var targetFileId = event.target.id;
-        var parentId = $("#" + targetFileId).closest("div").attr("id")
-
-        // download file
-        if (targetFileId === "report_sub") bom_fn.downloadExcel();
-        else if (targetFileId === "Spreadsheet_sub") spdx_fn.downloadSpdxSpreadSheetExcel();
-        else if (targetFileId === "RDF_sub") spdx_fn.downloadSpdxRdf();
-        else if (targetFileId === "TAG_sub") spdx_fn.downloadSpdxTag();
-        else if (targetFileId === "JSON_sub") spdx_fn.downloadSpdxJson();
-        else if (targetFileId === "YAML_sub") spdx_fn.downloadSpdxYaml();
-
+    selectDownloadFile : function(target) {
+    	// download file
+    	if (target === "report_sub") {
+        	bom_fn.downloadExcel();
+        } else {
+        	var identificationStatus = '${project.identificationStatus}';
+        	if ("CONF" != identificationStatus) {
+        		alertify.confirm('<spring:message code="msg.common.check.sbom.export" />', function (e) {
+    				if (e) {
+    					bom_fn.selectDownloadFileValidation(target);
+    				} else {
+    					return false;
+    				}
+    			});
+        	} else {
+        		bom_fn.selectDownloadFileValidation(target);
+        	}
+        }
+        
         // hide list
-        $("#" + parentId).hide();
-    }
-}
-
-// close exportlist
-$(document).click(function(e){
-    if(!$("#ExportContainer").has(e.target).length){
         $("#ExportList").hide();
-    }
-});
+    },
+    selectDownloadFileValidation : function(target) {
+    	if (com_fn.checkSelectDownloadFile('BOM')) {
+    		if (target === "Spreadsheet_sub") bom_fn.downloadSpdxSpreadSheetExcel();
+            else if (target === "RDF_sub") bom_fn.downloadSpdxRdf();
+            else if (target === "TAG_sub") bom_fn.downloadSpdxTag();
+            else if (target === "JSON_sub") bom_fn.downloadSpdxJson();
+            else if (target === "YAML_sub") bom_fn.downloadSpdxYaml();
+            else if (target === "YAML") com_fn.downloadYaml('BOM');
+    	} else {
+    		alertify.error('<spring:message code="msg.common.check.sbom.export2" />', 0);
+    	}
+    },
+    downloadSpdxSpreadSheetExcel : function(){
+		$.ajax({
+			type: "POST",
+			url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+			data: JSON.stringify({"type":"spdx", "prjId":'${project.prjId}', "dataStr":"spdx_sbom"}),
+			dataType : 'json',
+			cache : false,
+			contentType : 'application/json',
+			success: function (data) {
+				if("false" == data.isValid) {
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				} else {
+					window.location = '/spdxdownload/getFile?id='+data.validMsg;
+				}
+			},
+			error: function(data){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+			}
+		});
+	},
+	downloadSpdxRdf : function() {
+		$.ajax({
+			type: "POST",
+			url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+			data: JSON.stringify({"type":"spdxRdf", "prjId":'${project.prjId}', "dataStr":"spdx_sbom"}),
+			dataType : 'json',
+			cache : false,
+			contentType : 'application/json',
+			success: function (data) {
+				if("false" == data.isValid) {
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				} else {
+					window.location = '/spdxdownload/getFile?id='+data.validMsg;
+				}
+			},
+			error: function(data){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+			}
+		});
+	},
+	downloadSpdxTag : function() {
+		$.ajax({
+			type: "POST",				   
+			url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+			data: JSON.stringify({"type":"spdxTag", "prjId":'${project.prjId}', "dataStr":"spdx_sbom"}),
+			dataType : 'json',
+			cache : false,
+			contentType : 'application/json',
+			success: function (data) {
+				if("false" == data.isValid) {
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				} else {
+					window.location = '/spdxdownload/getFile?id='+data.validMsg;
+				}
+			},
+			error: function(data){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+			}
+		});
+	},
+	downloadSpdxJson : function() {
+		$.ajax({
+			type: "POST",
+			url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+			data: JSON.stringify({"type":"spdxJson", "prjId":'${project.prjId}', "dataStr":"spdx_sbom"}),
+			dataType : 'json',
+			cache : false,
+			contentType : 'application/json',
+			success: function (data) {
+				if("false" == data.isValid) {
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				} else {
+					window.location = '/spdxdownload/getFile?id='+data.validMsg;
+				}
+			},
+			error: function(data){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+			}
+		});
+	},
+	downloadSpdxYaml : function() {
+		$.ajax({
+			type: "POST",
+			url: '<c:url value="/spdxdownload/getSPDXPost"/>',
+			data: JSON.stringify({"type":"spdxYaml", "prjId":'${project.prjId}', "dataStr":"spdx_sbom"}),
+			dataType : 'json',
+			cache : false,
+			contentType : 'application/json',
+			success: function (data) {
+				if("false" == data.isValid) {
+					alertify.error('<spring:message code="msg.common.valid2" />', 0);
+				} else {
+					window.location = '/spdxdownload/getFile?id='+data.validMsg;
+				}
+			},
+			error: function(data){
+				alertify.error('<spring:message code="msg.common.valid2" />', 0);
+			}
+		});
+	},
+	loadAnalysisUrl : function (target, url) {
+		createTabInFrame(target, url);
+	}
+}
 
 var bom_data = {
 		getJqGrid : function(param){
@@ -787,6 +933,7 @@ var bom_data = {
 							if(dataObject.licenseTypeIdx != "1" && className.indexOf('excludeRow') === -1) {
 								if(strBomValidMsgData.indexOf(rowid) == -1 /*&& strBomDiffMsgData.indexOf(rowid) == -1*/){
 									className= className + ' excludeRow';
+									bomList.jqGrid('setCell', rowid, 'cvssScore', null);
 								}
 							}
 							

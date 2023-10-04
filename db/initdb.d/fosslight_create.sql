@@ -733,13 +733,13 @@ INSERT INTO `LICENSE_NICKNAME` (`LICENSE_NAME`, `LICENSE_NICKNAME`) VALUES
 -- 테이블 fosslight.NVD_CPE_MATCH 구조 내보내기
 DROP TABLE IF EXISTS `NVD_CPE_MATCH`;
 CREATE TABLE IF NOT EXISTS `NVD_CPE_MATCH` (
-  `SEQ` int(11) NOT NULL COMMENT 'Cpe Match Index',
+  `MATCH_CRITERIA_ID` varchar(128) NOT NULL COMMENT 'Cpe Match Index',
   `CPE23URI` varchar(256) NOT NULL COMMENT 'cpe23Uri',
   `VER_START_INC` varchar(100) DEFAULT NULL COMMENT 'CPE Match Range versionStartIncluding',
   `VER_END_INC` varchar(100) DEFAULT NULL COMMENT 'CPE Match Range versionEndIncluding',
   `VER_START_EXC` varchar(100) DEFAULT NULL COMMENT 'CPE Match Range versionStartExcluding',
   `VER_END_EXC` varchar(100) DEFAULT NULL COMMENT 'CPE Match Range versionEndExcluding',
-  PRIMARY KEY (`SEQ`),
+  PRIMARY KEY (`MATCH_CRITERIA_ID`),
   KEY `CPE23URI_VER_START_INC_VER_END_INC_VER_START_EXC_VER_END_EXC` (`CPE23URI`(255),`VER_START_INC`,`VER_END_INC`,`VER_START_EXC`,`VER_END_EXC`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -751,10 +751,10 @@ DELETE FROM `NVD_CPE_MATCH`;
 -- 테이블 fosslight.NVD_CPE_MATCH_NAMES 구조 내보내기
 DROP TABLE IF EXISTS `NVD_CPE_MATCH_NAMES`;
 CREATE TABLE IF NOT EXISTS `NVD_CPE_MATCH_NAMES` (
-  `SEQ` int(11) NOT NULL,
+  `MATCH_CRITERIA_ID` varchar(128) NOT NULL,
   `IDX` int(11) NOT NULL COMMENT 'Version 정렬 순서를 위한 sub index',
   `CPE23URI` varchar(256) NOT NULL,
-  PRIMARY KEY (`SEQ`,`IDX`),
+  PRIMARY KEY (`MATCH_CRITERIA_ID`,`IDX`),
   KEY `CPE23URI` (`CPE23URI`(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -790,8 +790,11 @@ CREATE TABLE IF NOT EXISTS `NVD_DATA_SCORE_V3` (
   `CVSS_SCORE` float(3,1) NOT NULL,
   `VULN_SUMMARY` text NOT NULL,
   `MODI_DATE` datetime NOT NULL,
+  `VENDOR` varchar(128) NOT NULL,
+  `VENDORPRODUCT` varchar(255) NULL,
   PRIMARY KEY (`PRODUCT`,`VERSION`),
-  FULLTEXT KEY `PRODUCT` (`PRODUCT`)
+  FULLTEXT KEY `PRODUCT` (`PRODUCT`),
+  KEY `VENDORPRODUCT_VERSION` (`VENDORPRODUCT`,`VERSION`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
 
 -- 테이블 데이터 fosslight.NVD_DATA_SCORE_V3:~0 rows (대략적) 내보내기
@@ -808,6 +811,8 @@ CREATE TABLE IF NOT EXISTS `NVD_DATA_TEMP_V3` (
   `CVSS_SCORE` float(3,1) NOT NULL,
   `VULN_SUMMARY` text NOT NULL,
   `MODI_DATE` datetime NOT NULL,
+  `VENDOR` varchar(128) NOT NULL,
+  `VENDORPRODUCT` varchar(255) NULL,
   PRIMARY KEY (`PRODUCT`,`VERSION`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
 
@@ -822,9 +827,12 @@ CREATE TABLE IF NOT EXISTS `NVD_DATA_V3` (
   `CVE_ID` varchar(16) NOT NULL COMMENT 'CVE(Common Vulnerabilities and Exposures 미 정부 취약점 식별자 체계)',
   `PRODUCT` varchar(128) NOT NULL COMMENT 'Product Name(OSS Name)',
   `VERSION` varchar(128) NOT NULL COMMENT 'Major.Minor.Point 형식',
+  `VENDOR` varchar(128) NOT NULL,
+  `VENDORPRODUCT` varchar(255) NULL,
   PRIMARY KEY (`CVE_ID`,`PRODUCT`,`VERSION`),
   KEY `NVD_DATA_V3_CVE_ID` (`CVE_ID`),
-  KEY `NVD_DATA_V3_PRODUCT2` (`PRODUCT`,`VERSION`)
+  KEY `NVD_DATA_V3_PRODUCT2` (`PRODUCT`,`VERSION`),
+  KEY `VENDORPRODUCT_VERSION` (`VENDORPRODUCT`,`VERSION`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
 
 -- 테이블 데이터 fosslight.NVD_DATA_V3:~0 rows (대략적) 내보내기
@@ -837,7 +845,7 @@ DROP TABLE IF EXISTS `NVD_META`;
 CREATE TABLE IF NOT EXISTS `NVD_META` (
   `IDX` int(11) NOT NULL AUTO_INCREMENT,
   `FILE_NM` varchar(128) DEFAULT NULL COMMENT 'File Name',
-  `FILE_TYPE` varchar(16) DEFAULT NULL COMMENT 'TYPE: DICTIONARY, CVE',
+  `FILE_TYPE` varchar(48) DEFAULT NULL COMMENT 'TYPE: DICTIONARY, CVE',
   `MODI_DATE` varchar(32) DEFAULT NULL COMMENT 'Last Modified Date',
   `SIZE` int(11) DEFAULT NULL COMMENT 'XML File Size',
   `ZIP_SIZE` int(11) DEFAULT NULL COMMENT 'ZIP File Size',
@@ -847,6 +855,80 @@ CREATE TABLE IF NOT EXISTS `NVD_META` (
   `REG_DATE` timestamp NULL DEFAULT current_timestamp() COMMENT '데이터 등록일자',
   `JOB_STATUS` varchar(1) DEFAULT 'W' COMMENT 'JOB 상태 값\n- W(Wait): I/F JOB 대기상태\n- C(Complete): I/F JOB 완료상태',
   PRIMARY KEY (`IDX`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- 테이블 fosslight.NVD_DATA_PATCH_LINK 구조 내보내기
+DROP TABLE IF EXISTS `NVD_DATA_PATCH_LINK`;
+CREATE TABLE IF NOT EXISTS `NVD_DATA_PATCH_LINK` (
+	`CVE_ID` VARCHAR(16) NOT NULL,
+	`PATCH_LINK` VARCHAR(1024) NOT NULL,
+	`PUBL_DATE` DATETIME NOT NULL,
+	KEY `CVE_ID` (`CVE_ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- 테이블 fosslight.NVD_DATA_CONFIGURATIONS_TEMP 구조 내보내기
+DROP TABLE IF EXISTS `NVD_DATA_CONFIGURATIONS_TEMP`;
+CREATE TABLE IF NOT EXISTS `NVD_DATA_CONFIGURATIONS_TEMP` (
+	`CVE_ID` VARCHAR(16) NOT NULL,
+	`MATCH_CRITERIA_ID` VARCHAR(128) NOT NULL,
+	`CRITERIA` VARCHAR(256) NOT NULL,
+	`VENDOR` VARCHAR(128) NOT NULL,
+	`PRODUCT` VARCHAR(128) NOT NULL,
+	`VERSION` VARCHAR(128) NOT NULL,
+	`VER_START_INC` VARCHAR(100) NULL DEFAULT NULL,
+	`VER_END_INC` VARCHAR(100) NULL DEFAULT NULL,
+	`VER_START_EXC` VARCHAR(100) NULL DEFAULT NULL,
+	`VER_END_EXC` VARCHAR(100) NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- 테이블 fosslight.NVD_DATA_CONFIGURATIONS 구조 내보내기
+DROP TABLE IF EXISTS `NVD_DATA_CONFIGURATIONS`;
+CREATE TABLE IF NOT EXISTS `NVD_DATA_CONFIGURATIONS` (
+	`CVE_ID` VARCHAR(16) NOT NULL,
+	`MATCH_CRITERIA_ID` VARCHAR(128) NOT NULL,
+	`CRITERIA` VARCHAR(256) NOT NULL,
+	`VENDOR` VARCHAR(128) NOT NULL,
+	`PRODUCT` VARCHAR(128) NOT NULL,
+	`VERSION` VARCHAR(128) NOT NULL,
+	`VER_START_INC` VARCHAR(100) NULL DEFAULT NULL,
+	`VER_END_INC` VARCHAR(100) NULL DEFAULT NULL,
+	`VER_START_EXC` VARCHAR(100) NULL DEFAULT NULL,
+	`VER_END_EXC` VARCHAR(100) NULL DEFAULT NULL,
+	INDEX `CVE_ID` (`CVE_ID`) USING BTREE,
+	INDEX `PRODUCT` (`PRODUCT`) USING BTREE,
+	INDEX `VERSION` (`VERSION`) USING BTREE,
+	INDEX `VENDOR` (`VENDOR`) USING BTREE,
+	INDEX `CRITERIA` (`CRITERIA`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- 테이블 fosslight.NVD_DATA_PATCH_LINK 구조 내보내기
+DROP TABLE IF EXISTS `NVD_DATA_PATCH_LINK`;
+CREATE TABLE IF NOT EXISTS `NVD_DATA_PATCH_LINK` (
+	`CVE_ID` VARCHAR(16) NOT NULL,
+	`PATCH_LINK` VARCHAR(1024) NOT NULL,
+	`PUBL_DATE` DATETIME NOT NULL,
+	KEY `CVE_ID` (`CVE_ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- 테이블 fosslight.NVD_DATA_SECURITY 구조 내보내기
+DROP TABLE IF EXISTS `NVD_DATA_SECURITY`;
+CREATE TABLE IF NOT EXISTS `NVD_DATA_SECURITY` (
+	`REFERENCE_ID` INT(11) NOT NULL DEFAULT '0',
+	`OSS_NAME` VARCHAR(200) NOT NULL,
+	`OSS_VERSION` VARCHAR(100) NOT NULL,
+	`CVE_ID` VARCHAR(16) NOT NULL DEFAULT '',
+	`CVSS_SCORE` FLOAT(3,1) NOT NULL DEFAULT '0.0',
+	`PUBL_DATE` DATETIME NULL DEFAULT NULL,
+	`VULNERABILITY_RESOLUTION` VARCHAR(50) NULL DEFAULT NULL,
+	`SECURITY_PATCH_LINK` VARCHAR(1024) NULL DEFAULT NULL,
+	`SECURITY_COMMENTS` TEXT NULL DEFAULT NULL,
+	PRIMARY KEY (`REFERENCE_ID`, `OSS_NAME`, `OSS_VERSION`, `CVE_ID`, `CVSS_SCORE`) USING BTREE,
+	INDEX `REFERENCE_ID` (`REFERENCE_ID`) USING BTREE,
+	INDEX `OSS_NAME` (`OSS_NAME`) USING BTREE,
+	INDEX `OSS_VERSION` (`OSS_VERSION`) USING BTREE,
+	INDEX `CVE_ID` (`CVE_ID`) USING BTREE,
+	INDEX `CVSS_SCORE` (`CVSS_SCORE`) USING BTREE,
+	INDEX `VULNERABILITY_RESOLUTION` (`VULNERABILITY_RESOLUTION`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- 테이블 데이터 fosslight.NVD_META:~0 rows (대략적) 내보내기
@@ -871,6 +953,20 @@ CREATE TABLE IF NOT EXISTS `NVD_OSS_HIS` (
 DELETE FROM `NVD_OSS_HIS`;
 /*!40000 ALTER TABLE `NVD_OSS_HIS` DISABLE KEYS */;
 /*!40000 ALTER TABLE `NVD_OSS_HIS` ENABLE KEYS */;
+
+-- 테이블 fosslight.OSS_DISCOVERED_SND_EMAIL 구조 내보내기
+DROP TABLE IF EXISTS `OSS_DISCOVERED_SND_EMAIL`;
+CREATE TABLE IF NOT EXISTS `OSS_DISCOVERED_SND_EMAIL` (
+	`OSS_ID` INT(11) NOT NULL,
+	`PRODUCT` VARCHAR(200) NULL DEFAULT NULL,
+	`VERSION` VARCHAR(100) NULL DEFAULT NULL,
+	`CVE_ID` VARCHAR(16) NULL DEFAULT NULL,
+	`CVSS_SCORE` FLOAT(3,1) NULL DEFAULT NULL,
+	`SND_YN` VARCHAR(1) NULL DEFAULT 'N',
+	`SND_DATE` DATETIME NULL DEFAULT now(),
+	INDEX `OSS_ID` (`OSS_ID`) USING BTREE,
+	INDEX `SND_YN` (`SND_YN`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- 테이블 fosslight.OSS_ANALYSIS_MAP 구조 내보내기
 DROP TABLE IF EXISTS `OSS_ANALYSIS_MAP`;
@@ -950,6 +1046,8 @@ CREATE TABLE IF NOT EXISTS `OSS_COMPONENTS` (
   `MODIFIED_DATE` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `COMMENTS` text DEFAULT NULL,
   `REF_DIV` varchar(6) DEFAULT NULL,
+  `DEPENDENCIES` varchar(2000) DEFAULT NULL,
+  `REF_OSS_NAME` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`COMPONENT_ID`),
   KEY `REFERENCE_ID_REFERENCE_DIV` (`REFERENCE_ID`,`REFERENCE_DIV`),
   KEY `OSS_COMPONENTS_REFERENCE_ID3` (`REFERENCE_ID`,`REFERENCE_DIV`,`COMPONENT_ID`),
@@ -1630,6 +1728,7 @@ CREATE TABLE IF NOT EXISTS `PROJECT_MASTER` (
   `VERIFICATION_STATUS` varchar(6) DEFAULT NULL COMMENT '프로젝트 단계별 상태 null, N/A, Progress, Request, Revuew, Confirm',
   `DESTRIBUTION_STATUS` varchar(6) DEFAULT NULL COMMENT '프로젝트 단계별 상태 null, N/A, Progress, Request, Revuew, Confirm',
   `IDENTIFICATION_SUB_STATUS_PARTNER` char(1) DEFAULT NULL COMMENT '프로젝트 3rd 상태 null, Y, N',
+  `IDENTIFICATION_SUB_STATUS_DEP` char(1) DEFAULT NULL COMMENT '프로젝트 DEP 상태 null, Y, N',
   `IDENTIFICATION_SUB_STATUS_SRC` char(1) DEFAULT NULL COMMENT '프로젝트 SRC 상태 null, Y, N',
   `IDENTIFICATION_SUB_STATUS_BAT` char(1) DEFAULT NULL COMMENT '프로젝트 BAT 상태 null, Y, N',
   `IDENTIFICATION_SUB_STATUS_BIN` char(1) DEFAULT NULL,
@@ -1649,6 +1748,7 @@ CREATE TABLE IF NOT EXISTS `PROJECT_MASTER` (
   `DISTRIBUTE_RESERVED_USER` varchar(50) DEFAULT NULL COMMENT '배포 예약자',
   `DISTRIBUTE_REJECTOR` varchar(50) DEFAULT NULL,
   `DISTRIBUTE_REJECTED_TIME` datetime DEFAULT NULL,
+  `DEP_CSV_FILE_ID` int(11) DEFAULT NULL,
   `SRC_CSV_FILE_ID` int(11) DEFAULT NULL,
   `SRC_ANDROID_CSV_FILE_ID` int(11) DEFAULT NULL,
   `SRC_ANDROID_NOTICE_FILE_ID` int(11) DEFAULT NULL,
@@ -1810,7 +1910,6 @@ INSERT INTO `T2_CODE` (`CD_NO`, `CD_NM`, `CD_EXP`, `SYS_CD_YN`) VALUES
 	('111', 'email default contents', '', 'N'),
 	('120', 'File upload Extension', '', 'N'),
 	('121', 'Download Sample File', 'Location of sample files', 'N'),
-	('122', 'Network Server license list', 'Licenses that has obligations for network server', 'N'),
 	('200', 'Division', '', 'N'),
 	('201', 'License Type', '', 'N'),
 	('203', 'License Division', '', 'N'),
@@ -1856,9 +1955,9 @@ INSERT INTO `T2_CODE` (`CD_NO`, `CD_NM`, `CD_EXP`, `SYS_CD_YN`) VALUES
 	('702', 'marguee Contents', '', 'N'),
 	('703', 'regist Domain', '', 'N'),
 	('704', 'Support Locale List', '', 'N'),
-	('705', 'External Service Setting', 'System Detail Setting Code', 'N'),
 	('706', 'External Analysis Setting', 'System Detail Setting Code', 'N'),
 	('750', 'Vulnerability Mailing Score', 'Vulnerability Mailing Score Code', 'N'),
+	('760', 'Security Vulnerability Score', 'Security Vulnerability Score Code', 'N'),
 	('801', 'Dashboard Notice', 'Dashboard Notice Contents', 'N'),
 	('901', 'Excel Download/Export', 'Maximum rows that can be exported when downloading Excel file or Export at List', 'N'),
 	('903', 'checkOssNameUrl', 'Managing information to find OSS information from Download Location', 'N'),
@@ -1869,7 +1968,6 @@ INSERT INTO `T2_CODE` (`CD_NO`, `CD_NM`, `CD_EXP`, `SYS_CD_YN`) VALUES
 	('908', 'Open API return message', '', 'N'),
 	('909', 'System Setting', '', 'Y'),
 	('910', 'LOGIN Setting', 'System Setting Code', 'Y'),
-	('911', 'SMTP Setting', 'System Setting Code', 'Y'),
 	('913', 'File Path', 'System Setting Code', 'Y'),
 	('914', 'Dashboard Detail Setting', 'System Detail Setting Code', 'Y'),
 	('915', 'Statistics Detail Setting', 'System Detail Setting Code', 'Y'),
@@ -1963,6 +2061,7 @@ INSERT INTO `T2_CODE_DTL` (`CD_NO`, `CD_DTL_NO`, `CD_DTL_NM`, `CD_SUB_NO`, `CD_D
 	('102', '671', '[FOSSLight][PRJ-${Project ID}] Distribution, ${User} changed description: [${Project Name}]', '', 'Distribution, changed description', 671, 'Y'),
 	('102', '68', '[FOSSLight][PRJ-${Project ID}] Distribution, ${Rejector} rejected : "${Project Name}"', '', 'distribute reject', 68, 'Y'),
 	('102', '70', '[FOSSLight][3rd-${3rd Party ID}] ${User} assigned ${Reviewer} : "${3rd Party Name}"', '', 'Reviewer has been changed to${User Info}', 70, 'Y'),
+	('102', '700', '[FOSSLight][3rd-${3rd Party ID}] ${User} changed : "${3rd Party Name}"', '', '', 700, 'Y'),
 	('102', '71', '[FOSSLight][3rd-${3rd Party ID}] ${User} requested review : "${3rd Party Name}"', '', 'Reviewing 3rd Party OSS is requested.', 71, 'Y'),
 	('102', '72', '[FOSSLight][3rd-${3rd Party ID}] ${User} confirmed : "${3rd Party Name}"', '', 'Reviewing 3rd Party OSS is finished.', 72, 'Y'),
 	('102', '73', '[FOSSLight][3rd-${3rd Party ID}] ${User} canceled confirmation : "${3rd Party Name}"', '', 'Confirmation of 3rd Party OSS has been canceled.', 73, 'Y'),
@@ -1983,6 +2082,7 @@ INSERT INTO `T2_CODE_DTL` (`CD_NO`, `CD_DTL_NO`, `CD_DTL_NM`, `CD_SUB_NO`, `CD_D
 	('102', '812', '[FOSSLight][PRJ-${Project ID}] ${User} dropped : "${Project Name}"', '', 'project drop', 812, 'Y'),
 	('102', '813', '[FOSSLight][OSS-${OSS ID}] ${User} deactivated : "${OSS Name}"', '', '', 813, 'Y'),
 	('102', '814', '[FOSSLight][OSS-${OSS ID}] ${User} activated : "${OSS Name}"', '', '', 814, 'Y'),
+	('102', '817', '[FOSSLight] Your password has been reset : ${User}', '', '${User}''s password has been reset.', 817, 'Y'),
 	('102', '82', '[FOSSLight] ${User} Requested ${Email} to Register at FOSSLight', '', '${User} Added ${Email} as a Watcher of ${Binary Name}<br><br>Please Register at FOSSLight to Watch ${Binary Name}', 82, 'Y'),
 	('102', '83', '[FOSSLight] ${User} Registered at FOSSLight', '', '${User} Registered at FOSSLight.<br><br>Now, ${User} has "Watcher"\'s Authority for ${Binary Name}', 83, 'Y'),
 	('102', '90', '[FOSSLight] Vulnerability Discovered : "${Project Name}"', '', 'Possible open source vulnerability on your project has been discovered', 90, 'Y'),
@@ -1990,6 +2090,7 @@ INSERT INTO `T2_CODE_DTL` (`CD_NO`, `CD_DTL_NO`, `CD_DTL_NM`, `CD_SUB_NO`, `CD_D
 	('102', '92', '[FOSSLight] Vulnerability Recalculated: "${Project Name}"', '', '', 92, 'Y'),
 	('102', '93', '[FOSSLight] Vulnerability Recalculated', '', '', 93, 'Y'),
 	('102', '99', '[FOSSLight][PRJ-${Project ID}] ${User} changed a reviewer from ${Reviewer} to ${ReviewerTo} : "${Project Name}"', '', 'Reviewer has been changed to ${Reviewer Info}', 99, 'Y'),
+	('102', '100', '[FOSSLight][PRJ-${Project ID}] Packaging, ${User} requested : " ${Project Name}"', '', '', 100, 'Y'),
 	('103', '10', 'OSS 등록(OSS기본정보)', '', '100', 10, 'Y'),
 	('103', '11', 'OSS 변경정보', '', '', 11, 'Y'),
 	('103', '12', 'OSS 변경정보(LICENSE TYPE이 변경된 경우)', '', '', 12, 'Y'),
@@ -2043,6 +2144,7 @@ INSERT INTO `T2_CODE_DTL` (`CD_NO`, `CD_DTL_NO`, `CD_DTL_NM`, `CD_SUB_NO`, `CD_D
 	('103', '671', 'redistribution changed description', '', '200,203,204', 671, 'Y'),
 	('103', '68', 'distribution reject', '', '200, 204', 68, 'Y'),
 	('103', '70', '3rd party reviewer 설정', '', '205', 70, 'Y'),
+	('103', '700', '3rd party 기본정보 변경 시', '', '205', 700, 'Y'),
 	('103', '71', '3rd party request review시', '', '205,209', 71, 'Y'),
 	('103', '72', '3rd party confirm 시', '', '205, 209, 215', 72, 'Y'),
 	('103', '73', 'Confirm 상태의 3rd party를 reject 한경우', '', '205', 73, 'Y'),
@@ -2065,6 +2167,7 @@ INSERT INTO `T2_CODE_DTL` (`CD_NO`, `CD_DTL_NO`, `CD_DTL_NM`, `CD_SUB_NO`, `CD_D
 	('103', '92', 'Project Oss의 vulnerability score가 9.0 이상에서 미만으로 변경된 경우', '', '200', 92, 'Y'),
 	('103', '93', 'project에는 포함되어 있지 않지만 recalculated target이 발견된 경우', '', '212', 93, 'Y'),
 	('103', '99', 'reviewer 변경', '', '200', 99, 'Y'),
+	('103', '100', 'identification(BIN) confirm', '', '200, 202, 211', 100, 'Y'),
 	('104', '100', 'oss_basic_info', '', 'SELECT T1.CREATOR, T1.CREATED_DATE, T1.OSS_ID, T1.OSS_NAME, T1.OSS_VERSION, IFNULL((SELECT GROUP_CONCAT(D.DOWNLOAD_LOCATION ORDER BY D.SORT_ORDER ASC) FROM OSS_DOWNLOADLOCATION D WHERE  D.OSS_ID = T1.OSS_ID), T1.DOWNLOAD_LOCATION) AS DOWNLOAD_LOCATION, T1.HOMEPAGE, T1.SUMMARY_DESCRIPTION, T1.ATTRIBUTION, T1.COPYRIGHT, T1.LICENSE_TYPE AS OSS_LICENSE_TYPE, T1.OBLIGATION_TYPE AS OSS_OBLIGATION_TYPE, GROUP_CONCAT(T4.OSS_NICKNAME SEPARATOR \'\n\') AS OSS_NICKNAME, T2.LICENSE_ID, T2.OSS_LICENSE_IDX, T2.OSS_LICENSE_COMB, T2.OSS_COPYRIGHT, T2.OSS_LICENSE_TEXT, IF(IFNULL(T3.SHORT_IDENTIFIER, \'\') = \'\', T3.LICENSE_NAME, T3.SHORT_IDENTIFIER) AS LICENSE_NAME, T3.LICENSE_TYPE, SUB1.OSS_TYPE, IFNULL((SELECT GROUP_CONCAT(IF(LM.SHORT_IDENTIFIER = \'\' OR LM.SHORT_IDENTIFIER IS NULL , LM.LICENSE_NAME , LM.SHORT_IDENTIFIER) ORDER BY OSS_LICENSE_IDX ASC) FROM OSS_LICENSE_DETECTED ODT INNER JOIN LICENSE_MASTER LM ON ODT.LICENSE_ID = LM.LICENSE_ID WHERE ODT.OSS_ID = T1.OSS_ID), \'\') AS DETECTED_LICENSE, T1.DEACTIVATE_FLAG FROM OSS_MASTER T1 INNER JOIN OSS_LICENSE_DECLARED T2 ON T1.OSS_ID = T2.OSS_ID INNER JOIN LICENSE_MASTER T3 ON T2.LICENSE_ID = T3.LICENSE_ID LEFT OUTER JOIN OSS_NICKNAME T4 ON T1.OSS_NAME = T4.OSS_NAME INNER JOIN (SELECT OSS_ID, CONCAT(IF(MULTI_LICENSE_FLAG = \'N\', \'0\', \'1\'), IF(DUAL_LICENSE_FLAG = \'N\', \'0\', \'1\'), IF(VERSION_DIFF_FLAG = \'N\', \'0\', \'1\')) AS OSS_TYPE FROM OSS_MASTER_LICENSE_FLAG) SUB1 ON T1.OSS_ID = SUB1.OSS_ID WHERE T1.OSS_ID = ? GROUP BY OSS_ID, OSS_LICENSE_IDX', 1, 'Y'),
 	('104', '101', 'license_basic_info', '', 'SELECT T1.LICENSE_ID, T1.LICENSE_NAME, T1.LICENSE_TYPE, T1.OBLIGATION_DISCLOSING_SRC_YN, T1.OBLIGATION_NOTIFICATION_YN, T1.OBLIGATION_NEEDS_CHECK_YN, T1.SHORT_IDENTIFIER, GROUP_CONCAT(T2.WEBPAGE ORDER BY SORT_ORDER ASC) AS WEBPAGE, T1.DESCRIPTION, T1.LICENSE_TEXT, T1.ATTRIBUTION, T1.USE_YN, T1.CREATOR, T1.CREATED_DATE, T1.MODIFIER, T1.MODIFIED_DATE, T1.REQ_LICENSE_TEXT_YN, T1.RESTRICTION, T1.LICENSE_NICKNAME FROM (SELECT T1.*, GROUP_CONCAT(T2.LICENSE_NICKNAME) AS LICENSE_NICKNAME FROM LICENSE_MASTER T1 LEFT OUTER JOIN LICENSE_NICKNAME T2 ON T1.LICENSE_NAME = T2.LICENSE_NAME WHERE T1.LICENSE_ID = ?) T1 LEFT JOIN LICENSE_WEBPAGE T2 ON T1.LICENSE_ID = T2.LICENSE_ID', 2, 'Y'),
 	('104', '200', 'project_basic_info', '', 'SELECT T1.*, T2.NOTICE_TYPE, T2.NOTICE_TYPE_ETC FROM PROJECT_MASTER T1 LEFT OUTER JOIN OSS_NOTICE T2 ON T1.PRJ_ID = T2.PRJ_ID WHERE T1.PRJ_ID = ?', 3, 'Y'),
@@ -2086,8 +2189,8 @@ INSERT INTO `T2_CODE_DTL` (`CD_NO`, `CD_DTL_NO`, `CD_DTL_NM`, `CD_SUB_NO`, `CD_D
 	('110', '11', 'ossModify.html', '', '11,12,18,14,750', 2, 'Y'),
 	('110', '20', 'licenseInfo.html', '', '20,29', 3, 'Y'),
 	('110', '21', 'licenseModify.html', '', '21,22,23', 4, 'Y'),
-	('110', '30', 'projectInfo.html', '', '30,40,41,46,50,51,60,90,61,62,33,66,67,68,38,92,99,670,671', 5, 'Y'),
-	('110', '31', 'commentWithProjectInfo.html', '', '42,43,44,52,53,54,45,55,31,56,65,34,35,36,812', 6, 'Y'),
+	('110', '30', 'projectInfo.html', '', '30,40,41,50,51,60,90,61,62,33,66,67,68,38,92,99,100,670,671', 5, 'Y'),
+	('110', '31', 'commentWithProjectInfo.html', '', '42,43,44,46,52,53,54,45,55,31,56,65,34,35,36,812', 6, 'Y'),
 	('110', '32', 'projectModify.html', '', '32,37', 10, 'Y'),
 	('110', '33', 'watcherInvated.html', '', '63,64', 11, 'Y'),
 	('110', '34', 'partnerInfoWatcherInvated.html', '', '78,79', 12, 'Y'),
@@ -2096,21 +2199,25 @@ INSERT INTO `T2_CODE_DTL` (`CD_NO`, `CD_DTL_NO`, `CD_DTL_NM`, `CD_SUB_NO`, `CD_D
 	('110', '37', 'userTokenInfo.html', '', '800,801', 15, 'Y'),
 	('110', '38', 'packagingFileUploadInfo.html', '', '810,811', 16, 'Y'),
 	('110', '40', 'partnerInfo.html', '', '70,71,72,73,74,75,76,77', 7, 'Y'),
+	('110', '41', 'partnerModify.html', '', '700', 19, 'Y'),
 	('110', '50', 'binaryAnalysisInfo.html', '', '80,81', 8, 'Y'),
 	('110', '60', 'vulnerabilityInfo.html', '', '91,93', 9, 'Y'),
 	('110', '70', 'binaryDBDataCommitInfo.html', '', '47,470', 17, 'Y'),
+	('110', '71', 'resetUserPassword.html', '', '817', 18, 'Y'),
 	('111', '35', 'project complete default contents', '', '<p> <strong>Project 에 대한 Open Source Compliance Process가 모두 수행되어 Complete 처리합니다. </strong><br />OSS 고지문이나 Packaging 파일에 대한 수정이 필요하신 경우, Basic Information탭 우측하단의 "Request to Open" 버튼을 클릭하여 Status 변경 요청하시기 바랍니다.<br />단, Distribution에서 Model 추가/삭제는 Status 변경 없이 가능합니다.</p> <p><strong>The Open Source Compliance Process for the Project is completed.</strong><br />If you need to modify the OSS Notice or the Packaging file, please request the status change to re-perform the Identification or Packaging by clicking "Request to Open" button on Basic Information Tab.<br />However, you can add or delete models in the distribution without changing the status.</p>', 35, 'Y'),
 	('111', '812', 'project drop default contents', '', '<p><Strong>Open Source Compliance Process 수행 완료하지 않고, Drop 처리됩니다.</strong><br />다시 Open Source Compliance Process를 진행하고자 하시는 경우, Basic Informatoin탭 우측하단의 "Open" 버튼을 클릭 후 진행하시기 바랍니다.</p> <p><strong>The status of the project changes to \'Drop\', so you don\'t need to complete the Open Source Compliance process.</strong><br />If you want to proceed the Open Source Compliance Process again, please click "Open" button on Basic information Tab.</p>', 812, 'Y'),
 	('111', '33', 'Project Created', '', '<p>Identification 탭에 Open Source 목록을 작성 후 BOM 탭에서 Request를 클릭하여 리뷰 요청하십시오.<br />Fill out the Open Source list in the Identification  and request a review by clicking Request in the BOM tab.<br /><br />- Guide : https://fosslight.org/fosslight-guide-en/tutorial/1_project.html#2-identification</p>', 33, 'Y'),
 	('111', '37', 'Project Copied', '', '<p>Identification 탭에 Open Source 목록을 작성 후 BOM 탭에서 Request를 클릭하여 리뷰 요청하십시오.<br />Fill out the Open Source list in the Identification  and request a review by clicking Request in the BOM tab.<br /><br />- Guide : https://fosslight.org/fosslight-guide-en/tutorial/1_project.html#2-identification</p>', 37, 'Y'),
-	('111', '41', 'Project Identification Confirmed', '', '<p>Packaging 수행 후 Request 클릭하여 리뷰 요청해주시기 바랍니다.<br /> OSS Notice에 대하여 수정이 필요한 경우 (ex- text형식으로 발행), Packaging내 Notice탭에서 설정바랍니다.<br /><br />After performing Packaging, click Request to request a review.<br />If it is necessary to modify the OSS Notice (ex- should be issued in text format), please set it in the Notice tab in Packaging.<br /><br />- Guide : https://fosslight.org/fosslight-guide-en/started/2_try/4_project.html#3-packaging</p>', 41, 'Y'),
+	('111', '41', 'Project Identification Confirmed', '', '<p>BOM 탭의 Download Location, Homepage, Copyright text 정보가 DB 기반으로 업데이트 되었습니다.<br />Packaging 수행 후 Request 클릭하여 리뷰 요청해주시기 바랍니다.<br /> OSS Notice에 대하여 수정이 필요한 경우 (ex- text형식으로 발행), Packaging내 Notice탭에서 설정바랍니다.<br /><br />Download Location, Homepage and Copyright text in BOM tab have been updated based on DB.<br />After performing Packaging, click Request to request a review.<br />If it is necessary to modify the OSS Notice (ex- should be issued in text format), please set it in the Notice tab in Packaging.</p>', 41, 'Y'),
+	('111', '46', 'Project Identification Confirmed Only', '', '<p>BOM 탭의 Download Location, Homepage, Copyright text 정보가 DB 기반으로 업데이트 되었습니다.<br />Download Location, Homepage and Copyright text in BOM tab have been updated based on DB.</p>', 46, 'Y'),
 	('111', '72', '3rd party review confirm', '', '<p>3rd Party Software 리뷰가 완료되었습니다.</br > Project List - Identification - 3rd Party 탭에서 Confrim된 3rd Party Software를 불러올 수 있습니다.</br > 혹은 배포하는 Software가 3rd Party Software로만 구성되는 경우, 3rd Party List - 3rd Party 우측 상단의 <strong>Create Project for OSS Notice</strong> 버튼을 클릭하여, Identification Confirm 상태의 Project를 바로 생성할 수 있습니다.</br ></br > 3rd Party Software is confirmed by reviewer.</br > You can load this confirmed 3rd Party Software from "Project List - Identifiation - 3rd Party tab".</br > Or you can directly create project (Identification Confirmed status) by clicking the <strong>Create Project for OSS Notice button</strong> at the top right of the 3rd Party when the distributed software consists only of 3rd party software.</br ></br > </p>', 72, 'Y'),
+	('111', '100', 'Project Identification(BIN) Confirmed', '', '<p>Packaging 수행 후 Request 클릭하여 리뷰 요청해주시기 바랍니다.<br /> OSS Notice에 대하여 수정이 필요한 경우 (ex- text형식으로 발행), Packaging내 Notice탭에서 설정바랍니다.<br /><br />After performing Packaging, click Request to request a review.<br />If it is necessary to modify the OSS Notice (ex- should be issued in text format), please set it in the Notice tab in Packaging.</p>', 100, 'Y'),
 	('120', '11', '프로젝트 모델', '', 'xlsx,xls,xlsm', 1, 'Y'),
 	('120', '12', '프로젝트 SRC CSV FILE', '', 'xlsx,xls,xlsm,csv', 2, 'Y'),
 	('120', '13', '프로젝트 SRC ANDROID CSV FILE', '', 'xlsx,xls,xlsm', 3, 'Y'),
 	('120', '14', '프로젝트 SRC ANDROID NOTICE FILE', '', 'html,htm', 4, 'Y'),
 	('120', '15', '프로젝트 BAT FILE', '', '', 5, 'Y'),
-	('120', '16', '프로젝트 PACKAGING FILE', '', '', 6, 'Y'),
+	('120', '16', '프로젝트 PACKAGING FILE', '', 'zip,tar.gz,gz', 6, 'Y'),
 	('120', '17', '프로젝트 DISTRIBUTION FILE', '', '', 7, 'Y'),
 	('120', '18', '프로젝트 VERIFICATION FILE', '', 'xls,xlsx,xlsm', 8, 'Y'),
 	('120', '19', 'android result.txt', '', 'txt', 19, 'Y'),
@@ -2119,20 +2226,6 @@ INSERT INTO `T2_CODE_DTL` (`CD_NO`, `CD_DTL_NO`, `CD_DTL_NM`, `CD_SUB_NO`, `CD_D
 	('120', '22', '3rd Party Oss List', '', 'xls,xlsm,xlsx,csv', 10, 'Y'),
 	('120', '31', 'BAT FILE', '', '', 11, 'Y'),
 	('121', '11', 'FOSSLight-OSS-Checklist-for-3rdParty_Eng_1.0.xlsx', '', '/sample/FOSSLight-OSS-Checklist-for-3rdParty_Eng_1.0.xlsx', 2, 'Y'),
-	('122', '1', 'AGPL-1.0', '', '', 1, 'Y'),
-	('122', '10', 'OSL-3.0', '', '', 10, 'Y'),
-	('122', '12', 'restriction test ver1.0', '', '', 12, 'Y'),
-	('122', '13', 'Lesser GNU Affero General Public License', '', '', 13, 'Y'),
-	('122', '14', 'test license ver1.0', '', '', 14, 'Y'),
-	('122', '15', 'New License Test', '', '', 15, 'Y'),
-	('122', '2', 'AGPL-3.0', '', '', 2, 'Y'),
-	('122', '3', 'APSL-2.0', '', '', 3, 'Y'),
-	('122', '4', 'CPAL-1.0', '', '', 4, 'Y'),
-	('122', '5', 'TEMP', '', '', 5, 'Y'),
-	('122', '6', 'AFL-3.0', '', '', 6, 'Y'),
-	('122', '7', 'OSL-1.0', '', '', 7, 'Y'),
-	('122', '8', 'OSL-1.1', '', '', 8, 'Y'),
-	('122', '9', 'OSL-2.0', '', '', 9, 'Y'),
 	('200', '999', 'N/A', '', '', 999, 'Y'),
 	('200', '1', 'Open Source Task', '', '', 1, 'Y'),
 	('201', 'CP', 'Copyleft', '', '', 3, 'Y'),
@@ -2349,10 +2442,10 @@ INSERT INTO `T2_CODE_DTL` (`CD_NO`, `CD_DTL_NO`, `CD_DTL_NM`, `CD_SUB_NO`, `CD_D
 	('702', '100', 'contents', '', '', 1, 'Y'),
 	('704', '001', 'English', '', 'en_US', 1, 'Y'),
 	('704', '002', '한국어', '', 'ko_KR', 2, 'Y'),
-	('705', '100', 'Github Token', '', 'github token', 1, 'Y'),
 	('706', '101', 'FL Scanner Url', '', '', 1, 'Y'),
 	('706', '102', 'Admin Token', '', '', 1, 'Y'),
 	('750', '100', 'Vulnerability Mailing Standard Score', '', '8.0', 1, 'Y'),
+	('760', '100', 'Security Vulnerability Standard Score', '', '8.0', 1, 'Y'),
 	('901', '100', 'MaxRowCount', '', '5000', 1, 'Y'),
 	('903', '001', 'github.com', '', 'github url', 1, 'Y'),
 	('903', '002', 'www.npmjs.com/package/', '', 'npm url', 2, 'Y'),
@@ -2362,6 +2455,8 @@ INSERT INTO `T2_CODE_DTL` (`CD_NO`, `CD_DTL_NO`, `CD_DTL_NM`, `CD_SUB_NO`, `CD_D
 	('903', '006', 'cocoapods.org/pods/', '', 'cocoapods url', 6, 'Y'),
 	('903', '007', 'www.npmjs.org/package/', '', 'npm url', 7, 'Y'),
 	('903', '008', 'android.googlesource.com/platform', '', 'android url', 8, 'Y'),
+	('903', '009', 'www.nuget.org/packages/', '', 'nuget url', 9, 'Y'),
+	('903', '010', 'stackoverflow.com/revisions/', '', 'stackoverflow url', 10, 'Y'),
 	('904', '100', 'server url', '', '180', 1, 'Y'),
 	('904', '200', 'download url', '', '180', 2, 'Y'),
 	('905', '100', 'idleTime', '', '180', 1, 'Y'),
@@ -2392,13 +2487,8 @@ INSERT INTO `T2_CODE_DTL` (`CD_NO`, `CD_DTL_NO`, `CD_DTL_NM`, `CD_SUB_NO`, `CD_D
 	('909', '950', 'External Analysis Flag', '', 'N', 6, 'Y'),
 	('909', '960', 'Hide email in user list', '', 'N', 7, 'Y'),
 	('909', '970', 'Use license internal url', '', 'N', 8, 'N'),
-	('910', '100', 'Provider Url', '', '', 1, 'Y'),
-	('911', '100', 'Mail Server', '', '', 100, 'Y'),
-	('911', '101', 'Email Address', '', '', 101, 'Y'),
-	('911', '200', 'Port', '', '', 200, 'Y'),
-	('911', '300', 'Encoding', '', 'UTF-8', 300, 'Y'),
-	('911', '400', 'Username', '', '', 400, 'Y'),
-	('911', '401', 'Password', '', '', 500, 'Y'),
+	('910', '100', 'ldap server url', '', '', 1, 'Y'),
+	('910', '200', 'ldap domain', '', '', 2, 'Y'),
 	('913', '100', 'Root Path', '', '/data/osc', 1, 'Y'),
 	('913', '101', 'Default upload Path', '', '/upload', 2, 'Y'),
 	('913', '102', 'image temp path', '', '/image', 3, 'Y'),
@@ -2637,3 +2727,46 @@ CREATE TABLE IF NOT EXISTS `SEARCH` (
   PRIMARY KEY (`USER_ID`,`SEARCH_TYPE`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+/* Add Binary data */
+DROP TABLE IF EXISTS `BINARY_DATA_HIS`;
+CREATE TABLE `BINARY_DATA_HIS` (
+	`ACTION_ID` VARCHAR(50) NOT NULL COMMENT 'ACTION GROUP ID',
+	`ACTION_TYPE` VARCHAR(50) NOT NULL COMMENT 'INSERT/DELETE',
+	`FILE_NAME` VARCHAR(255) NOT NULL,
+	`PATH_NAME` VARCHAR(1024) NULL DEFAULT NULL,
+	`SOURCE_PATH` VARCHAR(1024) NULL DEFAULT NULL,
+	`CHECK_SUM` VARCHAR(255) NULL DEFAULT NULL,
+	`TLSH_CHECK_SUM` VARCHAR(1024) NULL DEFAULT NULL,
+	`OSS_NAME` VARCHAR(255) NULL DEFAULT NULL,
+	`OSS_VERSION` VARCHAR(255) NULL DEFAULT NULL,
+	`LICENSE` VARCHAR(255) NULL DEFAULT NULL,
+	`PARENT_NAME` VARCHAR(255) NULL DEFAULT NULL,
+	`PLATFORM_NAME` VARCHAR(255) NULL DEFAULT NULL,
+	`PLATFORM_VERSION` VARCHAR(255) NULL DEFAULT NULL,
+	`UPDATE_DATE` TIMESTAMP NULL DEFAULT NULL,
+	`CREATOR` VARCHAR(50) NULL DEFAULT NULL,
+	`CREATED_DATE` TIMESTAMP NULL DEFAULT current_timestamp(),
+	`COMMENT` MEDIUMTEXT NULL DEFAULT NULL,
+	`MODIFIER` VARCHAR(50) NULL DEFAULT NULL,
+	INDEX `ACTION_ID_ACTION_TYPE` (`ACTION_ID`, `ACTION_TYPE`) USING BTREE
+)
+COMMENT='binary data history'
+ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `BINARY_DATA`;
+CREATE TABLE `BINARY_DATA` (
+	`FILE_NAME` VARCHAR(255) NOT NULL,
+	`PATH_NAME` VARCHAR(1024) NOT NULL,
+	`SOURCE_PATH` VARCHAR(1024) NULL DEFAULT NULL,
+	`CHECK_SUM` VARCHAR(255) NOT NULL,
+	`TLSH_CHECK_SUM` VARCHAR(1024) NULL DEFAULT NULL,
+	`OSS_NAME` VARCHAR(255) NOT NULL,
+	`OSS_VERSION` VARCHAR(255) NULL DEFAULT NULL,
+	`LICENSE` VARCHAR(255) NULL DEFAULT NULL,
+	`PARENT_NAME` VARCHAR(255) NULL DEFAULT NULL,
+	`PLATFORM_NAME` VARCHAR(255) NULL DEFAULT NULL,
+	`PLATFORM_VERSION` VARCHAR(255) NULL DEFAULT NULL,
+	`UPDATE_DATE` TIMESTAMP NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+	INDEX `FILE_NAME_CHECK_SUM` (`FILE_NAME`, `CHECK_SUM`) USING BTREE
+)
+ENGINE=INNODB DEFAULT CHARSET=utf8;

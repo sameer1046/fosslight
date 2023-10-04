@@ -80,6 +80,10 @@
 				$("[name='licenseNameAllSearchFlag']").val($(this).prop("checked") ? "Y" : "N");
 			});
 
+ 			$("#homepageAllSearchFlag").on("change", function(e){
+				$("[name='homepageAllSearchFlag']").val($(this).prop("checked") ? "Y" : "N");
+			});
+
 			$("#deactivateFlag").on("change", function(){
 				$("[name='deactivateFlag']").val($(this).prop("checked") ? "Y" : "N");
 			});
@@ -212,7 +216,7 @@
 					    }
 					  }
 					, {name: 'ossType', index: 'ossType', width: 70, align: 'center',formatter: 'ossType'}
-					<c:if test="${searchBean.linkFlag == 'N'}">
+					<c:if test="${searchBean.linkFlag != 'Y'}">
 					, {name: 'ossName', index: 'ossName', width: 200, align: 'left', formatter: 'linkOssName'}
 					</c:if>
 					<c:if test="${searchBean.linkFlag == 'Y'}">

@@ -152,11 +152,10 @@ public class CoMail extends ComBean {
 	private boolean toIdsCheckDivision = false;
 	
 	/**
-	 *  //.
+	 * Gets the snd seq.
 	 *
 	 * @return the snd seq
 	 */
-	
 	public String getSndSeq() {
 		return sndSeq;
 	}
@@ -438,9 +437,9 @@ public class CoMail extends ComBean {
 	 */
 	public void setToIds(String[] toIds) {
 		List<String> temp = new ArrayList<>();
-		if(toIds != null) {
-			for(String s : toIds) {
-				if(!isEmpty(s)) {
+		if (toIds != null) {
+			for (String s : toIds) {
+				if (!isEmpty(s)) {
 					temp.add(s.trim());
 				}
 			}
@@ -465,9 +464,9 @@ public class CoMail extends ComBean {
 	 */
 	public void setCcIds(String[] ccIds) {
 		List<String> temp = new ArrayList<>();
-		if(ccIds != null) {
-			for(String s : ccIds) {
-				if(!isEmpty(s)) {
+		if (ccIds != null) {
+			for (String s : ccIds) {
+				if (!isEmpty(s)) {
 					temp.add(s.trim());
 				}
 			}
@@ -491,9 +490,9 @@ public class CoMail extends ComBean {
 	 */
 	public void setBccIds(String[] bccIds) {
 		List<String> temp = new ArrayList<>();
-		if(bccIds != null) {
-			for(String s : bccIds) {
-				if(!isEmpty(s)) {
+		if (bccIds != null) {
+			for (String s : bccIds) {
+				if (!isEmpty(s)) {
 					temp.add(s.trim());
 				}
 			}

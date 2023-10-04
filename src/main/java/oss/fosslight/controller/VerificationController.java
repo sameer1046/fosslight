@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -21,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.MimeTypeUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import com.google.gson.reflect.TypeToken;
@@ -50,6 +53,7 @@ import oss.fosslight.domain.Project;
 import oss.fosslight.domain.ProjectIdentification;
 import oss.fosslight.domain.T2File;
 import oss.fosslight.domain.UploadFile;
+import oss.fosslight.repository.CodeMapper;
 import oss.fosslight.repository.VerificationMapper;
 import oss.fosslight.service.CommentService;
 import oss.fosslight.service.FileService;
@@ -71,6 +75,7 @@ public class VerificationController extends CoTopComponent {
 	@Autowired HistoryService historyService;
 	
 	@Autowired VerificationMapper verificationMapper;
+	@Autowired CodeMapper codeMapper;
 	
 	@GetMapping(value = VERIFICATION.PAGE_ID, produces = "text/html; charset=utf-8")
 	public String list(@PathVariable String prjId, HttpServletRequest req, HttpServletResponse res, Model model) {
@@ -80,7 +85,7 @@ public class VerificationController extends CoTopComponent {
 		
 		Project projectMaster = projectService.getProjectDetail(project);
 		
-		if(!StringUtil.isEmpty(projectMaster.getCreator())){
+		if (!StringUtil.isEmpty(projectMaster.getCreator())){
 			projectMaster.setPrjDivision(projectService.getDivision(projectMaster));	
 		}
 		
@@ -94,7 +99,7 @@ public class VerificationController extends CoTopComponent {
 		
 		OssNotice _noticeInfo = projectService.setCheckNotice(projectMaster);
 		
-		if(_noticeInfo != null) {
+		if (_noticeInfo != null) {
 			// Notice Type: Accompanied with source code인 경우 Default Company Name, Email 세팅
 			model.addAttribute("ossNotice", _noticeInfo);
 		}
@@ -106,14 +111,14 @@ public class VerificationController extends CoTopComponent {
 		List<String> duplLicenseCheckList = new ArrayList<>(); // 중목제거용
 		
 		// 사용중인 라이선스에 user guide가 설정되어 있는 경우 체크
-		if(list != null && !list.isEmpty()) {
-			for(OssComponents bean : list) {
+		if (list != null && !list.isEmpty()) {
+			for (OssComponents bean : list) {
 				// multi license의 경우 콤마 구분으로 반환됨
-				if(!isEmpty(bean.getLicenseName())) {
+				if (!isEmpty(bean.getLicenseName())) {
 					LicenseMaster licenseBean;
-					for(String license : bean.getLicenseName().split(",", -1)) {
+					for (String license : bean.getLicenseName().split(",", -1)) {
 						licenseBean = CoCodeManager.LICENSE_INFO_UPPER.get(license.toUpperCase());
-						if(licenseBean != null && !isEmptyWithLineSeparator(licenseBean.getDescription()) 
+						if (licenseBean != null && !isEmptyWithLineSeparator(licenseBean.getDescription()) 
 								&& !duplLicenseCheckList.contains(licenseBean.getLicenseId())
 								&& CoConstDef.FLAG_YES.equals(avoidNull(licenseBean.getObligationDisclosingSrcYn()))) {
 							userGuideLicenseList.add(licenseBean);
@@ -148,7 +153,7 @@ public class VerificationController extends CoTopComponent {
 		
 		Project projectMaster = projectService.getProjectDetail(project);
 		
-		if(!StringUtil.isEmpty(projectMaster.getCreator())){
+		if (!StringUtil.isEmpty(projectMaster.getCreator())){
 			projectMaster.setPrjDivision(projectService.getDivision(projectMaster));	
 		}
 		
@@ -162,7 +167,7 @@ public class VerificationController extends CoTopComponent {
 		
 		OssNotice _noticeInfo = projectService.setCheckNotice(projectMaster);
 		
-		if(_noticeInfo != null && CoConstDef.FLAG_NO.equals(projectMaster.getUseCustomNoticeYn())) {
+		if (_noticeInfo != null && CoConstDef.FLAG_NO.equals(projectMaster.getUseCustomNoticeYn())) {
 			// Notice Type: Accompanied with source code인 경우 Default Company Name, Email 세팅
 			model.addAttribute("ossNotice", _noticeInfo);
 		}
@@ -174,14 +179,14 @@ public class VerificationController extends CoTopComponent {
 		List<String> duplLicenseCheckList = new ArrayList<>();
 		
 		// 사용중인 라이선스에 user guide가 설정되어 있는 경우 체크
-		if(list != null && !list.isEmpty()) {
-			for(OssComponents bean : list) {
+		if (list != null && !list.isEmpty()) {
+			for (OssComponents bean : list) {
 				// multi license의 경우 콤마 구분으로 반환됨
-				if(!isEmpty(bean.getLicenseName())) {
+				if (!isEmpty(bean.getLicenseName())) {
 					LicenseMaster licenseBean;
-					for(String license : bean.getLicenseName().split(",", -1)) {
+					for (String license : bean.getLicenseName().split(",", -1)) {
 						licenseBean = CoCodeManager.LICENSE_INFO_UPPER.get(license.toUpperCase());
-						if(licenseBean != null && !isEmptyWithLineSeparator(licenseBean.getDescription()) 
+						if (licenseBean != null && !isEmptyWithLineSeparator(licenseBean.getDescription()) 
 								&& !duplLicenseCheckList.contains(licenseBean.getLicenseId())) {
 							userGuideLicenseList.add(licenseBean);
 							duplLicenseCheckList.add(licenseBean.getLicenseId());
@@ -220,11 +225,31 @@ public class VerificationController extends CoTopComponent {
 		String fileId = StringUtil.isEmpty(req.getParameter("fileId")) ? null : req.getParameter("fileId");
 		String prjId = req.getParameter("prjId");
 		String filePath = CommonFunction.emptyCheckProperty("packaging.path", "/upload/packaging") + "/" + prjId;
-		
+
+		Map<String, MultipartFile> fileMap = req.getFileMap();
+		String fileExtension = StringUtils.getFilenameExtension(fileMap.get("myfile").getOriginalFilename());
+
 		//파일 등록
 		if (req.getContentType() != null && req.getContentType().toLowerCase().indexOf("multipart/form-data") > -1 ) {
 			file.setCreator(loginUserName());
-			
+
+			//파일 확장자 체크
+			String codeExp = codeMapper.getCodeDetail("120", "16").getCdDtlExp();
+			String[] exts = codeExp.split(",");
+			boolean fileExtCheck = false;
+			for (String s : exts) {
+				if (s.equals(fileExtension)) {
+					fileExtCheck = true;
+				}
+			}
+
+			if(!fileExtCheck) {
+				resultList.add("UNSUPPORTED_FILE");
+				String msg = getMessage("msg.project.packaging.upload.fileextension" , new String[]{codeExp});
+				resultList.add(msg);
+				return toJson(resultList);
+			}
+
 			list = fileService.uploadFile(req, file, null, fileId, true, filePath);
 		}
 		
@@ -250,7 +275,7 @@ public class VerificationController extends CoTopComponent {
 		//엑셀 분석
 		List<ProjectIdentification> verificationList = ExcelUtil.getVerificationList(req, CommonFunction.emptyCheckProperty("upload.path", "/upload"));
 		
-		if(verificationList == null) {
+		if (verificationList == null) {
 			return makeJsonResponseHeader(false, "");
 		}
 		
@@ -280,7 +305,7 @@ public class VerificationController extends CoTopComponent {
 			boolean isChangedPackageFile = verificationService.getChangedPackageFile(prjId, fileSeqs);
 			int seq = 1;
 			
-			for(String fileSeq : fileSeqs){
+			for (String fileSeq : fileSeqs){
 				map.put("fileSeq", fileSeq);
 				map.put("packagingFileIdx", seq++);
 				map.put("isChangedPackageFile", isChangedPackageFile);
@@ -289,9 +314,38 @@ public class VerificationController extends CoTopComponent {
 			
 			resMap = result.get(0);
 			
-			if(fileSeqs.size() > 1){
-				resMap.put("verifyValid", result.get(result.size()-1).get("verifyValid"));
-				resMap.put("fileCounts", result.get(result.size()-1).get("fileCounts"));
+			if (fileSeqs.size() > 1){
+				Map<String, Object> fileCountsMap = new HashMap<>();
+				List<String> verifyValidChkList = new ArrayList<>();
+				
+				for (Map<String, Object> resultMap : result) {
+					if (resultMap.containsKey("fileCounts")) {
+						Map<String, Object> fileCountMap = (Map<String, Object>) resultMap.get("fileCounts");
+						for (String key : fileCountMap.keySet()) {
+							if (fileCountsMap.containsKey(key)) {
+								fileCountsMap.replace(key, fileCountMap.get(key));
+							} else {
+								fileCountsMap.put(key, fileCountMap.get(key));
+							}
+						}
+					}
+				}
+				
+				for (Map<String, Object> resultMap : result) {
+					if (resultMap.containsKey("verifyValid")) {
+						List<String> verifyValidList = (List<String>) resultMap.get("verifyValid");
+						for (String verifyValid : verifyValidList) {
+							if (!fileCountsMap.containsKey(verifyValid)) {
+								verifyValidChkList.add(verifyValid);
+							}
+						}
+					}
+				}
+				
+				verifyValidChkList = verifyValidChkList.stream().distinct().collect(Collectors.toList());
+				
+				resMap.put("verifyValid", verifyValidChkList);
+				resMap.put("fileCounts", fileCountsMap);
 			}
 			
 			verificationService.updateVerifyFileCount((ArrayList<String>) resMap.get("verifyValid"));
@@ -352,14 +406,14 @@ public class VerificationController extends CoTopComponent {
 			String noticeFileId = prjMasterInfo.getNoticeFileId();
 			log.debug("PARAM: "+ "noticeFileId="+noticeFileId);
 			
-			if("conf".equals(confirm)){
+			if ("conf".equals(confirm)){
 				boolean ignoreMailSend = false;
 				
 				String userComment = ossNotice.getUserComment();
 
 				//파일 만들기
-				if(isEmpty(noticeFileId) || !CoConstDef.FLAG_YES.equals(useCustomNoticeYn)) {
-					if(!verificationService.getNoticeHtmlFile(ossNotice)) {
+				if (isEmpty(noticeFileId) || !CoConstDef.FLAG_YES.equals(useCustomNoticeYn)) {
+					if (!verificationService.getNoticeHtmlFile(ossNotice)) {
 						return makeJsonResponseHeader(false, getMessage("msg.common.valid2"));
 					}
 				}
@@ -370,7 +424,7 @@ public class VerificationController extends CoTopComponent {
 				
 				{
 					Project projectMaster = projectService.getProjectBasicInfo(ossNotice.getPrjId());
-					if(!isEmpty(projectMaster.getPackageFileId())) {
+					if (!isEmpty(projectMaster.getPackageFileId())) {
 						List<OssComponents> list = verificationService.getVerifyOssList(projectMaster);
 						needResetPackageFile = list.isEmpty();
 					}
@@ -397,7 +451,7 @@ public class VerificationController extends CoTopComponent {
 				{
 					prjInfo = projectService.getProjectBasicInfo(ossNotice.getPrjId());
 					
-					if("T".equals(avoidNull(CoCodeManager.getCodeExpString(CoConstDef.CD_DISTRIBUTION_TYPE, prjInfo.getDistributionType())).trim().toUpperCase())
+					if ("T".equals(avoidNull(CoCodeManager.getCodeExpString(CoConstDef.CD_DISTRIBUTION_TYPE, prjInfo.getDistributionType())).trim().toUpperCase())
 							|| (CoConstDef.FLAG_NO.equals(avoidNull(CoCodeManager.getCodeExpString(CoConstDef.CD_DISTRIBUTION_TYPE, prjInfo.getDistributionType())).trim().toUpperCase()) 
 									&& verificationService.checkNetworkServer(ossNotice.getPrjId())
 							)
@@ -405,12 +459,12 @@ public class VerificationController extends CoTopComponent {
 							) {
 						project.setDestributionStatus(CoConstDef.CD_DTL_DISTRIBUTE_STATUS_NA);
 						ignoreMailSend = true;
-					} else if(!CoConstDef.CD_DTL_DISTRIBUTE_NA.equals(prjInfo.getDistributeTarget())
+					} else if (!CoConstDef.CD_DTL_DISTRIBUTE_NA.equals(prjInfo.getDistributeTarget())
 							&& CoConstDef.CD_DTL_DISTRIBUTE_STATUS_NA.equals(prjInfo.getDestributionStatus())) {
 						project.setResetDistributionStatus(CoConstDef.FLAG_YES);
 					}
 					
-					if(!isEmpty(prjInfo.getDestributionStatus()) 
+					if (!isEmpty(prjInfo.getDestributionStatus()) 
 							&& CoConstDef.CD_DTL_IDENTIFICATION_STATUS_CONFIRM.equals(confirm.toUpperCase())) {
 						project.setChangedNoticeYn(CoConstDef.FLAG_YES);
 					}
@@ -418,12 +472,12 @@ public class VerificationController extends CoTopComponent {
 				project.setModifier(project.getLoginUserName());
 				
 				// 기존에 등록한 package file의 삭제
-				if(needResetPackageFile) {
+				if (needResetPackageFile) {
 					project.setNeedPackageFileReset(CoConstDef.FLAG_YES);
 				}
 				
 				verificationService.updateStatusWithConfirm(project, ossNotice, false);
-				
+
 				try {
 					History h = new History();
 					h = projectService.work(project);
@@ -435,7 +489,8 @@ public class VerificationController extends CoTopComponent {
 				} catch (Exception e) {
 					log.error(e.getMessage(), e);
 				}
-				
+
+				userComment += verificationService.changePackageFileNameCombine(ossNotice.getPrjId());
 				try {
 					CommentsHistory commHisBean = new CommentsHistory();
 					commHisBean.setReferenceDiv(CoConstDef.CD_DTL_COMMENT_PACKAGING_HIS);
@@ -473,17 +528,15 @@ public class VerificationController extends CoTopComponent {
 					}
 				}
 
-				// package file 이 존재하는 경우 파일명을 변경한다.
-				verificationService.changePackageFileNameDistributeFormat(ossNotice.getPrjId());
 			} else { // preview 인 경우
 				// 저장된 고지문구가 없을 경우
-				if(isEmpty(noticeFileId) || !CoConstDef.FLAG_YES.equals(useCustomNoticeYn)) {
+				if (isEmpty(noticeFileId) || !CoConstDef.FLAG_YES.equals(useCustomNoticeYn)) {
 					resultHtml = verificationService.getNoticeHtml(ossNotice);
 				} else { // 저장된 고지문구가 있을 경우
 					T2File fileInfo = fileService.selectFileInfo(noticeFileId);
 					resultHtml = CommonFunction.getStringFromFile(fileInfo.getLogiPath() + "/" + fileInfo.getLogiNm());
 					// 파일을 못찾을 경우 예외처리
-					if(isEmpty(resultHtml)) {
+					if (isEmpty(resultHtml)) {
 						resultHtml = verificationService.getNoticeHtml(ossNotice);
 					}
 				}
@@ -560,7 +613,7 @@ public class VerificationController extends CoTopComponent {
 		file.setCreator(loginUserName());
 		map.put("filePath", "");
 		
-		if(StringUtil.isEmpty(fileId)){
+		if (StringUtil.isEmpty(fileId)){
 			list = fileService.uploadWgetFile(request, file, map, false);
 		}
 		
@@ -613,7 +666,7 @@ public class VerificationController extends CoTopComponent {
 		vResult = pv.validateRequest(reqMap, req, keyPreMap);
 		
 		
-		if(!vResult.isValid()){
+		if (!vResult.isValid()){
 			return makeJsonResponseHeader(vResult.getValidMessageMap());
 		}
 		
@@ -649,7 +702,7 @@ public class VerificationController extends CoTopComponent {
 		log.debug("PARAM: "+ "prjId="+ossNotice.getPrjId());
 		log.debug("PARAM: "+ "useCustomNoticeYn="+useCustomNoticeYn);
 		
-		if(!verificationService.getNoticeHtmlFile(ossNotice, noticeHtml) || !CoConstDef.FLAG_YES.equals(useCustomNoticeYn)) {
+		if (!verificationService.getNoticeHtmlFile(ossNotice, noticeHtml) || !CoConstDef.FLAG_YES.equals(useCustomNoticeYn)) {
 			return makeJsonResponseHeader(false, "Notice Registration Failed");
 		}
 		
@@ -671,7 +724,7 @@ public class VerificationController extends CoTopComponent {
 			log.debug("PARAM: "+ "noticeFileId="+noticeFileId);
 			log.debug("PARAM: "+ "useCustomNoticeYn="+useCustomNoticeYn);
 			
-			if(isEmpty(noticeFileId)) {
+			if (isEmpty(noticeFileId)) {
 				downloadId = verificationService.getNoticeHtmlFileForPreview(ossNotice);
 			} else {
 				downloadId = noticeFileId;
@@ -712,7 +765,7 @@ public class VerificationController extends CoTopComponent {
 			log.debug("PARAM: "+ "noticeFileId="+noticeFileId);
 			log.debug("PARAM: "+ "useCustomNoticeYn="+useCustomNoticeYn);
 			
-			if(!isEmpty(prjMasterInfo.getNoticeTextFileId())) {
+			if (!isEmpty(prjMasterInfo.getNoticeTextFileId())) {
 				downloadId = prjMasterInfo.getNoticeTextFileId();
 			} else {
 				downloadId = verificationService.getNoticeTextFileForPreview(ossNotice);
@@ -741,7 +794,7 @@ public class VerificationController extends CoTopComponent {
 			log.debug("PARAM: "+ "noticeFileId="+noticeFileId);
 			log.debug("PARAM: "+ "useCustomNoticeYn="+useCustomNoticeYn);
 			
-			if(!isEmpty(prjMasterInfo.getSimpleHtmlFileId())) {
+			if (!isEmpty(prjMasterInfo.getSimpleHtmlFileId())) {
 				downloadId = prjMasterInfo.getSimpleHtmlFileId();
 			} else {
 				downloadId = verificationService.getNoticeTextFileForPreview(ossNotice);
@@ -769,7 +822,7 @@ public class VerificationController extends CoTopComponent {
 			log.debug("PARAM: "+ "noticeFileId="+noticeFileId);
 			log.debug("PARAM: "+ "useCustomNoticeYn="+useCustomNoticeYn);
 			
-			if(!isEmpty(prjMasterInfo.getSimpleTextFileId())) {
+			if (!isEmpty(prjMasterInfo.getSimpleTextFileId())) {
 				downloadId = prjMasterInfo.getSimpleTextFileId();
 			} else {
 				downloadId = verificationService.getNoticeTextFileForPreview(ossNotice);
@@ -820,7 +873,7 @@ public class VerificationController extends CoTopComponent {
 		
 		boolean result = verificationService.setReusePackagingFile(map);
 		
-		if(result) {
+		if (result) {
 			resultMap.put("file", file);
 			
 			return makeJsonResponseHeader(resultMap);
@@ -919,7 +972,7 @@ public class VerificationController extends CoTopComponent {
 			log.error(e.getMessage());
 		}
 		
-		if(!vResult.isValid()){
+		if (!vResult.isValid()){
 			return makeJsonResponseHeader(vResult.getValidMessageMap());
 		}
 		

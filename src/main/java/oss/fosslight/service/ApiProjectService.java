@@ -12,6 +12,8 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
+import oss.fosslight.domain.Project;
+import oss.fosslight.domain.ProjectIdentification;
 import oss.fosslight.domain.UploadFile;
 
 @Service
@@ -63,4 +65,18 @@ public interface ApiProjectService {
 	public List<String> getPackageFileList(String prjId);
 
 	public void registBom(String prjId, String string);
+
+	public int existProjectCntBomCompare(Map<String, Object> paramMap);
+
+	public boolean existLdapUserToEmail(String email);
+
+	public boolean existsWatcherByEmail(String prjId, String email);
+
+	public void insertWatcher(Map<String, Object> paramMap);
+
+	public Map<String, Object> selectProjectMaster(String prjId);
+
+	public void getIdentificationGridList(String prjId, String code, List<ProjectIdentification> ossComponentList, List<List<ProjectIdentification>> ossComponentsLicenseList);
+
+	public void registDepOss(List<ProjectIdentification> ossComponentList, List<List<ProjectIdentification>> ossComponentsLicenseList, Project project, String refDiv);
 }

@@ -188,6 +188,16 @@ public class ProjectIdentification extends ComBean implements Serializable, Comp
 	
 	private String cvssScoreMax;
 	
+	private String cvssScoreMax1;
+
+	private String cvssScoreMax2;
+
+	private String cvssScoreMax3;
+	
+	private String cvssScoreMax4;
+	
+	private String cvssScoreMax5;
+	
 	/** The cve id. */
 	private String cveId;
 	
@@ -323,10 +333,17 @@ public class ProjectIdentification extends ComBean implements Serializable, Comp
 	private String ossNickName;
 	
 	private String attribution;
+	
+	private String ossVersionEmptyFlag;
 
 	/** Check whether the Object is included in the oss list */
 	private String checkOssList = "N";
-
+	private String publDate;
+	private String patchLink;
+	
+	private String dependencies;
+	private String refOssName;
+	
 	public String getRedirectLocation() {
 		return redirectLocation;
 	}
@@ -1308,7 +1325,7 @@ public class ProjectIdentification extends ComBean implements Serializable, Comp
 	 * @param s the s
 	 */
 	public void addComponentIdList(String s) {
-		if(this.componentIdList == null) {
+		if (this.componentIdList == null) {
 			this.componentIdList = new ArrayList<>();
 		}
 		this.componentIdList.add(s);
@@ -1338,7 +1355,7 @@ public class ProjectIdentification extends ComBean implements Serializable, Comp
 	 * @param license the license
 	 */
 	public void addComponentLicenseList(ProjectIdentification license) {
-		if(this.componentLicenseList == null) {
+		if (this.componentLicenseList == null) {
 			this.componentLicenseList = new ArrayList<>();
 		}
 		this.componentLicenseList.add(license);
@@ -1368,7 +1385,7 @@ public class ProjectIdentification extends ComBean implements Serializable, Comp
 	 * @param bean the bean
 	 */
 	public void addOssComponentsLicense(OssComponentsLicense bean) {
-		if(this.ossComponentsLicenseList == null) {
+		if (this.ossComponentsLicenseList == null) {
 			this.ossComponentsLicenseList = new ArrayList<>();
 		}
 		this.ossComponentsLicenseList.add(bean);
@@ -2012,4 +2029,84 @@ public class ProjectIdentification extends ComBean implements Serializable, Comp
 	public void setCheckedEvidence(String checkedEvidence) {
 		this.checkedEvidence = checkedEvidence;
     }
+
+	public String getCvssScoreMax1() {
+		return cvssScoreMax1;
+	}
+
+	public void setCvssScoreMax1(String cvssScoreMax1) {
+		this.cvssScoreMax1 = cvssScoreMax1;
+	}
+
+	public String getCvssScoreMax2() {
+		return cvssScoreMax2;
+	}
+
+	public void setCvssScoreMax2(String cvssScoreMax2) {
+		this.cvssScoreMax2 = cvssScoreMax2;
+	}
+
+	public String getCvssScoreMax3() {
+		return cvssScoreMax3;
+	}
+
+	public void setCvssScoreMax3(String cvssScoreMax3) {
+		this.cvssScoreMax3 = cvssScoreMax3;
+	}
+	
+	public String getCvssScoreMax4() {
+		return cvssScoreMax4;
+	}
+
+	public void setCvssScoreMax4(String cvssScoreMax4) {
+		this.cvssScoreMax4 = cvssScoreMax4;
+	}
+
+	public String getCvssScoreMax5() {
+		return cvssScoreMax5;
+	}
+
+	public void setCvssScoreMax5(String cvssScoreMax5) {
+		this.cvssScoreMax5 = cvssScoreMax5;
+	}
+
+	public String getPublDate() {
+		return publDate;
+	}
+
+	public void setPublDate(String publDate) {
+		this.publDate = publDate;
+	}
+
+	public String getPatchLink() {
+		return patchLink;
+	}
+
+	public void setPatchLink(String patchLink) {
+		this.patchLink = patchLink;
+	}
+
+	public String getOssVersionEmptyFlag() {
+		return ossVersionEmptyFlag;
+	}
+
+	public void setOssVersionEmptyFlag(String ossVersionEmptyFlag) {
+		this.ossVersionEmptyFlag = ossVersionEmptyFlag;
+	}
+
+	public String getDependencies() {
+		return dependencies;
+	}
+
+	public void setDependencies(String dependencies) {
+		this.dependencies = dependencies;
+	}
+
+	public String getRefOssName() {
+		return refOssName;
+	}
+
+	public void setRefOssName(String refOssName) {
+		this.refOssName = refOssName;
+	}
 }

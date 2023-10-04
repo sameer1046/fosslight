@@ -172,6 +172,7 @@
         if (isClicked == false) {
             isClicked = true;
             $("#btn").click(() => {
+                loading.show();
                 OssBulkGridStatusMessageManager.cleanStatusMessages();
                 OssBulkGridWarningMessageUtil.cleanMessages();
                 target.jqGrid('saveRow', _mainLastsel);
@@ -205,9 +206,11 @@
                             showErrorMsg();
                             OssBulkGridWarningMessageUtil.setMessagesToCurPage();
                         }
+                        loading.hide();
                     },
                     error: (e) => {
                         OssBulkGridWarningMessageUtil.setMessagesToCurPage();
+                        loading.hide();
                     }
                 })
             })
@@ -365,7 +368,8 @@
             return referenceId && referenceDiv;
         },
         addRows(data) {
-            const mainDataMap = this.getMapOfMainData(data.rows);
+            let mainData = referenceDiv == '20' ? data.mainData : data.rows;
+            const mainDataMap = this.getMapOfMainData(mainData);
             const validData = data.validData;
 
             jsonData = [];
@@ -397,7 +401,11 @@
         },
         getMapOfMainData(mainData) {
             return mainData.reduce((obj, x) => {
-                obj[x.componentId] = x;
+                if(referenceDiv == '20') {
+                    obj[x.gridId] = x;
+                } else {
+                    obj[x.componentId] = x;
+                }
                 return obj;
             }, {});
         },

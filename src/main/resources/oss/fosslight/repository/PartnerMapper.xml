@@ -92,6 +92,16 @@
 				<if test="!@oss.fosslight.util.StringUtil@isEmpty(binaryName)">
 					AND t4.FILE_PATH LIKE CONCAT('%',REGEXP_REPLACE(#{binaryName}, '_', '\\\\_'))
 				</if>
+	   		  	<if test="!@oss.fosslight.util.StringUtil@isEmpty(description)">
+					AND t1.DESCRIPTION LIKE CONCAT('%', REGEXP_REPLACE(#{description}, '_', '\\\\_'), '%')
+				</if>
+				<if test="!@oss.fosslight.util.StringUtil@isEmpty(userComment)">
+					AND EXISTS( SELECT 1 FROM COMMENTS_HISTORY COMM 
+								 WHERE COMM.USE_YN = 'Y' 
+								   AND COMM.REFERENCE_ID = t1.PARTNER_ID
+								   AND COMM.REFERENCE_DIV = '20' 
+								   AND REGEXP_REPLACE(COMM.CONTENTS, <![CDATA['<img[^>]+>']]>, '') LIKE CONCAT('%',#{userComment},'%') )
+				</if>
 				GROUP BY t1.PARTNER_ID) T1
 	</select>
 	
@@ -104,7 +114,7 @@
 					 , t1.SOFTWARE_VERSION
 					 , t1.DELIVERY_FORM
 					 , t1.PUBLIC_YN
-					 , t1.DESCRIPTION
+					 , REGEXP_REPLACE(t1.DESCRIPTION, <![CDATA['<[^>]+>']]>, '') AS DESCRIPTION
 					 , t1.COMMENT
 					 , t1.CONFIRMATION_FILE_ID
 					 , t1.OSS_FILE_ID
@@ -218,6 +228,9 @@
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(modifier)">
 		   AND A.MODIFIER LIKE CONCAT('%',#{modifier},'%')
 		</if>
+		<if test="!@oss.fosslight.util.StringUtil@isEmpty(description)">
+		   AND A.DESCRIPTION LIKE CONCAT('%',#{description},'%')
+		</if>
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(reviewer)">
 		  <if test='reviewer.equals("N/A")'>
 		   AND A.REVIEWER IS NULL
@@ -226,8 +239,21 @@
 		   AND A.REVIEWER IN (SELECT X.USER_ID FROM T2_USERS X WHERE X.USER_NAME LIKE CONCAT('%',#{reviewer},'%')) 
 		  </if>
 		</if>
+		<if test="!@oss.fosslight.util.StringUtil@isEmpty(watchers)">
+			<foreach collection="watchers" index="index" item="watcher" separator=",">
+				AND A.PARTNER_ID IN (
+				SELECT W.PARTNER_ID AS WATCHER FROM PARTNER_WATCHER W WHERE A.PARTNER_ID = W.PARTNER_ID AND (W.USER_ID LIKE CONCAT('%',#{watcher},'%') OR W.EMAIL LIKE CONCAT('%',#{watcher},'%')))
+			</foreach>
+		</if>
 		<if test="!@oss.fosslight.util.StringUtil@isEmpty(binaryName)">
 		   AND A.FILE_PATH LIKE CONCAT('%',#{binaryName})
+		</if>
+		<if test="!@oss.fosslight.util.StringUtil@isEmpty(userComment)">
+		   AND EXISTS( SELECT 1 FROM COMMENTS_HISTORY COMM 
+		   				WHERE COMM.USE_YN = 'Y' 
+		   				  AND COMM.REFERENCE_ID = A.PARTNER_ID
+		   				  AND COMM.REFERENCE_DIV IN ('20') 
+		   				  AND REGEXP_REPLACE(COMM.CONTENTS, <![CDATA['<img[^>]+>']]>, '') LIKE CONCAT('%',#{userComment},'%') )
 		</if>
 		 GROUP BY A.PARTNER_ID
 		<if test="@oss.fosslight.util.StringUtil@equals('partnerId', sortField)">
@@ -357,7 +383,28 @@
 		WHERE 
 			PARTNER_ID = #{partnerId}
 	</update>
-	
+	<select id="getPartnerIdList" parameterType="oss.fosslight.domain.PartnerMaster" resultType="oss.fosslight.domain.PartnerMaster">
+	SELECT
+		DISTINCT T1.PARTNER_ID
+	FROM
+		PARTNER_MASTER T1
+	WHERE
+		T1.USE_YN = 'Y'
+		<if test="!@oss.fosslight.util.StringUtil@isEmpty(status)">
+			AND T1.STATUS = #{status}
+		</if>
+		<if test="!@oss.fosslight.util.StringUtil@equals('ADMIN', creator)">
+			AND (
+				T1.CREATOR = #{creator} 
+				OR EXISTS (
+					SELECT 1 
+					FROM PARTNER_WATCHER A1
+					WHERE A1.PARTNER_ID = T1.PARTNER_ID AND (A1.USER_ID = #{creator} OR ( A1.USER_ID = 'all' AND A1.DIVISION = (SELECT DIVISION FROM T2_USERS A2 WHERE A2.USER_ID = #{creator}) ))
+				)
+				OR T1.PUBLIC_YN = 'Y'
+			)
+		</if>
+	</select>
 	<select id="getPartnerNameList" parameterType="oss.fosslight.domain.PartnerMaster" resultType="oss.fosslight.domain.PartnerMaster">
 	SELECT
 		DISTINCT T1.PARTNER_NAME
@@ -942,7 +989,7 @@
 		, t1.SOFTWARE_VERSION
 		, t1.DELIVERY_FORM
 		, t1.PUBLIC_YN
-		, t1.DESCRIPTION
+		, REGEXP_REPLACE(t1.DESCRIPTION, <![CDATA['<[^>]+>']]>, '') AS DESCRIPTION
 		, t1.COMMENT
 		, t1.CONFIRMATION_FILE_ID
 		, t1.OSS_FILE_ID
@@ -1894,4 +1941,67 @@
 		SET DIVISION = #{division}
 		WHERE PARTNER_ID = #{partnerId}
 	</update>
+	
+	<select id="selectOssComponentsSbomList" parameterType="oss.fosslight.domain.PartnerMaster" resultType="oss.fosslight.domain.OssComponents">
+		SELECT 
+		 	T1.PARTNER_ID AS REF_PARTNER_ID
+		 	, T1.PARTNER_NAME AS REF_PARTNER_NAME
+			, T2.COMPONENT_ID, T2.OSS_ID, T2.OSS_NAME, T2.OSS_VERSION 
+			, (CASE WHEN T2.ADMIN_CHECK_YN = 'Y' THEN T2.DOWNLOAD_LOCATION ELSE T4.DOWNLOAD_LOCATION END) AS DOWNLOAD_LOCATION
+			, (CASE WHEN T2.ADMIN_CHECK_YN = 'Y' THEN T2.HOMEPAGE ELSE T4.HOMEPAGE END) AS HOMEPAGE
+			, T2.OBLIGATION_TYPE, T4.ATTRIBUTION AS OSS_ATTRIBUTION
+			, IFNULL(T3.LICENSE_ID, '') AS LICENSE_ID
+			, IF(IFNULL(T3.LICENSE_ID, '') = '', '', T5.LICENSE_TEXT) AS LICENSE_TEXT
+			, REGEXP_REPLACE((CASE WHEN T2.OSS_NAME = '-' OR T2.ADMIN_CHECK_YN = 'Y' THEN T2.COPYRIGHT ELSE T4.COPYRIGHT END), '$\n', '') AS COPYRIGHT_TEXT
+			, REGEXP_REPLACE((CASE WHEN T2.ADMIN_CHECK_YN = 'Y' THEN NULL ELSE IF(IFNULL(T3.LICENSE_ID, '') = '', '', T3.COPYRIGHT_TEXT) END), '$\n', '') AS OSS_COPYRIGHT
+ 			, IF(IFNULL(T3.LICENSE_ID, '') = '', IFNULL(T3.LICENSE_NAME, ''), IF(IFNULL(T5.SHORT_IDENTIFIER,'') = '', T5.LICENSE_NAME, T5.SHORT_IDENTIFIER)) AS LICENSE_NAME
+ 			, IF(IFNULL(T3.LICENSE_ID, '') = '', '', T5.ATTRIBUTION) AS ATTRIBUTION
+			, T2.ADMIN_CHECK_YN
+			, IF(IFNULL(T3.LICENSE_ID, '') = '', '', T5.LICENSE_TYPE) AS LICENSE_TYPE
+		FROM PARTNER_MASTER T1 
+			INNER JOIN OSS_COMPONENTS T2 ON T1.PARTNER_ID = T2.REFERENCE_ID AND T2.REFERENCE_DIV = '20' AND T2.OSS_NAME != '-'
+			INNER JOIN OSS_COMPONENTS_LICENSE T3 ON T2.COMPONENT_ID = T3.COMPONENT_ID
+			 LEFT JOIN OSS_MASTER T4 ON T2.OSS_NAME = T4.OSS_NAME AND IFNULL(T2.OSS_VERSION, '') = IFNULL(T4.OSS_VERSION, '') AND T4.USE_YN = 'Y'
+			 LEFT JOIN LICENSE_MASTER T5 ON T3.LICENSE_ID = T5.LICENSE_ID
+		WHERE T1.PARTNER_ID = #{partnerId}
+		  AND IFNULL(T2.EXCLUDE_YN, 'N') = 'N'
+		ORDER BY OSS_NAME, LICENSE_NAME
+	</select>
+	
+	<select id="selectOssComponentsSbomListClassAppend" parameterType="oss.fosslight.domain.PartnerMaster" resultType="oss.fosslight.domain.OssComponents">
+		SELECT 
+		 	T1.PARTNER_ID AS REF_PARTNER_ID
+		 	, T1.PARTNER_NAME AS REF_PARTNER_NAME
+			, T2.COMPONENT_ID, T2.OSS_ID, T2.OSS_NAME, T2.OSS_VERSION, T2.DOWNLOAD_LOCATION, T2.HOMEPAGE, T2.OBLIGATION_TYPE
+			, IFNULL(T5.LICENSE_ID, '') AS LICENSE_ID
+			, IF(IFNULL(T3.LICENSE_ID, '') = '', '', T5.LICENSE_TEXT) AS LICENSE_TEXT
+			, IF(IFNULL(T3.LICENSE_ID, '') = '', '', REGEXP_REPLACE(T3.COPYRIGHT_TEXT, '$\n', '')) AS COPYRIGHT_TEXT
+			, IF(IFNULL(T3.LICENSE_ID, '') = '', IFNULL(T3.LICENSE_NAME, ''), IF(IFNULL(T5.SHORT_IDENTIFIER,'') = '', T5.LICENSE_NAME, T5.SHORT_IDENTIFIER)) AS LICENSE_NAME
+			, IF(IFNULL(T3.LICENSE_ID, '') = '', '', T5.ATTRIBUTION) AS ATTRIBUTION
+			, T2.FILE_PATH
+			, IF(IFNULL(T3.LICENSE_ID, '') = '', '', T5.LICENSE_TYPE) AS LICENSE_TYPE
+		FROM PARTNER_MASTER T1 
+			INNER JOIN OSS_COMPONENTS T2 ON T1.PARTNER_ID = T2.REFERENCE_ID AND T2.REFERENCE_DIV = '20' AND T2.OSS_NAME = '-'
+			INNER JOIN OSS_COMPONENTS_LICENSE T3 ON T2.COMPONENT_ID = T3.COMPONENT_ID
+			 LEFT JOIN OSS_MASTER T4 ON T2.OSS_NAME = T4.OSS_NAME AND IFNULL(T2.OSS_VERSION, '') = IFNULL(T4.OSS_VERSION, '') AND T4.USE_YN = 'Y'
+			 LEFT JOIN LICENSE_MASTER T5 ON T3.LICENSE_ID = T5.LICENSE_ID
+		WHERE T1.PARTNER_ID = #{partnerId}
+		  AND IFNULL(T2.EXCLUDE_YN, 'N') = 'N'
+		ORDER BY LICENSE_NAME
+	</select>
+	
+	<select id="checkSelectDownloadFile" parameterType="oss.fosslight.domain.Project" resultType="oss.fosslight.domain.OssComponents">
+		SELECT T2.OSS_ID
+				, T2.OSS_NAME
+				, T2.OSS_VERSION 
+				, T3.LICENSE_ID
+				, IF(IFNULL(T3.LICENSE_ID, '') = '', T3.LICENSE_NAME, IF(IFNULL(T5.SHORT_IDENTIFIER,'') = '', T5.LICENSE_NAME, T5.SHORT_IDENTIFIER)) AS LICENSE_NAME
+		FROM PARTNER_MASTER T1 
+			INNER JOIN OSS_COMPONENTS T2 ON T1.PARTNER_ID = T2.REFERENCE_ID AND T2.REFERENCE_DIV = '20' AND T2.OSS_NAME != '-'
+			INNER JOIN OSS_COMPONENTS_LICENSE T3 ON T2.COMPONENT_ID = T3.COMPONENT_ID
+			 LEFT JOIN OSS_MASTER T4 ON T2.OSS_NAME = T4.OSS_NAME AND IFNULL(T2.OSS_VERSION, '') = IFNULL(T4.OSS_VERSION, '') AND T4.USE_YN = 'Y'
+			 LEFT JOIN LICENSE_MASTER T5 ON T3.LICENSE_ID = T5.LICENSE_ID
+		WHERE T1.PARTNER_ID = #{partnerId}
+		  AND IFNULL(T2.EXCLUDE_YN, 'N') = 'N'
+	</select>
 </mapper>
